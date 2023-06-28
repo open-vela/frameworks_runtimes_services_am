@@ -127,5 +127,36 @@ private:
     void* mData;
 };
 
+class UvPoll {
+public:
+    UvPoll() {}
+    UvPoll(const UvLoop& loop, int fd) {
+        init(loop, fd);
+    }
+    int init(const UvLoop& loop, int fd) {
+        mHandle.data = this;
+        return uv_poll_init(loop.get(), &mHandle, fd);
+    }
+
+    using PollCallBack = std::function<void(int fd, int status, int events, void* data)>;
+    int start(int event, const PollCallBack& cb, void* data = nullptr) {
+        mCallback = cb;
+        mData = data;
+        return uv_poll_start(&mHandle, event, [](uv_poll_t* handle, int status, int events) {
+            UvPoll* my = reinterpret_cast<UvPoll*>(handle->data);
+            my->mCallback(handle->io_watcher.fd, status, events, my->mData);
+        });
+    }
+
+    int stop() {
+        return uv_poll_stop(&mHandle);
+    }
+
+private:
+    uv_poll_t mHandle;
+    PollCallBack mCallback;
+    void* mData;
+};
+
 } // namespace app
 } // namespace os
