@@ -22,9 +22,6 @@ ifneq ($(CONFIG_SYSTEM_ACTIVITY_SERVICE),)
 AIDLSRCS += $(shell find aidl -name *.aidl)
 AIDLFLAGS = --lang=cpp -Iaidl -haidl -oaidl
 
-CXXFLAGS += ${INCDIR_PREFIX}aidl
-CXXSRCS += $(shell find aidl -name *.cpp)
-
 CXXFLAGS += ${INCDIR_PREFIX}include ${INCDIR_PREFIX}../include
 CXXSRCS += $(shell find -L server app -name *.cpp)
 CXXSRCS  += $(patsubst %$(AIDLEXT),%$(CXXEXT),$(AIDLSRCS))
