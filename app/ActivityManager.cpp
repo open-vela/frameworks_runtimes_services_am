@@ -20,6 +20,9 @@
 #include <binder/IServiceManager.h>
 #include <utils/String8.h>
 
+#include <functional>
+#include <optional>
+
 namespace os {
 namespace app {
 
@@ -62,28 +65,23 @@ int ActivityManager::startActivity(const sp<IBinder>& token, const Intent& inten
     return ret;
 }
 
-int ActivityManager::finishActivity(const sp<IBinder>& token) {
+bool ActivityManager::finishActivity(const sp<IBinder>& token, int32_t resultCode,
+                                     const std::shared_ptr<Intent>& resultData) {
     sp<IActivityManager> service = getService();
-    int ret = android::FAILED_TRANSACTION;
+    bool ret = false;
     if (service != nullptr) {
-        Status status = service->finishActivity(token, &ret);
-        if (!status.isOk()) {
-            ALOGE("finishActivity error:%s", status.toString8().c_str());
-        }
-    }
-    return ret;
-}
-
-void ActivityManager::returnActivityResult(const sp<IBinder>& token, int32_t resultCode,
-                                           const Intent& data) {
-    sp<IActivityManager> service = getService();
-    if (service != nullptr) {
-        Status status = service->returnActivityResult(token, resultCode, data);
+        Status status =
+                service->finishActivity(token, resultCode,
+                                        resultData != nullptr
+                                                ? std::optional<std::reference_wrapper<Intent>>(
+                                                          *(resultData.get()))
+                                                : std::nullopt,
+                                        &ret);
         if (!status.isOk()) {
             ALOGE("returnActivityResult error:%s", status.toString8().c_str());
         }
     }
-    return;
+    return ret;
 }
 
 void ActivityManager::reportActivityStatus(const sp<IBinder>& token, int32_t activityStatus) {
