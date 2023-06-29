@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <memory>
 #include <mutex>
 #include <string>
 
@@ -52,8 +53,8 @@ public:
 
     int attachApplication(const sp<os::app::IApplicationThread>& app);
     int startActivity(const sp<IBinder>& token, const Intent& intent, int32_t requestCode);
-    int finishActivity(const sp<IBinder>& token);
-    void returnActivityResult(const sp<IBinder>& token, int32_t resultCode, const Intent& data);
+    bool finishActivity(const sp<IBinder>& token, int32_t resultCode,
+                        const std::shared_ptr<Intent>& resultData);
     void reportActivityStatus(const sp<IBinder>& token, int32_t status);
     int startService(const sp<IBinder>& token, const Intent& intent);
 

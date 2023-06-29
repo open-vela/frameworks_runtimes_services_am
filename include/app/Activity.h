@@ -35,9 +35,16 @@ public:
 
     virtual void onRestart(){};
     virtual void onNewIntent(){};
-    virtual void onActivityResult(){};
+    virtual void onActivityResult(const int requestCode, const int resultCode,
+                                  const Intent& resultData){};
+
+    void reportActivityStatus(const int status);
+    void setResult(const int resultCode, const std::shared_ptr<Intent>& resultData);
+    void finish();
 
 private:
+    int mResultCode;
+    std::shared_ptr<Intent> mResultData;
 };
 
 } // namespace app

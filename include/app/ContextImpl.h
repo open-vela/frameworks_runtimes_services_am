@@ -27,29 +27,23 @@ namespace app {
 
 class ContextImpl : public Context {
 public:
-    ContextImpl() = default;
-    ~ContextImpl() = default;
-
-    ContextImpl(Application* app, const sp<IBinder>& token);
+    ContextImpl(const Application* app, const sp<IBinder>& token);
 
     string getPackageName() override;
-    static std::shared_ptr<Context> createActivityContext(Application* app,
+    static std::shared_ptr<Context> createActivityContext(const Application* app,
                                                           const sp<IBinder>& token);
 
     void startActivity(const Intent& intent) override;
     void startActivityForResult(const Intent& intent, int32_t requestCode) override;
     void startService(const Intent& intent) override;
-
-    void reportActivityStatus(const int status) override;
-
     void setIntent(const Intent& intent) override;
     const Intent& getIntent() override;
 
-private:
-    Application* mApp;
-    ActivityManager mAm;
+public:
+    const Application* mApp;
+    const sp<IBinder> mToken;
 
-    sp<IBinder> mToken;
+    ActivityManager mAm;
     Intent mIntent;
 };
 

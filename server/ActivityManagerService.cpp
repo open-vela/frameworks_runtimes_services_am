@@ -45,8 +45,8 @@ class ActivityManagerInner {
 public:
     int attachApplication(const sp<IApplicationThread>& app);
     int startActivity(const sp<IBinder>& token, const Intent& intent, int32_t requestCode);
-    int finishActivity(const sp<IBinder>& token);
-    void returnActivityResult(const sp<IBinder>& token, int32_t resultCode, const Intent& data);
+    bool finishActivity(const sp<IBinder>& token, int32_t resultCode,
+                        const std::optional<Intent>& resultData);
     void reportActivityStatus(const sp<IBinder>& token, int32_t status);
     int startService(const sp<IBinder>& token, const Intent& intent);
     void systemReady();
@@ -73,17 +73,11 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
     return 0;
 }
 
-int ActivityManagerInner::finishActivity(const sp<IBinder>& token) {
+bool ActivityManagerInner::finishActivity(const sp<IBinder>& token, int32_t resultCode,
+                                          const std::optional<Intent>& resultData) {
     ALOGD("ActivityManager finishActivity");
     // TODO
-    return 0;
-}
-
-void ActivityManagerInner::returnActivityResult(const sp<IBinder>& token, int32_t resultCode,
-                                                const Intent& data) {
-    ALOGD("returnActivityResult");
-    // TODO
-    return;
+    return true;
 }
 
 void ActivityManagerInner::reportActivityStatus(const sp<IBinder>& token, int32_t status) {
@@ -133,14 +127,9 @@ Status ActivityManagerService::startActivity(const sp<IBinder>& token, const Int
     return Status::ok();
 }
 
-Status ActivityManagerService::finishActivity(const sp<IBinder>& token, int32_t* ret) {
-    *ret = mInner->finishActivity(token);
-    return Status::ok();
-}
-
-Status ActivityManagerService::returnActivityResult(const sp<IBinder>& token, int32_t resultCode,
-                                                    const Intent& data) {
-    mInner->returnActivityResult(token, resultCode, data);
+Status ActivityManagerService::finishActivity(const sp<IBinder>& token, int32_t resultCode,
+                                              const std::optional<Intent>& resultData, bool* ret) {
+    *ret = mInner->finishActivity(token, resultCode, resultData);
     return Status::ok();
 }
 
