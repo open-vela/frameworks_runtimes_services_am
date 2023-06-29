@@ -46,10 +46,6 @@ void ContextWrapper::startService(const Intent& intent) {
     return mBase->startService(intent);
 }
 
-void ContextWrapper::reportActivityStatus(const int status) {
-    return mBase->reportActivityStatus(status);
-}
-
 void ContextWrapper::setIntent(const Intent& intent) {
     return mBase->setIntent(intent);
 }

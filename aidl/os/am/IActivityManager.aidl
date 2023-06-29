@@ -33,16 +33,12 @@ interface IActivityManager {
     int startActivity(in IBinder token, in Intent intent, int requestCode);
 
     /**
-     * @param token: The Activity that should be finished.
-     */
-    int finishActivity(in IBinder token);
-
-    /**
-     * @param token: Sender of the result.
+     * @brief Activity finish self and send result.
+     * @param token: the Activity will be finish.
      * @param resultCode: Description of the result state.
-     * @param intent: Data of result.
+     * @param resultData: Data of result.
      */
-    oneway void returnActivityResult(in IBinder token, int resultCode, in Intent data);
+    boolean finishActivity(in IBinder token, int resultCode, in @nullable Intent resultData);
 
     /**
      * @param token: Identify of the Activity.

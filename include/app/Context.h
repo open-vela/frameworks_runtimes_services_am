@@ -32,7 +32,6 @@ public:
     virtual void startActivityForResult(const Intent& intent, int requestCode) = 0;
     virtual void startService(const Intent& intent) = 0;
 
-    virtual void reportActivityStatus(const int status) = 0;
     virtual void setIntent(const Intent& intent) = 0;
     virtual const Intent& getIntent() = 0;
 };
@@ -47,11 +46,10 @@ public:
     void startActivityForResult(const Intent& intent, int requestCode);
     void startService(const Intent& intent);
 
-    void reportActivityStatus(const int status);
     void setIntent(const Intent& intent);
     const Intent& getIntent();
 
-private:
+protected:
     std::shared_ptr<Context> mBase;
 };
 

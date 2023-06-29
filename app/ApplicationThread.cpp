@@ -132,7 +132,14 @@ Status ApplicationThreadStub::scheduleDestoryActivity(const sp<IBinder>& token) 
 }
 
 Status ApplicationThreadStub::onActivityResult(const sp<IBinder>& token, int32_t requestCode,
-                                               int32_t resultCode, const Intent& data) {
+                                               int32_t resultCode, const Intent& resultData) {
+    /** Thinking: postTask causes the Data copy, it's necessary?  [oneway aidl interface]
+     *  Do it immediately in here
+     * */
+    std::shared_ptr<Activity> activity = mApp->findActivity(token);
+    if (activity) {
+        activity->onActivityResult(requestCode, resultCode, resultData);
+    }
     return Status::ok();
 }
 
