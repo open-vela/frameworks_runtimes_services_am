@@ -21,12 +21,13 @@ namespace app {
 
 using std::string;
 
-std::shared_ptr<Context> ContextImpl::createActivityContext(Application* app,
+ContextImpl::ContextImpl(const Application* app, const sp<IBinder>& token)
+      : mApp(app), mToken(token) {}
+
+std::shared_ptr<Context> ContextImpl::createActivityContext(const Application* app,
                                                             const sp<IBinder>& token) {
     return std::make_shared<ContextImpl>(app, token);
 }
-
-ContextImpl::ContextImpl(Application* app, const sp<IBinder>& token) : mApp(app), mToken(token) {}
 
 string ContextImpl::getPackageName() {
     return mApp->getPackageName();
@@ -42,10 +43,6 @@ void ContextImpl::startActivityForResult(const Intent& intent, int32_t requestCo
 
 void ContextImpl::startService(const Intent& intent) {
     mAm.startService(mToken, intent);
-}
-
-void ContextImpl::reportActivityStatus(const int32_t status) {
-    mAm.reportActivityStatus(mToken, status);
 }
 
 void ContextImpl::setIntent(const Intent& intent) {

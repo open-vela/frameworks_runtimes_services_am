@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <optional>
 #include <string>
 
 #include "os/am/BnActivityManager.h"
@@ -40,9 +41,8 @@ public:
 
     Status startActivity(const sp<IBinder>& token, const Intent& intent, int32_t code,
                          int32_t* ret) override;
-    Status finishActivity(const sp<IBinder>& token, int32_t* ret) override;
-    Status returnActivityResult(const sp<IBinder>& token, int32_t resultCode,
-                                const Intent& data) override;
+    Status finishActivity(const sp<IBinder>& token, int32_t resultCode,
+                          const std::optional<Intent>& resultData, bool* ret) override;
     Status reportActivityStatus(const sp<IBinder>& token, int32_t status) override;
 
     Status startService(const sp<IBinder>& token, const Intent& intent, int32_t* ret) override;

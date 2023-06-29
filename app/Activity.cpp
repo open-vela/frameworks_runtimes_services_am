@@ -1,0 +1,40 @@
+/*
+ * Copyright (C) 2023 Xiaomi Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#include "app/Activity.h"
+
+#include "app/ContextImpl.h"
+
+namespace os {
+namespace app {
+
+#define CONTEXT_IMPL static_cast<ContextImpl*>(mBase.get())
+
+void Activity::reportActivityStatus(const int status) {
+    CONTEXT_IMPL->mAm.reportActivityStatus(CONTEXT_IMPL->mToken, status);
+}
+
+void Activity::setResult(const int resultCode, const std::shared_ptr<Intent>& resultData) {
+    mResultCode = resultCode;
+    mResultData = resultData;
+}
+
+void Activity::finish() {
+    CONTEXT_IMPL->mAm.finishActivity(CONTEXT_IMPL->mToken, mResultCode, mResultData);
+}
+
+} // namespace app
+} // namespace os
