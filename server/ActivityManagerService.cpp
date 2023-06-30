@@ -59,6 +59,7 @@ private:
     ActivityHandler startActivityReal(const std::shared_ptr<AppRecord>& app,
                                       const ActivityInfo& activityName, const Intent& intent,
                                       const sp<IBinder>& caller);
+    int startHomeActivity();
 
 private:
     map<sp<IBinder>, ActivityHandler> mActivityMap;
@@ -286,8 +287,59 @@ void ActivityManagerInner::systemReady() {
             }
         }
     }
-    // TODO startHomeActivity
+
+    startHomeActivity();
     return;
+}
+
+int ActivityManagerInner::startHomeActivity() {
+    /** start the launch app */
+    string target;
+    if (mActionFilter.getFirstTargetByAction(Intent::ACTION_HOME, target)) {
+        /** find the Home App package */
+        auto pos = target.find_first_of('/');
+        const string packageName = target.substr(0, pos);
+        ALOGI("start Home Applicaion:%s", packageName.c_str());
+        PackageInfo homeApp;
+        mPm.getPackageInfo(packageName, &homeApp);
+        const string activityName =
+                pos != string::npos ? target.substr(pos + 1, string::npos) : homeApp.entry;
+        ActivityInfo entryActivity;
+        for (auto a : homeApp.activitiesInfo) {
+            if (a.name == activityName) {
+                entryActivity = a;
+            }
+        }
+        /** init Home ActivityStack task, the Home Activity will be pushed to this task */
+        mTaskManager.initHomeTask(std::make_shared<ActivityStack>(entryActivity.taskAffinity));
+        int pid;
+        if (AppSpawn::appSpawn(&pid, homeApp.execfile.c_str(), NULL) == 0) {
+            auto task = std::make_shared<
+                    AppAttachTask>(pid,
+                                   [this, packageName,
+                                    entryActivity](const AppAttachTask::Event* e) -> bool {
+                                       auto appRecord =
+                                               std::make_shared<AppRecord>(e->mAppHandler,
+                                                                           packageName, e->mPid,
+                                                                           e->mUid);
+                                       this->mAppInfo.addAppInfo(appRecord);
+                                       Intent intent;
+                                       intent.setFlag(Intent::FLAG_ACTIVITY_NEW_TASK);
+                                       this->startActivityReal(appRecord, entryActivity, intent,
+                                                               sp<IBinder>(nullptr));
+                                       return true;
+                                   });
+            mPendTask.commitTask(task);
+        } else {
+            ALOGE("appSpawn Home App:%s error", homeApp.execfile.c_str());
+            return android::BAD_VALUE;
+        }
+    } else {
+        ALOGE("systemReady error: can't launch Home Activity");
+        return android::NAME_NOT_FOUND;
+    }
+
+    return android::OK;
 }
 
 ActivityHandler ActivityManagerInner::getActivityRecord(const sp<IBinder>& token) {
