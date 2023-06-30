@@ -34,6 +34,14 @@ std::string ContextWrapper::getPackageName() {
     return mBase->getPackageName();
 }
 
+UvLoop* ContextWrapper::getMainLoop() const {
+    return mBase->getMainLoop();
+}
+
+const android::sp<android::IBinder>& ContextWrapper::getToken() const {
+    return mBase->getToken();
+}
+
 void ContextWrapper::startActivity(const Intent& intent) {
     return mBase->startActivity(intent);
 }
