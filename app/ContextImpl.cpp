@@ -33,6 +33,14 @@ string ContextImpl::getPackageName() {
     return mApp->getPackageName();
 }
 
+UvLoop* ContextImpl::getMainLoop() const {
+    return mApp->getMainLoop();
+}
+
+const sp<IBinder>& ContextImpl::getToken() const {
+    return mToken;
+}
+
 void ContextImpl::startActivity(const Intent& intent) {
     mAm.startActivity(mToken, intent, ActivityManager::NO_REQUEST);
 }
