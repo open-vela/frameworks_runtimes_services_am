@@ -19,3 +19,4 @@ config SYSTEM_ACTIVITY_SERVICE
 	default n
 	depends on ANDROID_BINDER
 	depends on SYSTEM_SERVER
+	depends on SYSTEM_PACKAGE_SERVICE
