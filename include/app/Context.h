@@ -19,6 +19,7 @@
 #include <memory>
 
 #include "app/Intent.h"
+#include "app/UvLoop.h"
 
 namespace os {
 namespace app {
@@ -28,6 +29,9 @@ public:
     Context() = default;
     virtual ~Context() = default;
     virtual std::string getPackageName() = 0;
+    virtual UvLoop* getMainLoop() const = 0;
+    virtual const android::sp<android::IBinder>& getToken() const = 0;
+
     virtual void startActivity(const Intent& intent) = 0;
     virtual void startActivityForResult(const Intent& intent, int requestCode) = 0;
     virtual void startService(const Intent& intent) = 0;
@@ -41,6 +45,8 @@ public:
     std::shared_ptr<Context> getContext();
     void attachBaseContext(std::shared_ptr<Context> base);
     std::string getPackageName();
+    UvLoop* getMainLoop() const;
+    const android::sp<android::IBinder>& getToken() const;
 
     void startActivity(const Intent& intent);
     void startActivityForResult(const Intent& intent, int requestCode);
