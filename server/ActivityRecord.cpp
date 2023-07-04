@@ -52,5 +52,11 @@ void ActivityRecord::destroy() {
     }
 }
 
+void ActivityRecord::onResult(int32_t requestCode, int32_t resultCode, const Intent& resultData) {
+    if (!mApp.expired()) {
+        (mApp.lock()->mAppThread)->onActivityResult(mToken, requestCode, resultCode, resultData);
+    }
+}
+
 } // namespace am
 } // namespace os
