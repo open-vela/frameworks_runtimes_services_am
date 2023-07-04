@@ -33,11 +33,12 @@ void ActivityStack::pushActivity(const ActivityHandler& activity) {
     mTask.push_back(activity);
 }
 
+void ActivityStack::popActivity() {
+    mTask.pop_back();
+}
+
 ActivityHandler ActivityStack::getTopActivity() {
-    if (!mTask.empty()) {
-        return mTask.back();
-    }
-    return nullptr;
+    return mTask.empty() ? nullptr : mTask.back();
 }
 
 ActivityHandler ActivityStack::findActivity(const string& activityName) {
@@ -102,7 +103,7 @@ void TaskStackManager::switchTaskToActive() {
 }
 
 void TaskStackManager::popFrontTask() {
-    // TODO
+    mAllTasks.pop_front();
 }
 
 } // namespace am
