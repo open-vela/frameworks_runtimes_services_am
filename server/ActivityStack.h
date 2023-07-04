@@ -39,6 +39,7 @@ public:
     const int getSize() const;
 
     void pushActivity(const ActivityHandler& activity);
+    void popActivity();
     ActivityHandler getTopActivity();
     ActivityHandler findActivity(const std::string& activityName);
     void popToActivity(const ActivityHandler& target);
