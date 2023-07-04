@@ -67,6 +67,7 @@ private:
 enum TASK_LABEL {
     APP_ATTACH,
     ACTIVITY_RESUME,
+    ACTIVITY_PAUSE,
 };
 /***************************************************************************/
 
@@ -117,6 +118,28 @@ public:
 private:
     sp<android::IBinder> mToken;
     TaskFunc mCallback;
+};
+
+class ActivityPauseTask : public Task {
+public:
+    struct Event : Label {
+        sp<android::IBinder> mToken;
+        Event(const sp<android::IBinder>& token) : Label(ACTIVITY_PAUSE), mToken(token) {}
+    };
+
+    ActivityPauseTask(const sp<android::IBinder>& token, const std::function<bool()>& cb)
+          : Task(ACTIVITY_PAUSE), mToken(token), mCallback(cb){};
+    bool execute(const Label* e) override {
+        const Event* event = static_cast<const Event*>(e);
+        if (event->mToken == mToken) {
+            return mCallback();
+        }
+        return false;
+    }
+
+private:
+    sp<android::IBinder> mToken;
+    std::function<bool()> mCallback;
 };
 
 } // namespace am

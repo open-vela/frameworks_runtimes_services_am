@@ -258,14 +258,88 @@ ActivityHandler ActivityManagerInner::startActivityReal(const std::shared_ptr<Ap
 
 bool ActivityManagerInner::finishActivity(const sp<IBinder>& token, int32_t resultCode,
                                           const std::optional<Intent>& resultData) {
-    ALOGD("ActivityManager finishActivity");
-    // TODO
+    ALOGD("finishActivity");
+    auto currentActivity = getActivityRecord(token);
+    if (!currentActivity) {
+        ALOGE("finishActivity: The token is invalid");
+        return false;
+    }
+    if (currentActivity->mStatus == ActivityRecord::RESUMED) {
+        currentActivity->pause();
+
+        const auto task = [this, currentActivity, resultCode, resultData]() -> bool {
+            auto currentStack = currentActivity->mInTask.lock();
+            /** when last pasued, then set result to next */
+            const auto callActivity = getActivityRecord(currentActivity->mCaller);
+            if (currentActivity->mRequestCode != ActivityManager::NO_REQUEST &&
+                resultData.has_value() && callActivity) {
+                callActivity->onResult(currentActivity->mRequestCode, resultCode,
+                                       resultData.value());
+            }
+            currentStack->popActivity();
+            auto nextActivity = currentStack->getTopActivity();
+            if (nextActivity) {
+                nextActivity->resume();
+            } else {
+                /** nextActivity is null, the ActivityStack should be
+                 * destory */
+                mTaskManager.popFrontTask();
+                const auto activeTask = mTaskManager.getActiveTask();
+                nextActivity = activeTask->getTopActivity();
+                nextActivity->resume();
+            }
+
+            const auto tmpTask = [this, currentActivity]() -> bool {
+                currentActivity->stop();
+                currentActivity->destroy();
+                // TODO when report destroy. delete it from mActivityMap
+                return true;
+            };
+            const auto destoryActivityTask =
+                    std::make_shared<ActivityResumeTask>(nextActivity->mToken, tmpTask);
+            mPendTask.commitTask(destoryActivityTask);
+
+            return true;
+        };
+        const auto finishActivityTask = std::make_shared<ActivityPauseTask>(token, task);
+
+        mPendTask.commitTask(finishActivityTask);
+    } else {
+        ALOGE("the Activity that being finished is inactive !!!");
+        currentActivity->stop();
+        currentActivity->destroy();
+    }
+
     return true;
 }
 
 void ActivityManagerInner::reportActivityStatus(const sp<IBinder>& token, int32_t status) {
-    ALOGW("reportActivityStatus %d", status);
-    // TODO
+    ALOGD("reportActivityStatus %d", status);
+    auto record = getActivityRecord(token);
+    if (!record) {
+        ALOGE("The reported token is invalid");
+        return;
+    }
+    record->mStatus = status;
+    switch (status) {
+        case ActivityRecord::CREATED:
+        case ActivityRecord::STARTED:
+            break;
+        case ActivityRecord::RESUMED: {
+            const ActivityResumeTask::Event event(token);
+            mPendTask.eventTrigger(&event);
+            break;
+        }
+        case ActivityRecord::PAUSED: {
+            const ActivityPauseTask::Event event(token);
+            mPendTask.eventTrigger(&event);
+            break;
+        }
+        case ActivityRecord::STOPED:
+        case ActivityRecord::DESTROYED:
+        default:
+            break;
+    }
     return;
 }
 
