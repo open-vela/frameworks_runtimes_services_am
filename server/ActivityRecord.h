@@ -35,11 +35,13 @@ class ActivityStack;
 class ActivityRecord {
 public:
     ActivityRecord(const std::string& name, const sp<IBinder>& token, const sp<IBinder>& caller,
-                   const std::string& launchMode, const std::shared_ptr<AppRecord>& app,
+                   const int32_t requestCode, const std::string& launchMode,
+                   const std::shared_ptr<AppRecord>& app,
                    const std::shared_ptr<ActivityStack>& task)
           : mActivityName(name),
             mToken(token),
             mCaller(caller),
+            mRequestCode(requestCode),
             mStatus(CREATING),
             mLaunchMode(launchMode),
             mApp(app),
@@ -64,11 +66,13 @@ public:
     void pause();
     void stop();
     void destroy();
+    void onResult(int32_t requestCode, int32_t resultCode, const Intent& resultData);
 
 public:
     std::string mActivityName;
     sp<IBinder> mToken;
     sp<IBinder> mCaller;
+    int32_t mRequestCode;
     int mStatus;
     std::string mLaunchMode;
     std::weak_ptr<AppRecord> mApp;
