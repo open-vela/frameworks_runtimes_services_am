@@ -40,7 +40,12 @@ public:
     static inline const char* name() {
         return "activity";
     }
+
+    /** define constant macro */
     static const int NO_REQUEST = -1;
+    static const int RESULT_OK = 0;
+    static const int RESULT_CANCEL = -1;
+
     /** The status is part of AMS inside */
     enum {
         CREATED = 1,

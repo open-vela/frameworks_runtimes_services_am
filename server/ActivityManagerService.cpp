@@ -33,6 +33,7 @@
 #include "AppSpawn.h"
 #include "IntentAction.h"
 #include "TaskBoard.h"
+#include "app/ActivityManager.h"
 
 namespace os {
 namespace am {
@@ -58,7 +59,7 @@ private:
     ActivityHandler getActivityRecord(const sp<IBinder>& token);
     ActivityHandler startActivityReal(const std::shared_ptr<AppRecord>& app,
                                       const ActivityInfo& activityName, const Intent& intent,
-                                      const sp<IBinder>& caller);
+                                      const sp<IBinder>& caller, const int32_t requestCode);
     int startHomeActivity();
 
 private:
@@ -143,7 +144,7 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
     auto appInfo = mAppInfo.findAppInfo(packageName);
     if (appInfo) {
         /** get Application thread */
-        auto activityRecord = startActivityReal(appInfo, activityInfo, intent, caller);
+        auto activityRecord = startActivityReal(appInfo, activityInfo, intent, caller, requestCode);
         /** When the target Activity has been resumed. then stop the previous Activity */
         const auto task = std::make_shared<ActivityResumeTask>(activityRecord->mToken,
                                                                [this, topActivity]() -> bool {
@@ -157,15 +158,15 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
         if (AppSpawn::appSpawn(&pid, packageInfo.execfile.c_str(), NULL) == 0) {
             auto task = std::make_shared<
                     AppAttachTask>(pid,
-                                   [this, packageName, activityInfo, intent,
-                                    caller](const AppAttachTask::Event* e) -> bool {
+                                   [this, packageName, activityInfo, intent, caller,
+                                    requestCode](const AppAttachTask::Event* e) -> bool {
                                        auto appRecord =
                                                std::make_shared<AppRecord>(e->mAppHandler,
                                                                            packageName, e->mPid,
                                                                            e->mUid);
                                        this->mAppInfo.addAppInfo(appRecord);
                                        this->startActivityReal(appRecord, activityInfo, intent,
-                                                               caller);
+                                                               caller, requestCode);
                                        return true;
                                    });
             mPendTask.commitTask(task);
@@ -181,7 +182,8 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
 ActivityHandler ActivityManagerInner::startActivityReal(const std::shared_ptr<AppRecord>& app,
                                                         const ActivityInfo& activityInfo,
                                                         const Intent& intent,
-                                                        const sp<IBinder>& caller) {
+                                                        const sp<IBinder>& caller,
+                                                        const int32_t requestCode) {
     TaskHandler targetTask;
     auto callerActivity = getActivityRecord(caller);
 
@@ -241,7 +243,7 @@ ActivityHandler ActivityManagerInner::startActivityReal(const std::shared_ptr<Ap
 
     if (isCreateActivity) {
         sp<IBinder> token(new android::BBinder());
-        record = std::make_shared<ActivityRecord>(activityInfo.name, token, caller,
+        record = std::make_shared<ActivityRecord>(activityInfo.name, token, caller, requestCode,
                                                   activityInfo.launchMode, app, targetTask);
         mActivityMap.emplace(token, record);
         targetTask->pushActivity(record);
@@ -270,7 +272,7 @@ void ActivityManagerInner::reportActivityStatus(const sp<IBinder>& token, int32_
 int ActivityManagerInner::startService(const sp<IBinder>& token, const Intent& intent) {
     ALOGD("startService");
     // TODO
-    return 0;
+    return android::OK;
 }
 
 void ActivityManagerInner::systemReady() {
@@ -326,7 +328,8 @@ int ActivityManagerInner::startHomeActivity() {
                                        Intent intent;
                                        intent.setFlag(Intent::FLAG_ACTIVITY_NEW_TASK);
                                        this->startActivityReal(appRecord, entryActivity, intent,
-                                                               sp<IBinder>(nullptr));
+                                                               sp<IBinder>(nullptr),
+                                                               ActivityManager::NO_REQUEST);
                                        return true;
                                    });
             mPendTask.commitTask(task);
