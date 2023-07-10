@@ -44,7 +44,7 @@ interface IActivityManager {
      * @param token: Identify of the Activity.
      * @param status: ON_CREATED/ON_STARTED/ON_RESUMED/ON_PAUSED/ON_STOPED/ON_DESTORYED
      */
-    oneway void reportActivityStatus(in IBinder token, int status);
+    void reportActivityStatus(in IBinder token, int status);
 
     /**
      * @param token: The Requestor
