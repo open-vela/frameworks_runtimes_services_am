@@ -31,6 +31,16 @@ ActivityHandler AppRecord::checkActivity(const std::string& activityName) {
     return nullptr;
 }
 
+ServiceHandler AppRecord::checkService(const std::string& serviceName) {
+    const int size = mExistService.size();
+    for (int i = 0; i < size; ++i) {
+        if (mExistService[i].lock()->mServiceName == serviceName) {
+            return mExistService[i].lock();
+        }
+    }
+    return nullptr;
+}
+
 const shared_ptr<AppRecord> AppInfoList::findAppInfo(const int pid) {
     const int size = mAppList.size();
     for (int i = 0; i < size; ++i) {

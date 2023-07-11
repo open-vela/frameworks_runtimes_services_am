@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "ActivityRecord.h"
+#include "ServiceRecord.h"
 #include "os/app/IApplicationThread.h"
 
 namespace os {
@@ -35,11 +36,13 @@ struct AppRecord {
     int mPid;
     int mUid;
     std::vector<std::weak_ptr<ActivityRecord>> mExistActivity;
+    std::vector<std::weak_ptr<ServiceRecord>> mExistService;
 
     AppRecord(sp<IApplicationThread> app, std::string packageName, int pid, int uid)
           : mAppThread(app), mPackageName(packageName), mPid(pid), mUid(uid) {}
 
     ActivityHandler checkActivity(const std::string& activityName);
+    ServiceHandler checkService(const std::string& serviceName);
 };
 
 class AppInfoList {

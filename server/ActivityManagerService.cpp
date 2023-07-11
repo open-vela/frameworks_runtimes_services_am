@@ -45,6 +45,8 @@ using namespace os::pm;
 using android::IBinder;
 using android::sp;
 
+void getPackageAndComponentName(const string& target, string& packageName, string& componentName);
+
 class ActivityManagerInner {
 public:
     int attachApplication(const sp<IApplicationThread>& app);
@@ -67,6 +69,7 @@ private:
 
 private:
     map<sp<IBinder>, ActivityHandler> mActivityMap;
+    ServiceList mServices;
     AppInfoList mAppInfo;
     TaskStackManager mTaskManager;
     IntentAction mActionFilter;
@@ -120,17 +123,18 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
           intent.mData.c_str(), intent.mFlag);
 
     /** get Package and Activity info for PMS */
-    const auto packagePos = activityTarget.find_first_of('/');
-    const string packageName = activityTarget.substr(0, packagePos);
+    string packageName;
+    string activityName;
+    getPackageAndComponentName(intent.mTarget, packageName, activityName);
     PackageInfo packageInfo;
     if (mPm.getPackageInfo(packageName, &packageInfo)) {
         ALOGE("error packagename:%s", packageName.c_str());
         return android::BAD_VALUE;
     }
 
-    const string activityName = packagePos != string::npos
-            ? activityTarget.substr(packagePos + 1, string::npos)
-            : packageInfo.entry;
+    if (activityName.empty()) {
+        activityName = packageInfo.entry;
+    }
 
     ActivityInfo activityInfo;
     for (auto it : packageInfo.activitiesInfo) {
@@ -347,17 +351,95 @@ void ActivityManagerInner::reportActivityStatus(const sp<IBinder>& token, int32_
 }
 
 int ActivityManagerInner::startService(const Intent& intent) {
-    // TODO
+    string packageName;
+    string serviceName;
+    if (intent.mTarget.empty()) {
+        string target;
+        mActionFilter.getFirstTargetByAction(intent.mAction, target);
+        getPackageAndComponentName(target, packageName, serviceName);
+    } else {
+        getPackageAndComponentName(intent.mTarget, packageName, serviceName);
+    }
+
+    if (serviceName.empty()) {
+        ALOGW("startService: incorrect intents[%s %s], can't find target service",
+              intent.mTarget.c_str(), intent.mAction.c_str());
+        return android::BAD_VALUE;
+    }
+
+    ALOGI("start service:%s/%s", packageName.c_str(), serviceName.c_str());
+
+    auto service = mServices.getService(packageName, serviceName);
+    if (service) {
+        service->start(intent);
+    } else {
+        const auto appRecord = mAppInfo.findAppInfo(packageName);
+        if (appRecord) {
+            service = std::make_shared<ServiceRecord>(serviceName, appRecord);
+            mServices.addService(service);
+            service->start(intent);
+        } else {
+            PackageInfo targetApp;
+            mPm.getPackageInfo(packageName, &targetApp);
+            int pid;
+            if (AppSpawn::appSpawn(&pid, targetApp.execfile.c_str(), NULL) == 0) {
+                const auto task = [this, serviceName, packageName,
+                                   intent](const AppAttachTask::Event* e) -> bool {
+                    auto app = std::make_shared<AppRecord>(e->mAppHandler, packageName, e->mPid,
+                                                           e->mUid);
+                    this->mAppInfo.addAppInfo(app);
+                    auto serviceRecord = std::make_shared<ServiceRecord>(serviceName, app);
+                    mServices.addService(serviceRecord);
+                    serviceRecord->start(intent);
+                    return true;
+                };
+                mPendTask.commitTask(std::make_shared<AppAttachTask>(pid, task));
+            } else {
+                ALOGE("appSpawn App:%s error", targetApp.execfile.c_str());
+                return android::BAD_VALUE;
+            }
+        }
+    }
+
     return android::OK;
 }
 
 int ActivityManagerInner::stopService(const Intent& intent) {
-    // TODO
+    string packageName;
+    string serviceName;
+    if (intent.mTarget.empty()) {
+        string target;
+        mActionFilter.getFirstTargetByAction(intent.mAction, target);
+        getPackageAndComponentName(target, packageName, serviceName);
+    } else {
+        getPackageAndComponentName(intent.mTarget, packageName, serviceName);
+    }
+
+    ALOGI("stop service:%s/%s", packageName.c_str(), serviceName.c_str());
+
+    auto service = mServices.getService(packageName, serviceName);
+    if (service == nullptr) {
+        ALOGW("the Service:%s is not running", serviceName.c_str());
+        return android::DEAD_OBJECT;
+    }
+    if (service->mStatus <= ServiceRecord::STARTED) {
+        ALOGI("stopService %s/%s", packageName.c_str(), serviceName.c_str());
+        service->stop();
+    }
+
     return 0;
 }
 
 void ActivityManagerInner::reportServiceStatus(const string& target, int32_t status) {
-    // TODO
+    ALOGI("reportServiceStatus %s status:%d", target.c_str(), status);
+    string packageName;
+    string serviceName;
+    getPackageAndComponentName(target, packageName, serviceName);
+
+    auto service = mServices.getService(packageName, serviceName);
+    if (service) {
+        service->mStatus = status;
+    }
 }
 
 void ActivityManagerInner::systemReady() {
@@ -437,6 +519,13 @@ ActivityHandler ActivityManagerInner::getActivityRecord(const sp<IBinder>& token
     } else {
         return nullptr;
     }
+}
+
+void getPackageAndComponentName(const string& target, string& packageName, string& componentName) {
+    const auto pos = target.find_first_of('/');
+    packageName = std::move(target.substr(0, pos));
+    componentName =
+            std::move(pos == std::string::npos ? "" : target.substr(pos + 1, std::string::npos));
 }
 
 ActivityManagerService::ActivityManagerService() {
