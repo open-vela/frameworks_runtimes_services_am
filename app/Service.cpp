@@ -14,37 +14,23 @@
  * limitations under the License.
  */
 
-#pragma once
-
-#include <string>
-
-#include "app/Context.h"
+#include "app/Service.h"
 
 namespace os {
 namespace app {
 
-class Service : public ContextWrapper {
-public:
-    Service() = default;
-    virtual ~Service() = default;
-    /** The status is part of the ServiceRecord inside */
-    enum {
-        CREATED = 1,
-        STARTED = 3,
-        DESTROYED = 5,
-    };
+void Service::setServiceName(const string& name) {
+    mServiceName = name;
+}
 
-    virtual void onCreate() = 0;
-    virtual void onStartCommand(const Intent& intent) = 0;
-    virtual void onDestory() = 0;
+const std::string& Service::getServiceName() {
+    return mServiceName;
+}
 
-    void setServiceName(const string& name);
-    const std::string& getServiceName();
-    void reportServiceStatus(int status);
-
-private:
-    std::string mServiceName;
-};
+void Service::reportServiceStatus(int status) {
+    const std::string target = getPackageName().append("/").append(mServiceName);
+    getActivityManager().reportServiceStatus(target, status);
+}
 
 } // namespace app
 } // namespace os

@@ -18,6 +18,7 @@
 
 #include <memory>
 
+#include "app/ActivityManager.h"
 #include "app/Intent.h"
 #include "app/UvLoop.h"
 
@@ -31,10 +32,13 @@ public:
     virtual std::string getPackageName() = 0;
     virtual UvLoop* getMainLoop() const = 0;
     virtual const android::sp<android::IBinder>& getToken() const = 0;
+    virtual ActivityManager& getActivityManager() = 0;
 
     virtual void startActivity(const Intent& intent) = 0;
     virtual void startActivityForResult(const Intent& intent, int requestCode) = 0;
+
     virtual void startService(const Intent& intent) = 0;
+    virtual void stopService(const Intent& intent) = 0;
 
     virtual void setIntent(const Intent& intent) = 0;
     virtual const Intent& getIntent() = 0;
@@ -47,10 +51,13 @@ public:
     std::string getPackageName();
     UvLoop* getMainLoop() const;
     const android::sp<android::IBinder>& getToken() const;
+    ActivityManager& getActivityManager();
 
     void startActivity(const Intent& intent);
     void startActivityForResult(const Intent& intent, int requestCode);
+
     void startService(const Intent& intent);
+    void stopService(const Intent& intent);
 
     void setIntent(const Intent& intent);
     const Intent& getIntent();

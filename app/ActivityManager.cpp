@@ -27,7 +27,6 @@ namespace os {
 namespace app {
 
 using android::binder::Status;
-using namespace os::app;
 
 sp<IActivityManager> ActivityManager::getService() {
     std::lock_guard<std::mutex> scoped_lock(mLock);
@@ -95,16 +94,38 @@ void ActivityManager::reportActivityStatus(const sp<IBinder>& token, int32_t act
     return;
 }
 
-int ActivityManager::startService(const sp<IBinder>& token, const Intent& intent) {
+int ActivityManager::startService(const Intent& intent) {
     sp<IActivityManager> service = getService();
     int ret = android::FAILED_TRANSACTION;
     if (service != nullptr) {
-        Status status = service->startService(token, intent, &ret);
+        Status status = service->startService(intent, &ret);
         if (!status.isOk()) {
             ALOGE("startService error:%s", status.toString8().c_str());
         }
     }
     return ret;
+}
+
+int ActivityManager::stopService(const Intent& intent) {
+    sp<IActivityManager> service = getService();
+    int ret = android::FAILED_TRANSACTION;
+    if (service != nullptr) {
+        Status status = service->stopService(intent, &ret);
+        if (!status.isOk()) {
+            ALOGE("stopService error:%s", status.toString8().c_str());
+        }
+    }
+    return ret;
+}
+
+void ActivityManager::reportServiceStatus(const string& target, int32_t serviceStatus) {
+    sp<IActivityManager> service = getService();
+    if (service != nullptr) {
+        Status status = service->reportServiceStatus(target, serviceStatus);
+        if (!status.isOk()) {
+            ALOGE("reportServiceStatus error:%s", status.toString8().c_str());
+        }
+    }
 }
 
 } // namespace app

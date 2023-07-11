@@ -31,6 +31,7 @@ using android::IBinder;
 using android::sp;
 using os::am::IActivityManager;
 using os::app::Intent;
+using std::string;
 
 class ActivityManager {
 public:
@@ -61,7 +62,9 @@ public:
     bool finishActivity(const sp<IBinder>& token, int32_t resultCode,
                         const std::shared_ptr<Intent>& resultData);
     void reportActivityStatus(const sp<IBinder>& token, int32_t status);
-    int startService(const sp<IBinder>& token, const Intent& intent);
+    int startService(const Intent& intent);
+    int stopService(const Intent& intent);
+    void reportServiceStatus(const string& target, int32_t status);
 
 private:
     std::mutex mLock;

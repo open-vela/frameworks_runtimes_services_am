@@ -58,6 +58,9 @@ public:
     Status onActivityResult(const sp<IBinder>& token, int32_t requestCode, int32_t resultCode,
                             const Intent& data);
 
+    Status scheduleStartService(const string& serviceName, const Intent& intent);
+    Status scheduleStopService(const string& serviceName);
+
 private:
     int onLaunchActivity(const string& activityName, const sp<IBinder>& token,
                          const Intent& intent);
@@ -65,6 +68,8 @@ private:
     int onPauseActivity(const sp<IBinder>& token);
     int onStopActivity(const sp<IBinder>& token);
     int onDestoryActivity(const sp<IBinder>& token);
+    int onStartService(const string& serviceName, const Intent& intent);
+    int onStopService(const string& serviceName);
 
 private:
     Application* mApp;
@@ -143,6 +148,18 @@ Status ApplicationThreadStub::onActivityResult(const sp<IBinder>& token, int32_t
     return Status::ok();
 }
 
+Status ApplicationThreadStub::scheduleStartService(const string& serviceName,
+                                                   const Intent& intent) {
+    mApp->getMainLoop()->postTask(
+            [this, serviceName, intent](void*) { this->onStartService(serviceName, intent); });
+    return Status::ok();
+}
+
+Status ApplicationThreadStub::scheduleStopService(const string& serviceName) {
+    mApp->getMainLoop()->postTask([this, serviceName](void*) { this->onStopService(serviceName); });
+    return Status::ok();
+}
+
 int ApplicationThreadStub::onLaunchActivity(const std::string& activityName,
                                             const sp<IBinder>& token, const Intent& intent) {
     std::shared_ptr<Activity> activity = mApp->createActivity(activityName);
@@ -209,6 +226,38 @@ int ApplicationThreadStub::onDestoryActivity(const sp<IBinder>& token) {
         return 0;
     }
     return -1;
+}
+
+int ApplicationThreadStub::onStartService(const string& serviceName, const Intent& intent) {
+    auto service = mApp->findService(serviceName);
+    if (service) {
+        ALOGW("the %s had been started", serviceName.c_str());
+        service->onStartCommand(intent);
+        return 0;
+    } else {
+        service = mApp->createService(serviceName);
+        if (!service) {
+            ALOGW("the %s is non-existent", serviceName.c_str());
+            return -1;
+        }
+        const auto context = ContextImpl::createServiceContext(mApp);
+        service->attachBaseContext(context);
+        mApp->addService(service);
+
+        service->onCreate();
+        service->reportServiceStatus(Service::CREATED);
+        service->onStartCommand(intent);
+        service->reportServiceStatus(Service::STARTED);
+    }
+    return 0;
+}
+
+int ApplicationThreadStub::onStopService(const string& serviceName) {
+    auto service = mApp->findService(serviceName);
+    if (service) {
+        service->onDestory();
+    }
+    return 0;
 }
 
 } // namespace app

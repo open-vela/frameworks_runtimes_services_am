@@ -25,4 +25,7 @@ oneway interface IApplicationThread {
     void scheduleStopActivity(in IBinder token);
     void scheduleDestoryActivity(in IBinder token);
     void onActivityResult(in IBinder token, int requestCode, int resultCode, in Intent resultData);
+
+    void scheduleStartService(@utf8InCpp String serviceName, in Intent intent);
+    void scheduleStopService(@utf8InCpp String serviceName);
 }

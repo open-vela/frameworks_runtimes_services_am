@@ -45,7 +45,9 @@ public:
                           const std::optional<Intent>& resultData, bool* ret) override;
     Status reportActivityStatus(const sp<IBinder>& token, int32_t status) override;
 
-    Status startService(const sp<IBinder>& token, const Intent& intent, int32_t* ret) override;
+    Status startService(const Intent& intent, int32_t* ret) override;
+    Status stopService(const Intent& intent, int32_t* ret) override;
+    Status reportServiceStatus(const std::string& target, int32_t status) override;
 
     // The service is ready to start and the application can be launched
     void systemReady();

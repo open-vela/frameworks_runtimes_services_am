@@ -58,7 +58,9 @@ void Application::registerService(const string& name, const CreateServiceFunc& c
 std::shared_ptr<Service> Application::createService(const string& name) {
     auto it = mServiceMap.find(name);
     if (it != mServiceMap.end()) {
-        return std::shared_ptr<Service>(it->second());
+        const auto service = std::shared_ptr<Service>(it->second());
+        service->setServiceName(name);
+        return service;
     }
     ALOGE("Application createService failed:%s", name.c_str());
     return nullptr;
@@ -81,6 +83,28 @@ void Application::deleteActivity(const sp<IBinder>& token) {
     auto it = mExistActivities.find(token);
     if (it != mExistActivities.end()) {
         mExistActivities.erase(it);
+    }
+}
+
+void Application::addService(const std::shared_ptr<Service>& service) {
+    mExistServices.push_back(service);
+}
+
+std::shared_ptr<Service> Application::findService(const string& serviceName) {
+    for (auto it : mExistServices) {
+        if (it->getServiceName() == serviceName) {
+            return it;
+        }
+    }
+    return nullptr;
+}
+
+void Application::deleteService(const string& serviceName) {
+    for (auto it : mExistServices) {
+        if (it->getServiceName() == serviceName) {
+            it = mExistServices.back();
+            mExistServices.pop_back();
+        }
     }
 }
 
