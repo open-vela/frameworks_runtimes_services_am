@@ -32,13 +32,16 @@ public:
     string getPackageName() override;
     UvLoop* getMainLoop() const override;
     const sp<IBinder>& getToken() const override;
+    ActivityManager& getActivityManager() override;
 
     static std::shared_ptr<Context> createActivityContext(const Application* app,
                                                           const sp<IBinder>& token);
+    static std::shared_ptr<Context> createServiceContext(const Application* app);
 
     void startActivity(const Intent& intent) override;
     void startActivityForResult(const Intent& intent, int32_t requestCode) override;
     void startService(const Intent& intent) override;
+    void stopService(const Intent& intent) override;
     void setIntent(const Intent& intent) override;
     const Intent& getIntent() override;
 

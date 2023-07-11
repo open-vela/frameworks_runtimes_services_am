@@ -29,6 +29,10 @@ std::shared_ptr<Context> ContextImpl::createActivityContext(const Application* a
     return std::make_shared<ContextImpl>(app, token);
 }
 
+std::shared_ptr<Context> ContextImpl::createServiceContext(const Application* app) {
+    return std::make_shared<ContextImpl>(app, nullptr);
+}
+
 string ContextImpl::getPackageName() {
     return mApp->getPackageName();
 }
@@ -41,6 +45,10 @@ const sp<IBinder>& ContextImpl::getToken() const {
     return mToken;
 }
 
+ActivityManager& ContextImpl::getActivityManager() {
+    return mAm;
+}
+
 void ContextImpl::startActivity(const Intent& intent) {
     mAm.startActivity(mToken, intent, ActivityManager::NO_REQUEST);
 }
@@ -50,7 +58,11 @@ void ContextImpl::startActivityForResult(const Intent& intent, int32_t requestCo
 }
 
 void ContextImpl::startService(const Intent& intent) {
-    mAm.startService(mToken, intent);
+    mAm.startService(intent);
+}
+
+void ContextImpl::stopService(const Intent& intent) {
+    mAm.stopService(intent);
 }
 
 void ContextImpl::setIntent(const Intent& intent) {

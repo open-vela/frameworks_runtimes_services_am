@@ -42,6 +42,10 @@ const android::sp<android::IBinder>& ContextWrapper::getToken() const {
     return mBase->getToken();
 }
 
+ActivityManager& ContextWrapper::getActivityManager() {
+    return mBase->getActivityManager();
+}
+
 void ContextWrapper::startActivity(const Intent& intent) {
     return mBase->startActivity(intent);
 }
@@ -52,6 +56,10 @@ void ContextWrapper::startActivityForResult(const Intent& intent, int requestCod
 
 void ContextWrapper::startService(const Intent& intent) {
     return mBase->startService(intent);
+}
+
+void ContextWrapper::stopService(const Intent& intent) {
+    return mBase->stopService(intent);
 }
 
 void ContextWrapper::setIntent(const Intent& intent) {
