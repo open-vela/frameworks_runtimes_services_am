@@ -52,7 +52,10 @@ public:
     bool finishActivity(const sp<IBinder>& token, int32_t resultCode,
                         const std::optional<Intent>& resultData);
     void reportActivityStatus(const sp<IBinder>& token, int32_t status);
-    int startService(const sp<IBinder>& token, const Intent& intent);
+    int startService(const Intent& intent);
+    int stopService(const Intent& intent);
+    void reportServiceStatus(const string& target, int32_t status);
+
     void systemReady();
 
 private:
@@ -343,10 +346,18 @@ void ActivityManagerInner::reportActivityStatus(const sp<IBinder>& token, int32_
     return;
 }
 
-int ActivityManagerInner::startService(const sp<IBinder>& token, const Intent& intent) {
-    ALOGD("startService");
+int ActivityManagerInner::startService(const Intent& intent) {
     // TODO
     return android::OK;
+}
+
+int ActivityManagerInner::stopService(const Intent& intent) {
+    // TODO
+    return 0;
+}
+
+void ActivityManagerInner::reportServiceStatus(const string& target, int32_t status) {
+    // TODO
 }
 
 void ActivityManagerInner::systemReady() {
@@ -458,8 +469,18 @@ Status ActivityManagerService::reportActivityStatus(const sp<IBinder>& token, in
     return Status::ok();
 }
 
-Status ActivityManagerService::startService(const sp<IBinder>& token, const Intent& intent,
-                                            int32_t* ret) {
+Status ActivityManagerService::startService(const Intent& intent, int32_t* ret) {
+    *ret = mInner->startService(intent);
+    return Status::ok();
+}
+
+Status ActivityManagerService::stopService(const Intent& intent, int32_t* ret) {
+    *ret = mInner->stopService(intent);
+    return Status::ok();
+}
+
+Status ActivityManagerService::reportServiceStatus(const string& target, int32_t status) {
+    mInner->reportServiceStatus(target, status);
     return Status::ok();
 }
 
