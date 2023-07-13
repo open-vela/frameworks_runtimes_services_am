@@ -1,0 +1,149 @@
+/*
+ * Copyright (C) 2023 Xiaomi Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#include "AmCommand.h"
+
+#include <binder/IBinder.h>
+
+#include "app/Intent.h"
+
+namespace os {
+namespace app {
+
+using android::String16;
+using std::string;
+using std::string_view;
+
+AmCommand::AmCommand() {
+    mNextArgs = 0;
+}
+
+AmCommand::~AmCommand() {}
+
+string_view AmCommand::nextArg() {
+    if (mNextArgs < mArgs.size()) {
+        return mArgs[mNextArgs++];
+    } else {
+        return "";
+    }
+}
+
+int AmCommand::makeIntent(Intent &intent) {
+    android::os::PersistableBundle bundle;
+    bool hasTarget = false;
+    for (auto param = nextArg(); param != ""; param = nextArg()) {
+        if (param[0] != '-' && mNextArgs == 2) {
+            /** the "TARGET" only appears on the first param after subcommand */
+            intent.setTarget(param.data());
+            hasTarget = true;
+        } else if (param == "-t") {
+            intent.setTarget(nextArg().data());
+            hasTarget = true;
+        } else if (param == "-a") {
+            intent.setAction(nextArg().data());
+            hasTarget = true;
+        } else if (param == "-d") {
+            intent.setData(nextArg().data());
+        } else if (param == "--ei") {
+            const auto key = String16(nextArg().data());
+            const auto value = std::stoi(string(nextArg().data()));
+            bundle.putInt(key, value);
+        } else if (param == "-e" || param == "--es") {
+            const auto key = String16(nextArg().data());
+            const auto value = String16(nextArg().data());
+            bundle.putString(key, value);
+        } else {
+            printf("unknow options:%s\n", param.data());
+            exit(0);
+        }
+    }
+    if (!hasTarget) {
+        printf("Necessary parameters are missing:<TARGET> or <ACTION> need to be set\n");
+        exit(0);
+    }
+    intent.setBundle(bundle);
+    return 0;
+}
+
+int AmCommand::startActivity() {
+    Intent intent;
+    makeIntent(intent);
+    intent.setFlag(Intent::FLAG_ACTIVITY_NEW_TASK);
+    android::sp<android::IBinder> token(new android::BBinder());
+    return mAm.startActivity(token, intent, -1);
+}
+
+int AmCommand::startService() {
+    Intent intent;
+    makeIntent(intent);
+    return mAm.startService(intent);
+}
+
+int AmCommand::stopService() {
+    Intent intent;
+    makeIntent(intent);
+    return mAm.stopService(intent);
+}
+
+int AmCommand::run(int argc, char *argv[]) {
+    if (argc < 2) {
+        return showUsage();
+    }
+
+    for (int i = 1; i < argc; ++i) {
+        mArgs.emplace_back(argv[i]);
+    }
+
+    const auto subCommand = nextArg();
+    if ("start" == subCommand) {
+        return startActivity();
+    }
+    if ("startservice" == subCommand) {
+        return startService();
+    }
+    if ("stopservice" == subCommand) {
+        return stopService();
+    }
+
+    return showUsage();
+}
+
+int AmCommand::showUsage() {
+    printf("usage: am [subcommand] [options]\n\n");
+    printf(" start <INTENT >\n");
+    printf(" startservice <INTENT>\n");
+    printf(" stopservice  <INTENT>\n");
+    printf("\n You can make <INTENT> like:\n");
+    printf("\t-t \t<TARGET> : '-t' is unnecessary when TARGET as the first param\n");
+    printf("\t-a \t<ACTION>\n");
+    printf("\t-d \t<DATA>\n");
+    printf("\t-e|--es \t<EXTRA_KEY> <EXTRA_STRING_VALUE>: eg. -es name XiaoMing\n");
+    printf("\t--ei \t<EXTRA_KEY> <EXTRA_INT_VALUE>  : eg. -ei age 24\n");
+    printf("\n");
+    return 0;
+}
+
+extern "C" int main(int argc, char *argv[]) {
+    AmCommand cmd;
+    const int ret = cmd.run(argc, argv);
+    if (ret != 0) {
+        printf("Command execution error:%d\n", ret);
+    }
+    return ret;
+}
+
+} // namespace app
+} // namespace os
