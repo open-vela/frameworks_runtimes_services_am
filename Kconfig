@@ -20,3 +20,11 @@ config SYSTEM_ACTIVITY_SERVICE
 	depends on ANDROID_BINDER
 	depends on SYSTEM_SERVER
 	depends on SYSTEM_PACKAGE_SERVICE
+
+if SYSTEM_ACTIVITY_SERVICE
+
+config AM_COMMAND
+	tristate "Enable am command tools"
+	default n
+
+endif
