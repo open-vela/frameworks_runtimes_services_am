@@ -36,6 +36,10 @@ string Application::getPackageName() const {
     return mPackageName;
 }
 
+void Application::setPackageName(const string& name) {
+    mPackageName = name;
+}
+
 void Application::registerActivity(const string& name, const CreateActivityFunc& createFunc) {
     mActivityMap.emplace(name, createFunc);
     ALOGD("Application registerActivity:%s", name.c_str());

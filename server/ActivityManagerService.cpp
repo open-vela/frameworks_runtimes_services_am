@@ -161,8 +161,8 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
         mPendTask.commitTask(task);
     } else {
         /** The app hasn't started yet */
-        int pid;
-        if (AppSpawn::appSpawn(&pid, packageInfo.execfile.c_str(), NULL) == 0) {
+        const int pid = AppSpawn::appSpawn(packageInfo.execfile.c_str(), {packageName});
+        if (pid > 0) {
             auto task = std::make_shared<
                     AppAttachTask>(pid,
                                    [this, packageName, activityInfo, intent, caller,
@@ -381,8 +381,8 @@ int ActivityManagerInner::startService(const Intent& intent) {
         } else {
             PackageInfo targetApp;
             mPm.getPackageInfo(packageName, &targetApp);
-            int pid;
-            if (AppSpawn::appSpawn(&pid, targetApp.execfile.c_str(), NULL) == 0) {
+            const int pid = AppSpawn::appSpawn(targetApp.execfile.c_str(), {packageName});
+            if (pid > 0) {
                 const auto task = [this, serviceName, packageName,
                                    intent](const AppAttachTask::Event* e) -> bool {
                     auto app = std::make_shared<AppRecord>(e->mAppHandler, packageName, e->mPid,
@@ -481,8 +481,8 @@ int ActivityManagerInner::startHomeActivity() {
         }
         /** init Home ActivityStack task, the Home Activity will be pushed to this task */
         mTaskManager.initHomeTask(std::make_shared<ActivityStack>(entryActivity.taskAffinity));
-        int pid;
-        if (AppSpawn::appSpawn(&pid, homeApp.execfile.c_str(), NULL) == 0) {
+        const int pid = AppSpawn::appSpawn(homeApp.execfile.c_str(), {packageName});
+        if (pid > 0) {
             auto task = std::make_shared<
                     AppAttachTask>(pid,
                                    [this, packageName,

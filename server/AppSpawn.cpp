@@ -63,13 +63,22 @@ int AppSpawn::signalInit(const ChildPidExitCB& cb) {
     return 0;
 }
 
-int AppSpawn::appSpawn(int* pid, const char* execfile, char* const* argv) {
-    int ret = posix_spawn(pid, execfile, NULL, NULL, argv, NULL);
+int AppSpawn::appSpawn(const char* execfile, std::initializer_list<std::string> argvlist) {
+    int pid = -1;
+    char* argv[argvlist.size() + 2]; /** 2 = program name + null ptr */
+    int i = 1;
+    argv[0] = const_cast<char*>(execfile);
+    for (auto it = argvlist.begin(); it != argvlist.end(); ++it) {
+        argv[i++] = const_cast<char*>(it->c_str());
+    }
+    argv[i] = nullptr;
+
+    const int ret = posix_spawn(&pid, execfile, NULL, NULL, argv, NULL);
     if (ret < 0) {
         ALOGE("posix_spawn %s failed error:%d", execfile, ret);
         return ret;
     }
-    return 0;
+    return pid;
 }
 
 } // namespace app
