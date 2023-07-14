@@ -64,7 +64,7 @@ public:
     void reportActivityStatus(const sp<IBinder>& token, int32_t status);
     int startService(const Intent& intent);
     int stopService(const Intent& intent);
-    void reportServiceStatus(const string& target, int32_t status);
+    void reportServiceStatus(const sp<IBinder>& token, int32_t status);
 
 private:
     std::mutex mLock;

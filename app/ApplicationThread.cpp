@@ -58,8 +58,9 @@ public:
     Status onActivityResult(const sp<IBinder>& token, int32_t requestCode, int32_t resultCode,
                             const Intent& data);
 
-    Status scheduleStartService(const string& serviceName, const Intent& intent);
-    Status scheduleStopService(const string& serviceName);
+    Status scheduleStartService(const string& serviceName, const sp<IBinder>& token,
+                                const Intent& intent);
+    Status scheduleStopService(const sp<IBinder>& token);
 
 private:
     int onLaunchActivity(const string& activityName, const sp<IBinder>& token,
@@ -68,8 +69,8 @@ private:
     int onPauseActivity(const sp<IBinder>& token);
     int onStopActivity(const sp<IBinder>& token);
     int onDestoryActivity(const sp<IBinder>& token);
-    int onStartService(const string& serviceName, const Intent& intent);
-    int onStopService(const string& serviceName);
+    int onStartService(const string& serviceName, const sp<IBinder>& token, const Intent& intent);
+    int onStopService(const sp<IBinder>& token);
 
 private:
     Application* mApp;
@@ -155,14 +156,15 @@ Status ApplicationThreadStub::onActivityResult(const sp<IBinder>& token, int32_t
 }
 
 Status ApplicationThreadStub::scheduleStartService(const string& serviceName,
-                                                   const Intent& intent) {
-    mApp->getMainLoop()->postTask(
-            [this, serviceName, intent](void*) { this->onStartService(serviceName, intent); });
+                                                   const sp<IBinder>& token, const Intent& intent) {
+    mApp->getMainLoop()->postTask([this, serviceName, token, intent](void*) {
+        this->onStartService(serviceName, token, intent);
+    });
     return Status::ok();
 }
 
-Status ApplicationThreadStub::scheduleStopService(const string& serviceName) {
-    mApp->getMainLoop()->postTask([this, serviceName](void*) { this->onStopService(serviceName); });
+Status ApplicationThreadStub::scheduleStopService(const sp<IBinder>& token) {
+    mApp->getMainLoop()->postTask([this, token](void*) { this->onStopService(token); });
     return Status::ok();
 }
 
@@ -234,8 +236,9 @@ int ApplicationThreadStub::onDestoryActivity(const sp<IBinder>& token) {
     return -1;
 }
 
-int ApplicationThreadStub::onStartService(const string& serviceName, const Intent& intent) {
-    auto service = mApp->findService(serviceName);
+int ApplicationThreadStub::onStartService(const string& serviceName, const sp<IBinder>& token,
+                                          const Intent& intent) {
+    auto service = mApp->findService(token);
     if (service) {
         ALOGW("the %s had been started", serviceName.c_str());
         service->onStartCommand(intent);
@@ -246,7 +249,7 @@ int ApplicationThreadStub::onStartService(const string& serviceName, const Inten
             ALOGW("the %s is non-existent", serviceName.c_str());
             return -1;
         }
-        const auto context = ContextImpl::createServiceContext(mApp);
+        const auto context = ContextImpl::createServiceContext(mApp, token);
         service->attachBaseContext(context);
         mApp->addService(service);
 
@@ -258,10 +261,11 @@ int ApplicationThreadStub::onStartService(const string& serviceName, const Inten
     return 0;
 }
 
-int ApplicationThreadStub::onStopService(const string& serviceName) {
-    auto service = mApp->findService(serviceName);
+int ApplicationThreadStub::onStopService(const sp<IBinder>& token) {
+    auto service = mApp->findService(token);
     if (service) {
         service->onDestory();
+        mApp->deleteService(token);
     }
     return 0;
 }

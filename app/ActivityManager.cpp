@@ -118,10 +118,10 @@ int ActivityManager::stopService(const Intent& intent) {
     return ret;
 }
 
-void ActivityManager::reportServiceStatus(const string& target, int32_t serviceStatus) {
+void ActivityManager::reportServiceStatus(const sp<IBinder>& token, int32_t serviceStatus) {
     sp<IActivityManager> service = getService();
     if (service != nullptr) {
-        Status status = service->reportServiceStatus(target, serviceStatus);
+        Status status = service->reportServiceStatus(token, serviceStatus);
         if (!status.isOk()) {
             ALOGE("reportServiceStatus error:%s", status.toString8().c_str());
         }

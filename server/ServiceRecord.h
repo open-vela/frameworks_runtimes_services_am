@@ -24,6 +24,8 @@
 namespace os {
 namespace am {
 
+using android::IBinder;
+using android::sp;
 using os::app::Intent;
 class AppRecord;
 
@@ -37,8 +39,9 @@ public:
         DESTROYING,
         DESTROYED,
     };
-    ServiceRecord(const std::string& name, const std::shared_ptr<AppRecord>& appRecord)
-          : mServiceName(name), mStatus(CREATING), mApp(appRecord) {}
+    ServiceRecord(const std::string& name, const sp<IBinder>& token,
+                  const std::shared_ptr<AppRecord>& appRecord)
+          : mServiceName(name), mToken(token), mStatus(CREATING), mApp(appRecord) {}
 
     void start(const Intent& intent);
     void stop();
@@ -46,6 +49,7 @@ public:
 
 public:
     const std::string mServiceName;
+    sp<IBinder> mToken;
     int mStatus;
     std::weak_ptr<AppRecord> mApp;
 };
@@ -54,9 +58,10 @@ using ServiceHandler = std::shared_ptr<ServiceRecord>;
 
 class ServiceList {
 public:
-    ServiceHandler getService(const std::string& packageName, const std::string& serviceName);
+    ServiceHandler findService(const std::string& packageName, const std::string& serviceName);
+    ServiceHandler getService(const sp<IBinder>& token);
     void addService(const ServiceHandler& service);
-    void deleteService(const std::string& packageName, const std::string& serviceName);
+    void deleteService(const sp<IBinder>& token);
 
 private:
     std::vector<ServiceHandler> mServiceList;

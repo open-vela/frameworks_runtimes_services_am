@@ -57,8 +57,13 @@ interface IActivityManager {
     int stopService(in Intent intent);
 
     /**
-     * @param target: packageName/serviceName
+     * @param token: service token
+     */
+    int stopServiceToken(IBinder token);
+
+    /**
+     * @param token: service token
      * @param status: onCreated/onStarted/onDestoryed
      */
-    void reportServiceStatus(@utf8InCpp String target, int status);
+    void reportServiceStatus(in IBinder token, int status);
 }
