@@ -17,6 +17,8 @@
 #pragma once
 
 #include <functional>
+#include <initializer_list>
+#include <string>
 
 namespace os {
 namespace app {
@@ -26,7 +28,7 @@ using ChildPidExitCB = std::function<void(int)>;
 class AppSpawn {
 public:
     static int signalInit(const ChildPidExitCB& cb);
-    static int appSpawn(int* pid, const char* execfile, char* const* argv);
+    static int appSpawn(const char* execfile, std::initializer_list<std::string> argvlist);
     static ChildPidExitCB gChildPidExitCB;
 };
 
