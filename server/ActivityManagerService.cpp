@@ -56,7 +56,8 @@ public:
     void reportActivityStatus(const sp<IBinder>& token, int32_t status);
     int startService(const Intent& intent);
     int stopService(const Intent& intent);
-    void reportServiceStatus(const string& target, int32_t status);
+    int stopServiceToken(const sp<IBinder>& token);
+    void reportServiceStatus(const sp<IBinder>& token, int32_t status);
 
     void systemReady();
 
@@ -65,6 +66,7 @@ private:
     ActivityHandler startActivityReal(const std::shared_ptr<AppRecord>& app,
                                       const ActivityInfo& activityName, const Intent& intent,
                                       const sp<IBinder>& caller, const int32_t requestCode);
+    void stopServiceReal(ServiceHandler& service);
     int startHomeActivity();
 
 private:
@@ -369,15 +371,16 @@ int ActivityManagerInner::startService(const Intent& intent) {
         return android::BAD_VALUE;
     }
 
-    ALOGI("start service:%s/%s", packageName.c_str(), serviceName.c_str());
+    ALOGD("start service:%s/%s", packageName.c_str(), serviceName.c_str());
 
-    auto service = mServices.getService(packageName, serviceName);
+    auto service = mServices.findService(packageName, serviceName);
     if (service) {
         service->start(intent);
     } else {
         const auto appRecord = mAppInfo.findAppInfo(packageName);
         if (appRecord) {
-            service = std::make_shared<ServiceRecord>(serviceName, appRecord);
+            const sp<IBinder> token(new android::BBinder());
+            service = std::make_shared<ServiceRecord>(serviceName, token, appRecord);
             mServices.addService(service);
             service->start(intent);
         } else {
@@ -390,7 +393,8 @@ int ActivityManagerInner::startService(const Intent& intent) {
                     auto app = std::make_shared<AppRecord>(e->mAppHandler, packageName, e->mPid,
                                                            e->mUid);
                     this->mAppInfo.addAppInfo(app);
-                    auto serviceRecord = std::make_shared<ServiceRecord>(serviceName, app);
+                    const sp<IBinder> token(new android::BBinder());
+                    auto serviceRecord = std::make_shared<ServiceRecord>(serviceName, token, app);
                     mServices.addService(serviceRecord);
                     serviceRecord->start(intent);
                     return true;
@@ -417,30 +421,63 @@ int ActivityManagerInner::stopService(const Intent& intent) {
         getPackageAndComponentName(intent.mTarget, packageName, serviceName);
     }
 
-    ALOGI("stop service:%s/%s", packageName.c_str(), serviceName.c_str());
+    ALOGD("stop service:%s/%s", packageName.c_str(), serviceName.c_str());
 
-    auto service = mServices.getService(packageName, serviceName);
-    if (service == nullptr) {
+    auto service = mServices.findService(packageName, serviceName);
+    if (!service) {
         ALOGW("the Service:%s is not running", serviceName.c_str());
         return android::DEAD_OBJECT;
     }
-    if (service->mStatus <= ServiceRecord::STARTED) {
-        ALOGI("stopService %s/%s", packageName.c_str(), serviceName.c_str());
-        service->stop();
-    }
 
+    stopServiceReal(service);
     return 0;
 }
 
-void ActivityManagerInner::reportServiceStatus(const string& target, int32_t status) {
-    ALOGI("reportServiceStatus %s status:%d", target.c_str(), status);
-    string packageName;
-    string serviceName;
-    getPackageAndComponentName(target, packageName, serviceName);
+int ActivityManagerInner::stopServiceToken(const sp<IBinder>& token) {
+    ALOGD("stop service by token");
+    auto service = mServices.getService(token);
+    if (!service) {
+        ALOGW("unbelievable! Can't get record when service stop self:%s/%s",
+              service->getPackageName()->c_str(), service->mServiceName.c_str());
+        return android::DEAD_OBJECT;
+    }
 
-    auto service = mServices.getService(packageName, serviceName);
-    if (service) {
-        service->mStatus = status;
+    stopServiceReal(service);
+    return 0;
+}
+
+void ActivityManagerInner::stopServiceReal(ServiceHandler& service) {
+    ALOGI("stopService %s/%s", service->getPackageName()->c_str(), service->mServiceName.c_str());
+    if (service->mStatus <= ServiceRecord::STARTED) {
+        service->stop();
+        const auto task = [this](const sp<IBinder>& token2) -> bool {
+            mServices.deleteService(token2);
+            return true;
+        };
+        mPendTask.commitTask(std::make_shared<ServiceDestroyTask>(service->mToken, task));
+    }
+}
+
+void ActivityManagerInner::reportServiceStatus(const sp<IBinder>& token, int32_t status) {
+    ALOGD("reportServiceStatus status:%d", status);
+    auto service = mServices.getService(token);
+    if (!service) {
+        ALOGE("service is not exist");
+        return;
+    }
+    service->mStatus = status;
+    switch (status) {
+        case ServiceRecord::CREATED:
+        case ServiceRecord::STARTED:
+            break;
+        case ServiceRecord::DESTROYED: {
+            const ServiceDestroyTask::Event event(token);
+            mPendTask.eventTrigger(&event);
+            break;
+        }
+        default: {
+            ALOGE("unbeliveable!!! service status:%d is illegal", status);
+        }
     }
 }
 
@@ -570,8 +607,13 @@ Status ActivityManagerService::stopService(const Intent& intent, int32_t* ret) {
     return Status::ok();
 }
 
-Status ActivityManagerService::reportServiceStatus(const string& target, int32_t status) {
-    mInner->reportServiceStatus(target, status);
+Status ActivityManagerService::stopServiceToken(const sp<IBinder>& token, int32_t* ret) {
+    *ret = mInner->stopServiceToken(token);
+    return Status::ok();
+}
+
+Status ActivityManagerService::reportServiceStatus(const sp<IBinder>& token, int32_t status) {
+    mInner->reportServiceStatus(token, status);
     return Status::ok();
 }
 

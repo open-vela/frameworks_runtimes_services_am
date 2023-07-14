@@ -27,13 +27,13 @@ using std::string;
 
 void ServiceRecord::start(const Intent& intent) {
     if (!mApp.expired()) {
-        (mApp.lock()->mAppThread)->scheduleStartService(mServiceName, intent);
+        (mApp.lock()->mAppThread)->scheduleStartService(mServiceName, mToken, intent);
     }
 }
 
 void ServiceRecord::stop() {
     if (!mApp.expired()) {
-        (mApp.lock()->mAppThread)->scheduleStopService(mServiceName);
+        (mApp.lock()->mAppThread)->scheduleStopService(mToken);
     }
 }
 
@@ -44,8 +44,7 @@ const string* ServiceRecord::getPackageName() {
     return nullptr;
 }
 
-ServiceHandler ServiceList::getService(const std::string& packageName,
-                                       const std::string& serviceName) {
+ServiceHandler ServiceList::findService(const string& packageName, const string& serviceName) {
     for (auto it : mServiceList) {
         if (it->mServiceName == serviceName) {
             const string* package = it->getPackageName();
@@ -57,18 +56,24 @@ ServiceHandler ServiceList::getService(const std::string& packageName,
     return nullptr;
 }
 
+ServiceHandler ServiceList::getService(const sp<IBinder>& token) {
+    for (auto it : mServiceList) {
+        if (it->mToken == token) {
+            return it;
+        }
+    }
+    return nullptr;
+}
+
 void ServiceList::addService(const ServiceHandler& service) {
     mServiceList.emplace_back(service);
 }
 
-void ServiceList::deleteService(const std::string& packageName, const std::string& serviceName) {
+void ServiceList::deleteService(const sp<IBinder>& token) {
     for (auto it : mServiceList) {
-        if (it->mServiceName == serviceName) {
-            const string* package = it->getPackageName();
-            if (package && *package == packageName) {
-                it = mServiceList.back();
-                mServiceList.pop_back();
-            }
+        if (it->mToken == token) {
+            it = mServiceList.back();
+            mServiceList.pop_back();
         }
     }
 }
