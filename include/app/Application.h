@@ -81,8 +81,8 @@ public:
     void deleteActivity(const sp<IBinder>& token);
 
     void addService(const std::shared_ptr<Service>& service);
-    std::shared_ptr<Service> findService(const string& serviceName);
-    void deleteService(const string& serviceName);
+    std::shared_ptr<Service> findService(const sp<IBinder>& token);
+    void deleteService(const sp<IBinder>& token);
 
 private:
     map<sp<IBinder>, std::shared_ptr<Activity>> mExistActivities;

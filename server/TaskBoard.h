@@ -28,6 +28,7 @@
 namespace os {
 namespace am {
 
+using android::IBinder;
 using android::sp;
 using os::app::IApplicationThread;
 using std::string;
@@ -68,6 +69,7 @@ enum TASK_LABEL {
     APP_ATTACH,
     ACTIVITY_RESUME,
     ACTIVITY_PAUSE,
+    SERVICE_DESTROY,
 };
 /***************************************************************************/
 
@@ -140,6 +142,29 @@ public:
 private:
     sp<android::IBinder> mToken;
     std::function<bool()> mCallback;
+};
+
+class ServiceDestroyTask : public Task {
+public:
+    struct Event : Label {
+        sp<IBinder> mToken;
+        Event(const sp<IBinder>& token) : Label(SERVICE_DESTROY), mToken(token) {}
+    };
+
+    using TaskFunc = std::function<bool(const sp<IBinder>&)>;
+    ServiceDestroyTask(const sp<IBinder>& token, TaskFunc&& cb)
+          : Task(SERVICE_DESTROY), mToken(token), mCallback(cb){};
+    bool execute(const Label* e) override {
+        const Event* event = static_cast<const Event*>(e);
+        if (event->mToken == mToken) {
+            return mCallback(mToken);
+        }
+        return false;
+    }
+
+private:
+    sp<IBinder> mToken;
+    TaskFunc mCallback;
 };
 
 } // namespace am
