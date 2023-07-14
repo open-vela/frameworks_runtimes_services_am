@@ -87,10 +87,16 @@ ApplicationThread::~ApplicationThread() {
 }
 
 int ApplicationThread::mainRun(int argc, char** argv) {
+    if (argc < 2) {
+        ALOGE("illegally launch Application!!!");
+        return -1;
+    }
+    ALOGI("start Application:%s execfile:%s", argv[1], argv[0]);
     android::ProcessState::self()->setThreadPoolMaxThreadCount(1);
     android::ProcessState::self()->startThreadPool();
 
     android::sp<ApplicationThreadStub> appThread(new ApplicationThreadStub);
+    mApp->setPackageName(argv[1]);
     mApp->onCreate();
     appThread->bind(mApp);
 
