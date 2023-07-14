@@ -29,8 +29,9 @@ std::shared_ptr<Context> ContextImpl::createActivityContext(const Application* a
     return std::make_shared<ContextImpl>(app, token);
 }
 
-std::shared_ptr<Context> ContextImpl::createServiceContext(const Application* app) {
-    return std::make_shared<ContextImpl>(app, nullptr);
+std::shared_ptr<Context> ContextImpl::createServiceContext(const Application* app,
+                                                           const sp<IBinder>& token) {
+    return std::make_shared<ContextImpl>(app, token);
 }
 
 string ContextImpl::getPackageName() {

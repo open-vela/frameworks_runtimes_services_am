@@ -94,18 +94,18 @@ void Application::addService(const std::shared_ptr<Service>& service) {
     mExistServices.push_back(service);
 }
 
-std::shared_ptr<Service> Application::findService(const string& serviceName) {
+std::shared_ptr<Service> Application::findService(const sp<IBinder>& token) {
     for (auto it : mExistServices) {
-        if (it->getServiceName() == serviceName) {
+        if (it->getToken() == token) {
             return it;
         }
     }
     return nullptr;
 }
 
-void Application::deleteService(const string& serviceName) {
+void Application::deleteService(const sp<IBinder>& token) {
     for (auto it : mExistServices) {
-        if (it->getServiceName() == serviceName) {
+        if (it->getToken() == token) {
             it = mExistServices.back();
             mExistServices.pop_back();
         }

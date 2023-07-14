@@ -28,8 +28,7 @@ const std::string& Service::getServiceName() {
 }
 
 void Service::reportServiceStatus(int status) {
-    const std::string target = getPackageName().append("/").append(mServiceName);
-    getActivityManager().reportServiceStatus(target, status);
+    getActivityManager().reportServiceStatus(getToken(), status);
 }
 
 } // namespace app
