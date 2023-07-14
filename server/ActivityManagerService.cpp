@@ -204,6 +204,8 @@ ActivityHandler ActivityManagerInner::startActivityReal(const std::shared_ptr<Ap
             isCreateTask = true;
             targetTask = std::make_shared<ActivityStack>(activityInfo.taskAffinity);
         }
+    } else {
+        targetTask = mTaskManager.getActiveTask();
     }
 
     bool isCreateActivity = true;
