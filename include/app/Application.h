@@ -60,6 +60,7 @@ public:
     virtual void onDestroy() = 0;
 
     string getPackageName() const;
+    void setPackageName(const string& name);
     int getUid() {
         return mUid;
     }
