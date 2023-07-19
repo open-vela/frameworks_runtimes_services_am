@@ -69,6 +69,14 @@ void ActivityStack::popAll() {
     }
 }
 
+std::ostream& operator<<(std::ostream& os, const ActivityStack& activityStack) {
+    os << "Tag{" << activityStack.mTag << "}: ";
+    for (auto it = activityStack.mTask.rbegin(); it != activityStack.mTask.rend(); ++it) {
+        os << "\n\t" << *(it->get());
+    }
+    return os;
+}
+
 /*
  * TaskStackManager: Manage all tasks
  */
@@ -87,7 +95,7 @@ TaskHandler TaskStackManager::findTask(const std::string& tag) {
 
 void TaskStackManager::initHomeTask(const TaskHandler& task) {
     mAllTasks.emplace_front(task);
-    mHomeIter = mAllTasks.begin();
+    mHomeTask = task;
 }
 
 void TaskStackManager::pushHomeTaskToFront() {
@@ -104,6 +112,25 @@ void TaskStackManager::switchTaskToActive() {
 
 void TaskStackManager::popFrontTask() {
     mAllTasks.pop_front();
+}
+
+std::ostream& operator<<(std::ostream& os, const TaskStackManager& task) {
+#define RESET "\033[0m"
+#define GREEN "\033[32m"
+#define YELLOW "\033[33m"
+#define BLUE "\033[34m"
+
+    os << GREEN << "foreground task:" << RESET << endl;
+    for (auto& it : task.mAllTasks) {
+        if (it == task.mHomeTask) {
+            os << YELLOW << "home task:" << RESET << endl;
+            os << *it << endl;
+            os << BLUE << "background task:" << RESET << endl;
+        } else {
+            os << *it << endl;
+        }
+    }
+    return os;
 }
 
 } // namespace am
