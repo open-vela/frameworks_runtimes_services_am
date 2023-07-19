@@ -34,7 +34,7 @@ public:
     virtual void onDestory() = 0;
 
     virtual void onRestart(){};
-    virtual void onNewIntent(){};
+    virtual void onNewIntent(const Intent& intent){};
     virtual void onActivityResult(const int requestCode, const int resultCode,
                                   const Intent& resultData){};
 
@@ -42,8 +42,11 @@ public:
     void setResult(const int resultCode, const std::shared_ptr<Intent>& resultData);
     void finish();
 
+    int getStatus();
+
 private:
     int mResultCode;
+    int mStatus;
     std::shared_ptr<Intent> mResultData;
 };
 

@@ -99,15 +99,17 @@ void TaskStackManager::initHomeTask(const TaskHandler& task) {
 }
 
 void TaskStackManager::pushHomeTaskToFront() {
-    // TODO
+    mAllTasks.remove(mHomeTask);
+    mAllTasks.emplace_front(mHomeTask);
 }
 
-void TaskStackManager::pushActiveTask() {
-    // TODO
+void TaskStackManager::pushActiveTask(const TaskHandler& task) {
+    mAllTasks.emplace_front(task);
 }
 
-void TaskStackManager::switchTaskToActive() {
-    // TODO
+void TaskStackManager::switchTaskToActive(const TaskHandler& task) {
+    mAllTasks.remove(task);
+    mAllTasks.push_front(task);
 }
 
 void TaskStackManager::popFrontTask() {
