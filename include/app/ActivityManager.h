@@ -66,10 +66,11 @@ public:
     int stopService(const Intent& intent);
     void reportServiceStatus(const sp<IBinder>& token, int32_t status);
 
+    sp<IActivityManager> getService();
+
 private:
     std::mutex mLock;
     sp<IActivityManager> mService;
-    sp<IActivityManager> getService();
 };
 
 } // namespace app

@@ -59,6 +59,8 @@ public:
     int stopServiceToken(const sp<IBinder>& token);
     void reportServiceStatus(const sp<IBinder>& token, int32_t status);
 
+    void dump(int fd, const android::Vector<android::String16>& args);
+
     void systemReady();
 
 private:
@@ -500,6 +502,12 @@ void ActivityManagerInner::systemReady() {
     return;
 }
 
+void ActivityManagerInner::dump(int fd, const android::Vector<android::String16>& args) {
+    std::ostringstream os;
+    os << mTaskManager;
+    write(fd, os.str().c_str(), os.str().size());
+}
+
 int ActivityManagerInner::startHomeActivity() {
     /** start the launch app */
     string target;
@@ -615,6 +623,12 @@ Status ActivityManagerService::stopServiceToken(const sp<IBinder>& token, int32_
 Status ActivityManagerService::reportServiceStatus(const sp<IBinder>& token, int32_t status) {
     mInner->reportServiceStatus(token, status);
     return Status::ok();
+}
+
+android::status_t ActivityManagerService::dump(int fd,
+                                               const android::Vector<android::String16>& args) {
+    mInner->dump(fd, args);
+    return 0;
 }
 
 /** The service is ready to start and the application can be launched */
