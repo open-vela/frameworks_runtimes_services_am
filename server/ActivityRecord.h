@@ -18,6 +18,7 @@
 
 #include <binder/IBinder.h>
 
+#include <iostream>
 #include <memory>
 
 #include "app/Intent.h"
@@ -67,6 +68,8 @@ public:
     void stop();
     void destroy();
     void onResult(int32_t requestCode, int32_t resultCode, const Intent& resultData);
+
+    friend std::ostream& operator<<(std::ostream& os, const ActivityRecord& record);
 
 public:
     std::string mActivityName;

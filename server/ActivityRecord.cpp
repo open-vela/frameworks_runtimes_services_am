@@ -16,6 +16,8 @@
 
 #include "ActivityRecord.h"
 
+#include <utils/Log.h>
+
 #include "AppRecord.h"
 #include "app/Intent.h"
 
@@ -56,6 +58,57 @@ void ActivityRecord::onResult(int32_t requestCode, int32_t resultCode, const Int
     if (!mApp.expired()) {
         (mApp.lock()->mAppThread)->onActivityResult(mToken, requestCode, resultCode, resultData);
     }
+}
+
+std::ostream& operator<<(std::ostream& os, const ActivityRecord& record) {
+    if (!record.mApp.expired()) {
+        os << record.mApp.lock()->mPackageName << "/" << record.mActivityName;
+        os << " [";
+        switch (record.mStatus) {
+            case ActivityRecord::CREATING:
+                os << "creating";
+                break;
+            case ActivityRecord::CREATED:
+                os << "created";
+                break;
+            case ActivityRecord::STARTING:
+                os << "starting";
+                break;
+            case ActivityRecord::STARTED:
+                os << "started";
+                break;
+            case ActivityRecord::RESUMING:
+                os << "resuming";
+                break;
+            case ActivityRecord::RESUMED:
+                os << "resumed";
+                break;
+            case ActivityRecord::PAUSING:
+                os << "pausing";
+                break;
+            case ActivityRecord::PAUSED:
+                os << "paused";
+                break;
+            case ActivityRecord::STOPED:
+                os << "stoped";
+                break;
+            case ActivityRecord::STOPPING:
+                os << "stopping";
+                break;
+            case ActivityRecord::DESTROYING:
+                os << "destorying";
+                break;
+            case ActivityRecord::DESTROYED:
+                os << "destoryed";
+                break;
+            default:
+                os << "undefined";
+                ALOGE("undefined activity status:%d", record.mStatus);
+                break;
+        }
+        os << "] ";
+    }
+    return os;
 }
 
 } // namespace am

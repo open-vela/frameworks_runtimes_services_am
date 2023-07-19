@@ -98,6 +98,12 @@ int AmCommand::stopService() {
     return mAm.stopService(intent);
 }
 
+int AmCommand::dump() {
+    const android::Vector<android::String16> args;
+    android::IInterface::asBinder(mAm.getService())->dump(fileno(stdout), args);
+    return 0;
+}
+
 int AmCommand::run(int argc, char *argv[]) {
     if (argc < 2) {
         return showUsage();
@@ -117,6 +123,9 @@ int AmCommand::run(int argc, char *argv[]) {
     if ("stopservice" == subCommand) {
         return stopService();
     }
+    if ("dump" == subCommand) {
+        return dump();
+    }
 
     return showUsage();
 }
@@ -126,6 +135,7 @@ int AmCommand::showUsage() {
     printf(" start <INTENT >\n");
     printf(" startservice <INTENT>\n");
     printf(" stopservice  <INTENT>\n");
+    printf(" dump\n  :show all Activity task");
     printf("\n You can make <INTENT> like:\n");
     printf("\t-t \t<TARGET> : '-t' is unnecessary when TARGET as the first param\n");
     printf("\t-a \t<ACTION>\n");
