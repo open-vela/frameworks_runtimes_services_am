@@ -66,8 +66,8 @@ public:
 
     void initHomeTask(const TaskHandler& task);
     void pushHomeTaskToFront();
-    void pushActiveTask();
-    void switchTaskToActive();
+    void pushActiveTask(const TaskHandler& task);
+    void switchTaskToActive(const TaskHandler& task);
     void popFrontTask();
 
     friend std::ostream& operator<<(std::ostream& os, const TaskStackManager& task);

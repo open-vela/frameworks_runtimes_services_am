@@ -51,6 +51,7 @@ public:
 
     Status scheduleLaunchActivity(const string& activityName, const sp<IBinder>& token,
                                   const Intent& intent);
+    Status scheduleStartActivity(const sp<IBinder>& token, const Intent& intent);
     Status scheduleResumeActivity(const sp<IBinder>& token, const Intent& intent);
     Status schedulePauseActivity(const sp<IBinder>& token);
     Status scheduleStopActivity(const sp<IBinder>& token);
@@ -65,6 +66,7 @@ public:
 private:
     int onLaunchActivity(const string& activityName, const sp<IBinder>& token,
                          const Intent& intent);
+    int onStartActivity(const sp<IBinder>& token, const Intent& intent);
     int onResumeActivity(const sp<IBinder>& token, const Intent& intent);
     int onPauseActivity(const sp<IBinder>& token);
     int onStopActivity(const sp<IBinder>& token);
@@ -118,6 +120,13 @@ Status ApplicationThreadStub::scheduleLaunchActivity(const std::string& activity
     mApp->getMainLoop()->postTask([this, activityName, token, intent](void*) {
         this->onLaunchActivity(activityName, token, intent);
     });
+    return Status::ok();
+}
+
+Status ApplicationThreadStub::scheduleStartActivity(const sp<IBinder>& token,
+                                                    const Intent& intent) {
+    mApp->getMainLoop()->postTask(
+            [this, token, intent](void*) { this->onStartActivity(token, intent); });
     return Status::ok();
 }
 
@@ -176,15 +185,23 @@ int ApplicationThreadStub::onLaunchActivity(const std::string& activityName,
         activity->attachBaseContext(context);
 
         mApp->addActivity(token, activity);
-        activity->reportActivityStatus(ActivityManager::CREATED);
         activity->onCreate();
-
+        activity->reportActivityStatus(ActivityManager::CREATED);
         activity->setIntent(intent);
-        activity->reportActivityStatus(ActivityManager::STARTED);
-        activity->onStart();
 
-        activity->reportActivityStatus(ActivityManager::RESUMED);
-        activity->onResume();
+        return 0;
+    }
+    return -1;
+}
+
+int ApplicationThreadStub::onStartActivity(const sp<IBinder>& token, const Intent& intent) {
+    std::shared_ptr<Activity> activity = mApp->findActivity(token);
+    if (activity != nullptr) {
+        if (activity->getStatus() == ActivityManager::STOPPED) {
+            activity->onNewIntent(intent);
+        }
+        activity->onStart();
+        activity->reportActivityStatus(ActivityManager::STARTED);
         return 0;
     }
     return -1;
@@ -193,13 +210,11 @@ int ApplicationThreadStub::onLaunchActivity(const std::string& activityName,
 int ApplicationThreadStub::onResumeActivity(const sp<IBinder>& token, const Intent& intent) {
     std::shared_ptr<Activity> activity = mApp->findActivity(token);
     if (activity != nullptr) {
-        activity->onRestart();
-
-        activity->reportActivityStatus(ActivityManager::STARTED);
-        activity->onStart();
-
-        activity->reportActivityStatus(ActivityManager::RESUMED);
+        if (activity->getStatus() == ActivityManager::PAUSED) {
+            activity->onNewIntent(intent);
+        }
         activity->onResume();
+        activity->reportActivityStatus(ActivityManager::RESUMED);
         return 0;
     }
     return -1;
@@ -208,8 +223,8 @@ int ApplicationThreadStub::onResumeActivity(const sp<IBinder>& token, const Inte
 int ApplicationThreadStub::onPauseActivity(const sp<IBinder>& token) {
     std::shared_ptr<Activity> activity = mApp->findActivity(token);
     if (activity != nullptr) {
-        activity->reportActivityStatus(ActivityManager::PAUSED);
         activity->onPause();
+        activity->reportActivityStatus(ActivityManager::PAUSED);
         return 0;
     }
     return -1;
@@ -218,8 +233,8 @@ int ApplicationThreadStub::onPauseActivity(const sp<IBinder>& token) {
 int ApplicationThreadStub::onStopActivity(const sp<IBinder>& token) {
     std::shared_ptr<Activity> activity = mApp->findActivity(token);
     if (activity != nullptr) {
-        activity->reportActivityStatus(ActivityManager::STOPPED);
         activity->onStop();
+        activity->reportActivityStatus(ActivityManager::STOPPED);
         return 0;
     }
     return -1;
@@ -228,8 +243,8 @@ int ApplicationThreadStub::onStopActivity(const sp<IBinder>& token) {
 int ApplicationThreadStub::onDestoryActivity(const sp<IBinder>& token) {
     std::shared_ptr<Activity> activity = mApp->findActivity(token);
     if (activity != nullptr) {
-        activity->reportActivityStatus(ActivityManager::DESTORYED);
         activity->onDestory();
+        activity->reportActivityStatus(ActivityManager::DESTORYED);
         mApp->deleteActivity(token);
         return 0;
     }

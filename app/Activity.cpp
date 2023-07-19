@@ -24,6 +24,7 @@ namespace app {
 #define CONTEXT_IMPL static_cast<ContextImpl*>(mBase.get())
 
 void Activity::reportActivityStatus(const int status) {
+    mStatus = status;
     CONTEXT_IMPL->mAm.reportActivityStatus(CONTEXT_IMPL->mToken, status);
 }
 
@@ -34,6 +35,10 @@ void Activity::setResult(const int resultCode, const std::shared_ptr<Intent>& re
 
 void Activity::finish() {
     CONTEXT_IMPL->mAm.finishActivity(CONTEXT_IMPL->mToken, mResultCode, mResultData);
+}
+
+int Activity::getStatus() {
+    return mStatus;
 }
 
 } // namespace app

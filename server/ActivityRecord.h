@@ -63,6 +63,8 @@ public:
         DESTROYED,
     };
 
+    void create();
+    void start();
     void resume();
     void pause();
     void stop();
