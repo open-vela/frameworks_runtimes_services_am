@@ -26,6 +26,20 @@ namespace am {
 
 using os::app::Intent;
 
+void ActivityRecord::create() {
+    if (!mApp.expired()) {
+        mStatus = CREATING;
+        (mApp.lock()->mAppThread)->scheduleLaunchActivity(mActivityName, mToken, mIntent);
+    }
+}
+
+void ActivityRecord::start() {
+    if (!mApp.expired()) {
+        mStatus = STARTING;
+        (mApp.lock()->mAppThread)->scheduleStartActivity(mToken, mIntent);
+    }
+}
+
 void ActivityRecord::resume() {
     if (!mApp.expired()) {
         mStatus = RESUMING;
