@@ -50,6 +50,8 @@ public:
     Status stopServiceToken(const sp<IBinder>& token, int32_t* ret) override;
     Status reportServiceStatus(const sp<IBinder>& token, int32_t status) override;
 
+    android::status_t dump(int fd, const android::Vector<android::String16>& args) override;
+
     // The service is ready to start and the application can be launched
     void systemReady();
 

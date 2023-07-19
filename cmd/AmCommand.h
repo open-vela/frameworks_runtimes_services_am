@@ -39,6 +39,7 @@ private:
     int startActivity();
     int startService();
     int stopService();
+    int dump();
 
 private:
     ActivityManager mAm;

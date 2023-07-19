@@ -45,6 +45,8 @@ public:
     void popToActivity(const ActivityHandler& target);
     void popAll();
 
+    friend std::ostream& operator<<(std::ostream& os, const ActivityStack& obj);
+
 private:
     std::vector<ActivityHandler> mTask;
     std::string mTag;
@@ -68,10 +70,11 @@ public:
     void switchTaskToActive();
     void popFrontTask();
 
+    friend std::ostream& operator<<(std::ostream& os, const TaskStackManager& task);
+
 private:
-    using TaskPtr = std::list<TaskHandler>::iterator;
     std::list<TaskHandler> mAllTasks;
-    TaskPtr mHomeIter;
+    TaskHandler mHomeTask;
 };
 
 } // namespace am
