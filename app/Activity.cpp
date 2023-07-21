@@ -16,6 +16,8 @@
 
 #include "app/Activity.h"
 
+#include "BaseWindow.h"
+#include "WindowManager.h"
 #include "app/ContextImpl.h"
 
 namespace os {
@@ -39,6 +41,45 @@ void Activity::finish() {
 
 int Activity::getStatus() {
     return mStatus;
+}
+
+void Activity::attach(std::shared_ptr<Context> context, Intent intent) {
+    attachBaseContext(context);
+    setIntent(intent);
+
+    mWindow = ::os::wm::WindowManager::getInstance()->newWindow(context.get());
+    if (mWindow) {
+        mWindowManager = (::os::wm::WindowManager*)mWindow->getWindowManager();
+
+    } else {
+        ALOGE("Activity: new window failed!");
+    }
+}
+
+void Activity::performCreate() {
+    if (mWindowManager) mWindowManager->attachIWindow(mWindow);
+    onCreate();
+}
+
+void Activity::performStart() {
+    onStart();
+}
+
+void Activity::performResume() {
+    onResume();
+}
+
+void Activity::performPause() {
+    onStop();
+}
+
+void Activity::performStop() {
+    onStop();
+}
+
+void Activity::performDestroy() {
+    if (mWindowManager) mWindowManager->removeWindow(mWindow);
+    onDestory();
 }
 
 } // namespace app
