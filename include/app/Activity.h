@@ -19,6 +19,12 @@
 #include "app/Context.h"
 
 namespace os {
+
+namespace wm {
+class BaseWindow;
+class WindowManager;
+} // namespace wm
+
 namespace app {
 
 class Activity : public ContextWrapper {
@@ -44,10 +50,25 @@ public:
 
     int getStatus();
 
+    void attach(std::shared_ptr<Context> context, Intent intent);
+
+    void performCreate();
+    void performStart();
+    void performResume();
+    void performPause();
+    void performStop();
+    void performDestroy();
+
+    std::shared_ptr<::os::wm::BaseWindow> getWindow() {
+        return mWindow;
+    }
+
 private:
     int mResultCode;
     int mStatus;
     std::shared_ptr<Intent> mResultData;
+    std::shared_ptr<::os::wm::BaseWindow> mWindow;
+    ::os::wm::WindowManager* mWindowManager;
 };
 
 } // namespace app
