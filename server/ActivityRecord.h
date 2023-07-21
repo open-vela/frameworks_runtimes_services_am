@@ -22,6 +22,7 @@
 #include <memory>
 
 #include "app/Intent.h"
+#include "os/wm/BnWindowManager.h"
 
 namespace os {
 namespace am {
@@ -46,7 +47,10 @@ public:
             mStatus(CREATING),
             mLaunchMode(launchMode),
             mApp(app),
-            mInTask(task) {}
+            mInTask(task),
+            mWindowService(nullptr) {
+        mWindowService = getWindowService();
+    }
 
     enum {
         CREATING = 0,
@@ -71,6 +75,8 @@ public:
     void destroy();
     void onResult(int32_t requestCode, int32_t resultCode, const Intent& resultData);
 
+    sp<::os::wm::IWindowManager>& getWindowService();
+
     friend std::ostream& operator<<(std::ostream& os, const ActivityRecord& record);
 
 public:
@@ -83,6 +89,7 @@ public:
     std::weak_ptr<AppRecord> mApp;
     std::weak_ptr<ActivityStack> mInTask;
     Intent mIntent;
+    sp<::os::wm::IWindowManager> mWindowService;
 };
 
 using ActivityHandler = std::shared_ptr<ActivityRecord>;
