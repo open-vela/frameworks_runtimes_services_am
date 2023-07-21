@@ -16,19 +16,24 @@
 
 #include "ActivityRecord.h"
 
+#include <binder/IInterface.h>
+#include <binder/IServiceManager.h>
 #include <utils/Log.h>
 
 #include "AppRecord.h"
 #include "app/Intent.h"
+#include "wm/LayoutParams.h"
 
 namespace os {
 namespace am {
 
 using os::app::Intent;
+using os::wm::LayoutParams;
 
 void ActivityRecord::create() {
     if (!mApp.expired()) {
         mStatus = CREATING;
+        mWindowService->addWindowToken(mToken, LayoutParams::TYPE_APPLICATION, 0);
         (mApp.lock()->mAppThread)->scheduleLaunchActivity(mActivityName, mToken, mIntent);
     }
 }
@@ -43,6 +48,7 @@ void ActivityRecord::start() {
 void ActivityRecord::resume() {
     if (!mApp.expired()) {
         mStatus = RESUMING;
+        mWindowService->updateWindowTokenVisibility(mToken, LayoutParams::WINDOW_VISIBLE);
         (mApp.lock()->mAppThread)->scheduleResumeActivity(mToken, mIntent);
     }
 }
@@ -50,6 +56,7 @@ void ActivityRecord::resume() {
 void ActivityRecord::pause() {
     if (!mApp.expired()) {
         mStatus = PAUSING;
+        mWindowService->updateWindowTokenVisibility(mToken, LayoutParams::WINDOW_INVISIBLE);
         (mApp.lock()->mAppThread)->schedulePauseActivity(mToken);
     }
 }
@@ -57,6 +64,7 @@ void ActivityRecord::pause() {
 void ActivityRecord::stop() {
     if (!mApp.expired()) {
         mStatus = STOPPING;
+        mWindowService->updateWindowTokenVisibility(mToken, LayoutParams::WINDOW_GONE);
         (mApp.lock()->mAppThread)->scheduleStopActivity(mToken);
     }
 }
@@ -72,6 +80,17 @@ void ActivityRecord::onResult(int32_t requestCode, int32_t resultCode, const Int
     if (!mApp.expired()) {
         (mApp.lock()->mAppThread)->onActivityResult(mToken, requestCode, resultCode, resultData);
     }
+}
+
+sp<::os::wm::IWindowManager>& ActivityRecord::getWindowService() {
+    if (mWindowService == nullptr ||
+        !android::IInterface::asBinder(mWindowService)->isBinderAlive()) {
+        if (android::getService<::os::wm::IWindowManager>(android::String16("window"),
+                                                          &mWindowService) != android::NO_ERROR) {
+            ALOGE("ServiceManager can't find wms service");
+        }
+    }
+    return mWindowService;
 }
 
 std::ostream& operator<<(std::ostream& os, const ActivityRecord& record) {
