@@ -218,10 +218,12 @@ ActivityHandler ActivityManagerInner::startActivityReal(const std::shared_ptr<Ap
         targetTask = mTaskManager.getActiveTask();
     }
 
+    ALOGD("start activity:%s launchMode:%s flag:%d", activityInfo.name.c_str(), launchMode.c_str(),
+          intent.mFlag);
     bool isCreateActivity = true;
     ActivityHandler record;
     if (!isCreateTask) {
-        if (intent.mFlag == Intent::NO_FLAG) {
+        if (intent.mFlag == Intent::NO_FLAG || intent.mFlag == Intent::FLAG_ACTIVITY_NEW_TASK) {
             if (launchMode == "standard") {
                 isCreateActivity = true;
             } else if (launchMode == "singleTop") {
