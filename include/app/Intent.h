@@ -45,7 +45,7 @@ public:
     Intent() : mFlag(NO_FLAG){};
     ~Intent() = default;
 
-    Intent(const std::string& target) : mTarget(target) {}
+    Intent(const std::string& target) : mTarget(target), mFlag(NO_FLAG) {}
     void setTarget(const std::string& target);
     void setAction(const std::string& action);
     void setData(const std::string& data);
