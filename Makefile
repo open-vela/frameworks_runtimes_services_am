@@ -42,4 +42,12 @@ STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
 MAINSRC += cmd/AmCommand.cpp
 endif
 
+ifneq ($(CONFIG_AM_TEST),)
+CXXFLAGS += ${INCDIR_PREFIX}$(APPDIR)/external/googletest/googletest/googletest/include
+PROGNAME += amTest
+PRIORITY  = SCHED_PRIORITY_DEFAULT
+STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
+MAINSRC += test/UvLoopTest.cpp
+endif
+
 include $(APPDIR)/Application.mk
