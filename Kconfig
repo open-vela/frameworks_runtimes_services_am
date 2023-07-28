@@ -27,4 +27,8 @@ config AM_COMMAND
 	tristate "Enable am command tools"
 	default n
 
+config AM_TEST
+	tristate "Enable am framework test"
+	default n
+
 endif
