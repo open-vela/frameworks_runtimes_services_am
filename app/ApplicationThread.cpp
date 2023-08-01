@@ -95,8 +95,17 @@ int ApplicationThread::mainRun(int argc, char** argv) {
         return -1;
     }
     ALOGI("start Application:%s execfile:%s", argv[1], argv[0]);
-    android::ProcessState::self()->setThreadPoolMaxThreadCount(1);
-    android::ProcessState::self()->startThreadPool();
+
+    int binderFd;
+    android::IPCThreadState::self()->setupPolling(&binderFd);
+    if (binderFd < 0) {
+        ALOGE("failed to open binder device:%d", errno);
+        return -2;
+    }
+    UvPoll pollBinder(*this, binderFd);
+    pollBinder.start(UV_READABLE, [](int fd, int status, int events, void* data) {
+        android::IPCThreadState::self()->handlePolledCommands();
+    });
 
     android::sp<ApplicationThreadStub> appThread(new ApplicationThreadStub);
     mApp->setPackageName(argv[1]);
