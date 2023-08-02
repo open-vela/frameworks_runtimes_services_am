@@ -30,5 +30,6 @@ config AM_COMMAND
 config AM_TEST
 	tristate "Enable am framework test"
 	default n
+	depends on GOOGLE_TEST
 
 endif
