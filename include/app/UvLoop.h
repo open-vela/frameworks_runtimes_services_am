@@ -20,11 +20,59 @@
 
 #include <functional>
 #include <memory>
+#include <mutex>
+#include <queue>
 
 namespace os {
 namespace app {
 
 using UV_CALLBACK = std::function<void(void*)>;
+
+template <typename T>
+class UvMsgQueue {
+public:
+    UvMsgQueue() {}
+    virtual ~UvMsgQueue() {
+        uv_close((uv_handle_t*)&mUvAsync, [](uv_handle_t*) {});
+    }
+
+    int attachLoop(uv_loop_t* loop) {
+        mUvAsync.data = this;
+        return uv_async_init(loop, &mUvAsync, [](uv_async_t* handle) {
+            UvMsgQueue* my = reinterpret_cast<UvMsgQueue*>(handle->data);
+            my->processMessage();
+        });
+    }
+
+    int push(T& msg) {
+        std::lock_guard<std::mutex> lock(mMutex);
+        mQueue.push(msg);
+        return uv_async_send(&mUvAsync);
+    }
+
+    template <class... Args>
+    int emplace(Args&&... args) {
+        std::lock_guard<std::mutex> lock(mMutex);
+        mQueue.emplace(std::forward<Args>(args)...);
+        return uv_async_send(&mUvAsync);
+    }
+
+    virtual void handleMessage(const T& msg) = 0;
+
+private:
+    void processMessage() {
+        std::lock_guard<std::mutex> lock(mMutex);
+        while (!mQueue.empty()) {
+            handleMessage(mQueue.front());
+            mQueue.pop();
+        }
+    }
+
+private:
+    std::mutex mMutex;
+    std::queue<T> mQueue;
+    uv_async_t mUvAsync;
+};
 
 class UvLoop {
 public:
