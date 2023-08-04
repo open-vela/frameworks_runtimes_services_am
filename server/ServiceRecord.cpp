@@ -44,6 +44,25 @@ const string* ServiceRecord::getPackageName() {
     return nullptr;
 }
 
+const char* ServiceRecord::status2Str(const int status) {
+    switch (status) {
+        case ServiceRecord::CREATING:
+            return "creating";
+        case ServiceRecord::CREATED:
+            return "created";
+        case ServiceRecord::STARTING:
+            return "starting";
+        case ServiceRecord::STARTED:
+            return "started";
+        case ServiceRecord::DESTROYING:
+            return "destroying";
+        case ServiceRecord::DESTROYED:
+            return "destroyed";
+        default:
+            return "undefined";
+    }
+}
+
 ServiceHandler ServiceList::findService(const string& packageName, const string& serviceName) {
     for (auto it : mServiceList) {
         if (it->mServiceName == serviceName) {
