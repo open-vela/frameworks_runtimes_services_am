@@ -46,7 +46,7 @@ public:
     void start(const Intent& intent);
     void stop();
     const std::string* getPackageName();
-
+    static const char* status2Str(int status);
 public:
     const std::string mServiceName;
     sp<IBinder> mToken;

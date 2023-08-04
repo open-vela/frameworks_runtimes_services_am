@@ -27,6 +27,7 @@ namespace app {
 
 void Activity::reportActivityStatus(const int status) {
     mStatus = status;
+    ALOGD("reportActivityStatus: token[%p] status:%d", CONTEXT_IMPL->mToken.get(), status);
     CONTEXT_IMPL->mAm.reportActivityStatus(CONTEXT_IMPL->mToken, status);
 }
 
