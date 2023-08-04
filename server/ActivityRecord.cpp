@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#define LOG_TAG "AMS"
+
 #include "ActivityRecord.h"
 
 #include <binder/IInterface.h>
@@ -34,6 +36,8 @@ void ActivityRecord::create() {
     if (!mApp.expired()) {
         mStatus = CREATING;
         mWindowService->addWindowToken(mToken, LayoutParams::TYPE_APPLICATION, 0);
+        ALOGD("scheduleLaunchActivity: %s/%s", mApp.lock()->mPackageName.c_str(),
+              mActivityName.c_str());
         (mApp.lock()->mAppThread)->scheduleLaunchActivity(mActivityName, mToken, mIntent);
     }
 }
@@ -41,6 +45,8 @@ void ActivityRecord::create() {
 void ActivityRecord::start() {
     if (!mApp.expired()) {
         mStatus = STARTING;
+        ALOGD("scheduleStartActivity: %s/%s", mApp.lock()->mPackageName.c_str(),
+              mActivityName.c_str());
         (mApp.lock()->mAppThread)->scheduleStartActivity(mToken, mIntent);
     }
 }
@@ -49,6 +55,8 @@ void ActivityRecord::resume() {
     if (!mApp.expired()) {
         mStatus = RESUMING;
         mWindowService->updateWindowTokenVisibility(mToken, LayoutParams::WINDOW_VISIBLE);
+        ALOGD("scheduleResumeActivity: %s/%s", mApp.lock()->mPackageName.c_str(),
+              mActivityName.c_str());
         (mApp.lock()->mAppThread)->scheduleResumeActivity(mToken, mIntent);
     }
 }
@@ -57,6 +65,8 @@ void ActivityRecord::pause() {
     if (!mApp.expired()) {
         mStatus = PAUSING;
         mWindowService->updateWindowTokenVisibility(mToken, LayoutParams::WINDOW_INVISIBLE);
+        ALOGD("schedulePauseActivity: %s/%s", mApp.lock()->mPackageName.c_str(),
+              mActivityName.c_str());
         (mApp.lock()->mAppThread)->schedulePauseActivity(mToken);
     }
 }
@@ -65,6 +75,8 @@ void ActivityRecord::stop() {
     if (!mApp.expired()) {
         mStatus = STOPPING;
         mWindowService->updateWindowTokenVisibility(mToken, LayoutParams::WINDOW_GONE);
+        ALOGD("scheduleStopActivity: %s/%s", mApp.lock()->mPackageName.c_str(),
+              mActivityName.c_str());
         (mApp.lock()->mAppThread)->scheduleStopActivity(mToken);
     }
 }
@@ -72,13 +84,55 @@ void ActivityRecord::stop() {
 void ActivityRecord::destroy() {
     if (!mApp.expired()) {
         mStatus = DESTROYING;
+        ALOGD("scheduleDestoryActivity: %s/%s", mApp.lock()->mPackageName.c_str(),
+              mActivityName.c_str());
         (mApp.lock()->mAppThread)->scheduleDestoryActivity(mToken);
     }
 }
 
 void ActivityRecord::onResult(int32_t requestCode, int32_t resultCode, const Intent& resultData) {
     if (!mApp.expired()) {
+        ALOGD("%s/%s onActivityResult: %d, %d", mApp.lock()->mPackageName.c_str(),
+              mActivityName.c_str(), requestCode, resultCode);
         (mApp.lock()->mAppThread)->onActivityResult(mToken, requestCode, resultCode, resultData);
+    }
+}
+
+const std::string* ActivityRecord::getPackageName() const {
+    if (!mApp.expired()) {
+        return &(mApp.lock()->mPackageName);
+    }
+    return nullptr;
+}
+
+const char* ActivityRecord::status2Str(const int status) {
+    switch (status) {
+        case ActivityRecord::CREATING:
+            return "creating";
+        case ActivityRecord::CREATED:
+            return "created";
+        case ActivityRecord::STARTING:
+            return "starting";
+        case ActivityRecord::STARTED:
+            return "started";
+        case ActivityRecord::RESUMING:
+            return "resuming";
+        case ActivityRecord::RESUMED:
+            return "resumed";
+        case ActivityRecord::PAUSING:
+            return "pausing";
+        case ActivityRecord::PAUSED:
+            return "paused";
+        case ActivityRecord::STOPPING:
+            return "stopping";
+        case ActivityRecord::STOPED:
+            return "stoped";
+        case ActivityRecord::DESTROYING:
+            return "destroying";
+        case ActivityRecord::DESTROYED:
+            return "destroyed";
+        default:
+            return "undefined";
     }
 }
 
@@ -97,48 +151,7 @@ std::ostream& operator<<(std::ostream& os, const ActivityRecord& record) {
     if (!record.mApp.expired()) {
         os << record.mApp.lock()->mPackageName << "/" << record.mActivityName;
         os << " [";
-        switch (record.mStatus) {
-            case ActivityRecord::CREATING:
-                os << "creating";
-                break;
-            case ActivityRecord::CREATED:
-                os << "created";
-                break;
-            case ActivityRecord::STARTING:
-                os << "starting";
-                break;
-            case ActivityRecord::STARTED:
-                os << "started";
-                break;
-            case ActivityRecord::RESUMING:
-                os << "resuming";
-                break;
-            case ActivityRecord::RESUMED:
-                os << "resumed";
-                break;
-            case ActivityRecord::PAUSING:
-                os << "pausing";
-                break;
-            case ActivityRecord::PAUSED:
-                os << "paused";
-                break;
-            case ActivityRecord::STOPED:
-                os << "stoped";
-                break;
-            case ActivityRecord::STOPPING:
-                os << "stopping";
-                break;
-            case ActivityRecord::DESTROYING:
-                os << "destorying";
-                break;
-            case ActivityRecord::DESTROYED:
-                os << "destoryed";
-                break;
-            default:
-                os << "undefined";
-                ALOGE("undefined activity status:%d", record.mStatus);
-                break;
-        }
+        os << ActivityRecord::status2Str(record.mStatus);
         os << "] ";
     }
     return os;

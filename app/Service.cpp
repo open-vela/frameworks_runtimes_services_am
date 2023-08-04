@@ -16,6 +16,8 @@
 
 #include "app/Service.h"
 
+#include "utils/Log.h"
+
 namespace os {
 namespace app {
 
@@ -28,6 +30,7 @@ const std::string& Service::getServiceName() {
 }
 
 void Service::reportServiceStatus(int status) {
+    ALOGD("reportServiceStatus: %s status:%d", mServiceName.c_str(), status);
     getActivityManager().reportServiceStatus(getToken(), status);
 }
 
