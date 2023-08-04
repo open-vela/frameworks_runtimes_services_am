@@ -82,9 +82,9 @@ private:
 };
 
 int ActivityManagerInner::attachApplication(const sp<IApplicationThread>& app) {
-    ALOGD("attachApplication");
     const int callerPid = android::IPCThreadState::self()->getCallingPid();
     const auto appRecord = mAppInfo.findAppInfo(callerPid);
+    ALOGD("attachApplication. pid:%d appRecord:[%p]", callerPid, appRecord.get());
     if (appRecord) {
         ALOGE("the application:%s had be attached", appRecord->mPackageName.c_str());
         return android::BAD_VALUE;
@@ -99,7 +99,6 @@ int ActivityManagerInner::attachApplication(const sp<IApplicationThread>& app) {
 
 int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent& intent,
                                         int32_t requestCode) {
-    ALOGD("startActivity");
     auto topActivity = mTaskManager.getActiveTask()->getTopActivity();
     if (topActivity->mStatus < ActivityRecord::STARTED ||
         topActivity->mStatus > ActivityRecord::PAUSING) {
@@ -296,12 +295,13 @@ ActivityHandler ActivityManagerInner::startActivityReal(const std::shared_ptr<Ap
 
 bool ActivityManagerInner::finishActivity(const sp<IBinder>& token, int32_t resultCode,
                                           const std::optional<Intent>& resultData) {
-    ALOGD("finishActivity");
     auto currentActivity = getActivityRecord(token);
     if (!currentActivity) {
         ALOGE("finishActivity: The token is invalid");
         return false;
     }
+    ALOGD("finishActivity called by %s/%s", currentActivity->getPackageName()->c_str(),
+          currentActivity->mActivityName.c_str());
     if (currentActivity->mStatus == ActivityRecord::RESUMED) {
         currentActivity->pause();
 
@@ -350,12 +350,14 @@ bool ActivityManagerInner::finishActivity(const sp<IBinder>& token, int32_t resu
 }
 
 void ActivityManagerInner::reportActivityStatus(const sp<IBinder>& token, int32_t status) {
-    ALOGD("reportActivityStatus %d", status);
     auto record = getActivityRecord(token);
     if (!record) {
         ALOGE("The reported token is invalid");
         return;
     }
+    ALOGD("reportActivityStatus %s/%s status:%s->%s", record->getPackageName()->c_str(),
+          record->mActivityName.c_str(), ActivityRecord::status2Str(record->mStatus),
+          ActivityRecord::status2Str(status));
     record->mStatus = status;
     switch (status) {
         case ActivityRecord::CREATED:
@@ -467,14 +469,14 @@ int ActivityManagerInner::stopService(const Intent& intent) {
 }
 
 int ActivityManagerInner::stopServiceToken(const sp<IBinder>& token) {
-    ALOGD("stop service by token");
     auto service = mServices.getService(token);
     if (!service) {
         ALOGW("unbelievable! Can't get record when service stop self:%s/%s",
               service->getPackageName()->c_str(), service->mServiceName.c_str());
         return android::DEAD_OBJECT;
     }
-
+    ALOGD("stopServiceToken. %s/%s", service->getPackageName()->c_str(),
+          service->mServiceName.c_str());
     stopServiceReal(service);
     return 0;
 }
@@ -492,12 +494,14 @@ void ActivityManagerInner::stopServiceReal(ServiceHandler& service) {
 }
 
 void ActivityManagerInner::reportServiceStatus(const sp<IBinder>& token, int32_t status) {
-    ALOGD("reportServiceStatus status:%d", status);
     auto service = mServices.getService(token);
     if (!service) {
         ALOGE("service is not exist");
         return;
     }
+    ALOGD("reportServiceStatus %s/%s status:%s->%s", service->getPackageName()->c_str(),
+          service->mServiceName.c_str(), ServiceRecord::status2Str(service->mStatus),
+          ServiceRecord::status2Str(status));
     service->mStatus = status;
     switch (status) {
         case ServiceRecord::CREATED:

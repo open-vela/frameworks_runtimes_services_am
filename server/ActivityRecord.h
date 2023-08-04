@@ -75,6 +75,8 @@ public:
     void destroy();
     void onResult(int32_t requestCode, int32_t resultCode, const Intent& resultData);
 
+    const std::string* getPackageName() const;
+    static const char* status2Str(const int status);
     sp<::os::wm::IWindowManager>& getWindowService();
 
     friend std::ostream& operator<<(std::ostream& os, const ActivityRecord& record);
