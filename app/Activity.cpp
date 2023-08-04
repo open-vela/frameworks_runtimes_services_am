@@ -71,15 +71,17 @@ void Activity::performResume() {
 }
 
 void Activity::performPause() {
-    onStop();
+    onPause();
 }
 
 void Activity::performStop() {
     onStop();
+    if (mWindowManager && mWindow) mWindowManager->removeWindow(mWindow);
+    mWindow.reset();
 }
 
 void Activity::performDestroy() {
-    if (mWindowManager) mWindowManager->removeWindow(mWindow);
+    if (mWindowManager && mWindow) mWindowManager->removeWindow(mWindow);
     onDestory();
 }
 
