@@ -136,17 +136,6 @@ const char* ActivityRecord::status2Str(const int status) {
     }
 }
 
-sp<::os::wm::IWindowManager>& ActivityRecord::getWindowService() {
-    if (mWindowService == nullptr ||
-        !android::IInterface::asBinder(mWindowService)->isBinderAlive()) {
-        if (android::getService<::os::wm::IWindowManager>(android::String16("window"),
-                                                          &mWindowService) != android::NO_ERROR) {
-            ALOGE("ServiceManager can't find wms service");
-        }
-    }
-    return mWindowService;
-}
-
 std::ostream& operator<<(std::ostream& os, const ActivityRecord& record) {
     if (!record.mApp.expired()) {
         os << record.mApp.lock()->mPackageName << "/" << record.mActivityName;

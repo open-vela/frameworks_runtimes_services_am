@@ -21,6 +21,7 @@
 
 #include "os/am/BnActivityManager.h"
 #include "os/am/IActivityManager.h"
+#include "os/wm/BnWindowManager.h"
 
 namespace os {
 namespace am {
@@ -36,6 +37,7 @@ class ActivityManagerService : public os::am::BnActivityManager {
 public:
     ActivityManagerService();
     ~ActivityManagerService();
+
     /***binder api***/
     Status attachApplication(const sp<os::app::IApplicationThread>& app, int32_t* ret) override;
 
@@ -54,6 +56,7 @@ public:
 
     // The service is ready to start and the application can be launched
     void systemReady();
+    void setWindowManager(sp<::os::wm::IWindowManager> wm);
 
 private:
     ActivityManagerInner* mInner;
