@@ -39,7 +39,7 @@ public:
     ActivityRecord(const std::string& name, const sp<IBinder>& token, const sp<IBinder>& caller,
                    const int32_t requestCode, const std::string& launchMode,
                    const std::shared_ptr<AppRecord>& app,
-                   const std::shared_ptr<ActivityStack>& task)
+                   const std::shared_ptr<ActivityStack>& task, sp<::os::wm::IWindowManager> wm)
           : mActivityName(name),
             mToken(token),
             mCaller(caller),
@@ -48,9 +48,7 @@ public:
             mLaunchMode(launchMode),
             mApp(app),
             mInTask(task),
-            mWindowService(nullptr) {
-        mWindowService = getWindowService();
-    }
+            mWindowService(wm) {}
 
     enum {
         CREATING = 0,
@@ -77,7 +75,6 @@ public:
 
     const std::string* getPackageName() const;
     static const char* status2Str(const int status);
-    sp<::os::wm::IWindowManager>& getWindowService();
 
     friend std::ostream& operator<<(std::ostream& os, const ActivityRecord& record);
 
