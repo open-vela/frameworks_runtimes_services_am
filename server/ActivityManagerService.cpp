@@ -63,6 +63,10 @@ public:
 
     void systemReady();
 
+    void setWindowManager(sp<::os::wm::IWindowManager> wm) {
+        mWindowManager = wm;
+    }
+
 private:
     ActivityHandler getActivityRecord(const sp<IBinder>& token);
     ActivityHandler startActivityReal(const std::shared_ptr<AppRecord>& app,
@@ -79,6 +83,7 @@ private:
     IntentAction mActionFilter;
     TaskBoard mPendTask;
     PackageManager mPm;
+    sp<::os::wm::IWindowManager> mWindowManager;
 };
 
 int ActivityManagerInner::attachApplication(const sp<IApplicationThread>& app) {
@@ -268,7 +273,8 @@ ActivityHandler ActivityManagerInner::startActivityReal(const std::shared_ptr<Ap
     if (isCreateActivity) {
         sp<IBinder> token(new android::BBinder());
         record = std::make_shared<ActivityRecord>(activityInfo.name, token, caller, requestCode,
-                                                  activityInfo.launchMode, app, targetTask);
+                                                  activityInfo.launchMode, app, targetTask,
+                                                  mWindowManager);
         mActivityMap.emplace(token, record);
         targetTask->pushActivity(record);
         const auto startActivity = [this, record]() -> bool {
@@ -669,6 +675,10 @@ android::status_t ActivityManagerService::dump(int fd,
 /** The service is ready to start and the application can be launched */
 void ActivityManagerService::systemReady() {
     mInner->systemReady();
+}
+
+void ActivityManagerService::setWindowManager(sp<::os::wm::IWindowManager> wm) {
+    mInner->setWindowManager(wm);
 }
 
 } // namespace am
