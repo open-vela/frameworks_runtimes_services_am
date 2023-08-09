@@ -76,12 +76,13 @@ void Activity::performPause() {
 
 void Activity::performStop() {
     onStop();
-    if (mWindowManager && mWindow) mWindowManager->removeWindow(mWindow);
-    mWindow.reset();
 }
 
 void Activity::performDestroy() {
-    if (mWindowManager && mWindow) mWindowManager->removeWindow(mWindow);
+    if (mWindowManager && mWindow) {
+        mWindowManager->removeWindow(mWindow);
+        mWindow.reset();
+    }
     onDestory();
 }
 
