@@ -17,6 +17,7 @@
 package os.app;
 
 import os.app.Intent;
+import os.app.IServiceConnection;
 
 oneway interface IApplicationThread {
     void scheduleLaunchActivity(@utf8InCpp String activityName, in IBinder token, in Intent intent);
@@ -27,6 +28,9 @@ oneway interface IApplicationThread {
     void scheduleDestoryActivity(in IBinder token);
     void onActivityResult(in IBinder token, int requestCode, int resultCode, in Intent resultData);
 
-    void scheduleStartService(@utf8InCpp String serviceName,in IBinder token, in Intent intent);
+    void scheduleStartService(@utf8InCpp String serviceName, in IBinder token, in Intent intent);
     void scheduleStopService(in IBinder token);
+    void scheduleBindService(@utf8InCpp String serviceName, in IBinder token, in Intent intent,
+                             in IServiceConnection connection);
+    void scheduleUnbindService(in IBinder token);
 }

@@ -59,6 +59,11 @@ public:
     int stopServiceToken(const sp<IBinder>& token);
     void reportServiceStatus(const sp<IBinder>& token, int32_t status);
 
+    int bindService(const sp<IBinder>& caller, const Intent& intent,
+                    const sp<IServiceConnection>& conn);
+    void unbindService(const sp<IServiceConnection>& conn);
+    void publishService(const sp<IBinder>& token, const sp<IBinder>& serviceBinder);
+
     void dump(int fd, const android::Vector<android::String16>& args);
 
     void systemReady();
@@ -474,6 +479,80 @@ int ActivityManagerInner::stopService(const Intent& intent) {
     return 0;
 }
 
+int ActivityManagerInner::bindService(const sp<IBinder>& caller, const Intent& intent,
+                                      const sp<IServiceConnection>& conn) {
+    string packageName;
+    string serviceName;
+    if (intent.mTarget.empty()) {
+        string target;
+        mActionFilter.getFirstTargetByAction(intent.mAction, target);
+        getPackageAndComponentName(target, packageName, serviceName);
+    } else {
+        getPackageAndComponentName(intent.mTarget, packageName, serviceName);
+    }
+
+    ALOGD("bind service:%s/%s connection[%p]", packageName.c_str(), serviceName.c_str(),
+          conn.get());
+
+    auto service = mServices.findService(packageName, serviceName);
+    if (!service) {
+        const auto appRecord = mAppInfo.findAppInfo(packageName);
+        if (appRecord) {
+            const sp<IBinder> token(new android::BBinder());
+            service = std::make_shared<ServiceRecord>(serviceName, token, appRecord);
+            mServices.addService(service);
+            service->bind(caller, conn, intent);
+        } else {
+            PackageInfo targetApp;
+            mPm.getPackageInfo(packageName, &targetApp);
+            const int pid = AppSpawn::appSpawn(targetApp.execfile.c_str(), {packageName});
+            if (pid > 0) {
+                const auto task = [this, serviceName, packageName, caller, conn,
+                                   intent](const AppAttachTask::Event* e) -> bool {
+                    auto app = std::make_shared<AppRecord>(e->mAppHandler, packageName, e->mPid,
+                                                           e->mUid);
+                    this->mAppInfo.addAppInfo(app);
+                    const sp<IBinder> token(new android::BBinder());
+                    auto serviceRecord = std::make_shared<ServiceRecord>(serviceName, token, app);
+                    mServices.addService(serviceRecord);
+                    serviceRecord->bind(caller, conn, intent);
+                    return true;
+                };
+                mPendTask.commitTask(std::make_shared<AppAttachTask>(pid, task));
+            } else {
+                ALOGE("appSpawn App:%s error", targetApp.execfile.c_str());
+                return android::BAD_VALUE;
+            }
+        }
+        const auto bindtask = [this, service, caller, intent, conn]() -> bool {
+            service->bind(caller, conn, intent);
+            return true;
+        };
+        mPendTask.commitTask(std::make_shared<ServiceReportStatusTask>(ServiceRecord::STARTED,
+                                                                       service->mToken, bindtask));
+    } else {
+        service->bind(caller, conn, intent);
+    }
+
+    return 0;
+}
+
+void ActivityManagerInner::unbindService(const sp<IServiceConnection>& conn) {
+    ALOGD("unbindService connection[%p]", conn.get());
+    mServices.unbindConnection(conn);
+    return;
+}
+
+void ActivityManagerInner::publishService(const sp<IBinder>& token,
+                                          const sp<IBinder>& serviceBinder) {
+    auto service = mServices.getService(token);
+    if (service) {
+        service->mServiceBinder = serviceBinder;
+    } else {
+        ALOGE("publishService error. the Service token[%p] isn't exist", token.get());
+    }
+}
+
 int ActivityManagerInner::stopServiceToken(const sp<IBinder>& token) {
     auto service = mServices.getService(token);
     if (!service) {
@@ -489,13 +568,8 @@ int ActivityManagerInner::stopServiceToken(const sp<IBinder>& token) {
 
 void ActivityManagerInner::stopServiceReal(ServiceHandler& service) {
     ALOGI("stopService %s/%s", service->getPackageName()->c_str(), service->mServiceName.c_str());
-    if (service->mStatus <= ServiceRecord::STARTED) {
+    if (service->mStatus < ServiceRecord::DESTROYING) {
         service->stop();
-        const auto task = [this](const sp<IBinder>& token2) -> bool {
-            mServices.deleteService(token2);
-            return true;
-        };
-        mPendTask.commitTask(std::make_shared<ServiceDestroyTask>(service->mToken, task));
     }
 }
 
@@ -508,20 +582,27 @@ void ActivityManagerInner::reportServiceStatus(const sp<IBinder>& token, int32_t
     ALOGD("reportServiceStatus %s/%s status:%s->%s", service->getPackageName()->c_str(),
           service->mServiceName.c_str(), ServiceRecord::status2Str(service->mStatus),
           ServiceRecord::status2Str(status));
-    service->mStatus = status;
     switch (status) {
         case ServiceRecord::CREATED:
         case ServiceRecord::STARTED:
+        case ServiceRecord::BINDED:
             break;
+        case ServiceRecord::UNBINDED: {
+            if (!service->isAlive()) service->stop();
+            break;
+        }
         case ServiceRecord::DESTROYED: {
-            const ServiceDestroyTask::Event event(token);
-            mPendTask.eventTrigger(&event);
+            mServices.deleteService(token);
             break;
         }
         default: {
             ALOGE("unbeliveable!!! service status:%d is illegal", status);
+            return;
         }
     }
+    service->mStatus = status;
+    const ServiceReportStatusTask::Event event(status, token);
+    mPendTask.eventTrigger(&event);
 }
 
 void ActivityManagerInner::systemReady() {
@@ -663,6 +744,23 @@ Status ActivityManagerService::stopServiceToken(const sp<IBinder>& token, int32_
 
 Status ActivityManagerService::reportServiceStatus(const sp<IBinder>& token, int32_t status) {
     mInner->reportServiceStatus(token, status);
+    return Status::ok();
+}
+
+Status ActivityManagerService::bindService(const sp<IBinder>& token, const Intent& intent,
+                                           const sp<IServiceConnection>& conn, int32_t* ret) {
+    *ret = mInner->bindService(token, intent, conn);
+    return Status::ok();
+}
+
+Status ActivityManagerService::unbindService(const sp<IServiceConnection>& conn) {
+    mInner->unbindService(conn);
+    return Status::ok();
+}
+
+Status ActivityManagerService::publishService(const sp<IBinder>& token,
+                                              const sp<IBinder>& service) {
+    mInner->publishService(token, service);
     return Status::ok();
 }
 

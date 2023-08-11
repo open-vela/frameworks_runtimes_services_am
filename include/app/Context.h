@@ -20,6 +20,7 @@
 
 #include "app/ActivityManager.h"
 #include "app/Intent.h"
+#include "app/ServiceConnection.h"
 #include "app/UvLoop.h"
 
 namespace os {
@@ -39,6 +40,8 @@ public:
 
     virtual void startService(const Intent& intent) = 0;
     virtual void stopService(const Intent& intent) = 0;
+    virtual int bindService(const Intent& intent, const sp<IServiceConnection>& conn) = 0;
+    virtual void unbindService(const sp<IServiceConnection>& conn) = 0;
 
     virtual void setIntent(const Intent& intent) = 0;
     virtual const Intent& getIntent() = 0;
@@ -58,6 +61,8 @@ public:
 
     void startService(const Intent& intent);
     void stopService(const Intent& intent);
+    int bindService(const Intent& intent, const sp<IServiceConnection>& conn);
+    void unbindService(const sp<IServiceConnection>& conn);
 
     void setIntent(const Intent& intent);
     const Intent& getIntent();

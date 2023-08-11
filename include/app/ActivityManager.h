@@ -23,6 +23,7 @@
 #include "app/Intent.h"
 #include "os/am/IActivityManager.h"
 #include "os/app/IApplicationThread.h"
+#include "os/app/IServiceConnection.h"
 
 namespace os {
 namespace app {
@@ -31,6 +32,7 @@ using android::IBinder;
 using android::sp;
 using os::am::IActivityManager;
 using os::app::Intent;
+using os::app::IServiceConnection;
 using std::string;
 
 class ActivityManager {
@@ -65,6 +67,11 @@ public:
     int startService(const Intent& intent);
     int stopService(const Intent& intent);
     void reportServiceStatus(const sp<IBinder>& token, int32_t status);
+
+    int bindService(const sp<IBinder>& token, const Intent& intent,
+                    const sp<IServiceConnection>& conn);
+    void unbindService(const sp<IServiceConnection>& conn);
+    void publishService(const sp<IBinder>& token, const sp<IBinder>& serviceHandler);
 
     sp<IActivityManager> getService();
 
