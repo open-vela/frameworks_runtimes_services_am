@@ -72,6 +72,8 @@ enum TASK_LABEL {
     SERVICE_DESTROY,
     ACTIVITY_STATUS_BASE = 100,
     ACTIVITY_STATUS_END = 200,
+    SERVICE_STATUS_BASE = 210,
+    SERVICE_STATUS_END = 230,
 };
 /***************************************************************************/
 
@@ -113,6 +115,30 @@ public:
     ActivityReportStatusTask(const int status, const sp<android::IBinder>& token,
                              const TaskFunc& cb)
           : Task(ACTIVITY_STATUS_BASE + status), mToken(token), mCallback(cb){};
+    bool execute(const Label* e) override {
+        const Event* event = static_cast<const Event*>(e);
+        if (event->mToken == mToken) {
+            return mCallback();
+        }
+        return false;
+    }
+
+private:
+    sp<android::IBinder> mToken;
+    TaskFunc mCallback;
+};
+
+class ServiceReportStatusTask : public Task {
+public:
+    struct Event : Label {
+        sp<android::IBinder> mToken;
+        Event(const int status, const sp<android::IBinder>& token)
+              : Label(SERVICE_STATUS_BASE + status), mToken(token) {}
+    };
+
+    using TaskFunc = std::function<bool()>;
+    ServiceReportStatusTask(const int status, const sp<android::IBinder>& token, const TaskFunc& cb)
+          : Task(SERVICE_STATUS_BASE + status), mToken(token), mCallback(cb) {}
     bool execute(const Label* e) override {
         const Event* event = static_cast<const Event*>(e);
         if (event->mToken == mToken) {
