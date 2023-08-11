@@ -19,31 +19,43 @@
 #include <string>
 
 #include "app/Context.h"
+#include "os/app/IServiceConnection.h"
 
 namespace os {
 namespace app {
 
+using os::app::IServiceConnection;
+
 class Service : public ContextWrapper {
 public:
-    Service() = default;
+    Service();
     virtual ~Service() = default;
     /** The status is part of the ServiceRecord inside */
     enum {
         CREATED = 1,
         STARTED = 3,
-        DESTROYED = 5,
+        BINDED = 5,
+        UNBINDED = 7,
+        DESTROYED = 9,
     };
 
     virtual void onCreate() = 0;
     virtual void onStartCommand(const Intent& intent) = 0;
     virtual void onDestory() = 0;
+    virtual sp<IBinder> onBind(const Intent& intent);
+    virtual bool onUnbind();
 
+    // TODO set this function private.
     void setServiceName(const string& name);
     const std::string& getServiceName();
+    int bindService(const Intent& intent, const sp<IServiceConnection>& conn);
+    void unbindService();
     void reportServiceStatus(int status);
 
 private:
     std::string mServiceName;
+    sp<IBinder> mServiceBinder;
+    bool mIsBinded;
 };
 
 } // namespace app

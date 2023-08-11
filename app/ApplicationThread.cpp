@@ -63,6 +63,10 @@ public:
                                 const Intent& intent);
     Status scheduleStopService(const sp<IBinder>& token);
 
+    Status scheduleBindService(const string& serviceName, const sp<IBinder>& token,
+                               const Intent& intent, const sp<IServiceConnection>& serviceBinder);
+    Status scheduleUnbindService(const sp<IBinder>& token);
+
 private:
     int onLaunchActivity(const string& activityName, const sp<IBinder>& token,
                          const Intent& intent);
@@ -73,6 +77,10 @@ private:
     int onDestoryActivity(const sp<IBinder>& token);
     int onStartService(const string& serviceName, const sp<IBinder>& token, const Intent& intent);
     int onStopService(const sp<IBinder>& token);
+
+    void onBindService(const string& serviceName, const sp<IBinder>& token, const Intent& intent,
+                       const sp<IServiceConnection>& serviceBinder);
+    void onUnbindService(const sp<IBinder>& token);
 
 private:
     Application* mApp;
@@ -117,8 +125,6 @@ int ApplicationThread::mainRun(int argc, char** argv) {
         ALOGE("ApplicationThread attach failure");
     }
 
-    UvTimer tidle(*this, [](void*) { /*idle*/ });
-    tidle.start(16, 30); /** cycle run, only for Prototype development */
     run();
     return 0;
 }
@@ -126,8 +132,8 @@ int ApplicationThread::mainRun(int argc, char** argv) {
 Status ApplicationThreadStub::scheduleLaunchActivity(const std::string& activityName,
                                                      const sp<IBinder>& token,
                                                      const Intent& intent) {
-    ALOGD("scheduleLaunchActivity package:%s activity:%s token[%p]",
-          mApp->getPackageName().c_str(), activityName.c_str(), token.get());
+    ALOGD("scheduleLaunchActivity package:%s activity:%s token[%p]", mApp->getPackageName().c_str(),
+          activityName.c_str(), token.get());
     mApp->getMainLoop()->postTask([this, activityName, token, intent](void*) {
         this->onLaunchActivity(activityName, token, intent);
     });
@@ -160,8 +166,7 @@ Status ApplicationThreadStub::schedulePauseActivity(const sp<IBinder>& token) {
 }
 
 Status ApplicationThreadStub::scheduleStopActivity(const sp<IBinder>& token) {
-    ALOGD("scheduleStopActivity package:%s token[%p]", mApp->getPackageName().c_str(),
-          token.get());
+    ALOGD("scheduleStopActivity package:%s token[%p]", mApp->getPackageName().c_str(), token.get());
     mApp->getMainLoop()->postTask([this, token](void*) { this->onStopActivity(token); });
     return Status::ok();
 }
@@ -173,13 +178,28 @@ Status ApplicationThreadStub::scheduleDestoryActivity(const sp<IBinder>& token) 
     return Status::ok();
 }
 
+Status ApplicationThreadStub::scheduleBindService(const string& serviceName,
+                                                  const sp<IBinder>& token, const Intent& intent,
+                                                  const sp<IServiceConnection>& conn) {
+    ALOGD("scheduleBindService token[%p]", token.get());
+    mApp->getMainLoop()->postTask([this, serviceName, token, intent, conn](void*) {
+        this->onBindService(serviceName, token, intent, conn);
+    });
+    return Status::ok();
+}
+
+Status ApplicationThreadStub::scheduleUnbindService(const sp<IBinder>& token) {
+    ALOGD("scheduleUnbindService token[%p]", token.get());
+    mApp->getMainLoop()->postTask([this, token](void*) { this->onUnbindService(token); });
+    return Status::ok();
+}
+
 Status ApplicationThreadStub::onActivityResult(const sp<IBinder>& token, int32_t requestCode,
                                                int32_t resultCode, const Intent& resultData) {
     /** Thinking: postTask causes the Data copy, it's necessary?  [oneway aidl interface]
      *  Do it immediately in here
      * */
-    ALOGD("onActivityResult package:%s token[%p]", mApp->getPackageName().c_str(),
-          token.get());
+    ALOGD("onActivityResult package:%s token[%p]", mApp->getPackageName().c_str(), token.get());
     std::shared_ptr<Activity> activity = mApp->findActivity(token);
     if (activity) {
         activity->onActivityResult(requestCode, resultCode, resultData);
@@ -317,8 +337,47 @@ int ApplicationThreadStub::onStopService(const sp<IBinder>& token) {
     if (service) {
         service->onDestory();
         mApp->deleteService(token);
+        service->reportServiceStatus(Service::DESTROYED);
     }
     return 0;
+}
+
+void ApplicationThreadStub::onBindService(const string& serviceName, const sp<IBinder>& token,
+                                          const Intent& intent,
+                                          const sp<IServiceConnection>& conn) {
+    ALOGD("onBindService token[%p]", token.get());
+    auto service = mApp->findService(token);
+
+    if (service) {
+        ALOGW("the %s had been started", serviceName.c_str());
+        service->bindService(intent, conn);
+    } else {
+        service = mApp->createService(serviceName);
+        if (!service) {
+            ALOGE("the %s is non-existent", serviceName.c_str());
+            return;
+        }
+        const auto context = ContextImpl::createServiceContext(mApp, token);
+        service->attachBaseContext(context);
+        mApp->addService(service);
+
+        service->onCreate();
+        service->reportServiceStatus(Service::CREATED);
+        service->bindService(intent, conn);
+        service->reportServiceStatus(Service::BINDED);
+    }
+
+    return;
+}
+
+void ApplicationThreadStub::onUnbindService(const sp<IBinder>& token) {
+    ALOGD("onUnbindService token[%p]", token.get());
+    auto service = mApp->findService(token);
+    if (service) {
+        service->unbindService();
+        service->reportServiceStatus(Service::UNBINDED);
+    }
+    return;
 }
 
 } // namespace app

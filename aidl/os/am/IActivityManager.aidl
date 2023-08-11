@@ -18,6 +18,7 @@ package os.am;
 
 import os.app.Intent;
 import os.app.IApplicationThread;
+import os.app.IServiceConnection;
 
 interface IActivityManager {
     /**
@@ -66,4 +67,22 @@ interface IActivityManager {
      * @param status: onCreated/onStarted/onDestoryed
      */
     void reportServiceStatus(in IBinder token, int status);
+
+    /**
+     * @brief bindService, conn->onServiceConnected() will be called
+     * when serivce onbinded success.
+     */
+    int bindService(IBinder caller, in Intent intent, in IServiceConnection conn);
+
+    /**
+     * @brief unbindService.
+     */
+    void unbindService(in IServiceConnection conn);
+
+    /**
+     * @brief publish the service that returned by onbinded().
+     * @param token: Service key
+     * @param serviceBinder: service IBinder object
+     */
+    void publishService(in IBinder token, in IBinder serviceBinder);
 }

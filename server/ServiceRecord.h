@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "app/Intent.h"
+#include "os/app/IServiceConnection.h"
 
 namespace os {
 namespace am {
@@ -27,6 +28,8 @@ namespace am {
 using android::IBinder;
 using android::sp;
 using os::app::Intent;
+using os::app::IServiceConnection;
+
 class AppRecord;
 
 class ServiceRecord {
@@ -36,22 +39,44 @@ public:
         CREATED,
         STARTING,
         STARTED,
+        BINDING,
+        BINDED,
+        UNBINDING,
+        UNBINDED,
         DESTROYING,
         DESTROYED,
     };
+    enum {
+        F_UNKNOW = 0,
+        F_STARTED = 0b1,
+        F_BINDED = 0b10,
+    };
+
     ServiceRecord(const std::string& name, const sp<IBinder>& token,
                   const std::shared_ptr<AppRecord>& appRecord)
-          : mServiceName(name), mToken(token), mStatus(CREATING), mApp(appRecord) {}
+          : mServiceName(name),
+            mToken(token),
+            mServiceBinder(nullptr),
+            mStatus(CREATING),
+            mStartFlag(F_UNKNOW),
+            mApp(appRecord) {}
 
     void start(const Intent& intent);
     void stop();
+    void bind(const sp<IBinder>& caller, const sp<IServiceConnection>& conn, const Intent& intent);
+    void unbind(const sp<IServiceConnection>& conn);
+
     const std::string* getPackageName();
+    bool isAlive();
     static const char* status2Str(int status);
 
 public:
     const std::string mServiceName;
     sp<IBinder> mToken;
+    sp<IBinder> mServiceBinder;
+    std::vector<sp<IServiceConnection>> mConnectRecord;
     int mStatus;
+    int mStartFlag; // started or binded
     std::weak_ptr<AppRecord> mApp;
 };
 
@@ -63,6 +88,7 @@ public:
     ServiceHandler getService(const sp<IBinder>& token);
     void addService(const ServiceHandler& service);
     void deleteService(const sp<IBinder>& token);
+    void unbindConnection(const sp<IServiceConnection>& conn);
 
 private:
     std::vector<ServiceHandler> mServiceList;

@@ -66,6 +66,14 @@ void ContextImpl::stopService(const Intent& intent) {
     mAm.stopService(intent);
 }
 
+int ContextImpl::bindService(const Intent& intent, const sp<IServiceConnection>& conn) {
+    return mAm.bindService(mToken, intent, conn);
+}
+
+void ContextImpl::unbindService(const sp<IServiceConnection>& conn) {
+    return mAm.unbindService(conn);
+}
+
 void ContextImpl::setIntent(const Intent& intent) {
     mIntent = intent;
 }

@@ -30,6 +30,7 @@ using android::IBinder;
 using android::sp;
 using android::binder::Status;
 using os::app::Intent;
+using os::app::IServiceConnection;
 
 class ActivityManagerInner;
 
@@ -51,6 +52,11 @@ public:
     Status stopService(const Intent& intent, int32_t* ret) override;
     Status stopServiceToken(const sp<IBinder>& token, int32_t* ret) override;
     Status reportServiceStatus(const sp<IBinder>& token, int32_t status) override;
+
+    Status bindService(const sp<IBinder>& token, const Intent& intent,
+                       const sp<IServiceConnection>& conn, int32_t* ret) override;
+    Status unbindService(const sp<IServiceConnection>& conn) override;
+    Status publishService(const sp<IBinder>& token, const sp<IBinder>& service) override;
 
     android::status_t dump(int fd, const android::Vector<android::String16>& args) override;
 

@@ -21,6 +21,8 @@
 namespace os {
 namespace app {
 
+Service::Service() : mServiceName(""), mServiceBinder(nullptr), mIsBinded(false) {}
+
 void Service::setServiceName(const string& name) {
     mServiceName = name;
 }
@@ -32,6 +34,35 @@ const std::string& Service::getServiceName() {
 void Service::reportServiceStatus(int status) {
     ALOGD("reportServiceStatus: %s status:%d", mServiceName.c_str(), status);
     getActivityManager().reportServiceStatus(getToken(), status);
+}
+
+sp<IBinder> Service::onBind(const Intent& intent) {
+    return nullptr;
+}
+
+bool Service::onUnbind() {
+    return false;
+}
+
+void Service::unbindService() {
+    mIsBinded = false;
+    onUnbind();
+}
+
+int Service::bindService(const Intent& intent, const sp<IServiceConnection>& conn) {
+    if (!mIsBinded) {
+        /** bind only once */
+        mServiceBinder = onBind(intent);
+        getActivityManager().publishService(getToken(), mServiceBinder);
+        mIsBinded = true;
+    }
+    if (mServiceBinder) {
+        conn->onServiceConnected(mServiceBinder);
+    } else {
+        ALOGW("bindService with a null service");
+    }
+
+    return 0;
 }
 
 } // namespace app

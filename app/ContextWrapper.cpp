@@ -62,6 +62,14 @@ void ContextWrapper::stopService(const Intent& intent) {
     return mBase->stopService(intent);
 }
 
+int ContextWrapper::bindService(const Intent& intent, const sp<IServiceConnection>& conn) {
+    return mBase->bindService(intent, conn);
+}
+
+void ContextWrapper::unbindService(const sp<IServiceConnection>& conn) {
+    return mBase->unbindService(conn);
+}
+
 void ContextWrapper::setIntent(const Intent& intent) {
     return mBase->setIntent(intent);
 }

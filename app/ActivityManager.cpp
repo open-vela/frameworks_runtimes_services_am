@@ -128,5 +128,38 @@ void ActivityManager::reportServiceStatus(const sp<IBinder>& token, int32_t serv
     }
 }
 
+int ActivityManager::bindService(const sp<IBinder>& token, const Intent& intent,
+                                 const sp<IServiceConnection>& conn) {
+    sp<IActivityManager> service = getService();
+    int ret = android::FAILED_TRANSACTION;
+    if (service != nullptr) {
+        Status status = service->bindService(token, intent, conn, &ret);
+        if (!status.isOk()) {
+            ALOGE("bindService error:%s", status.toString8().c_str());
+        }
+    }
+    return ret;
+}
+
+void ActivityManager::unbindService(const sp<IServiceConnection>& conn) {
+    sp<IActivityManager> service = getService();
+    if (service != nullptr) {
+        Status status = service->unbindService(conn);
+        if (!status.isOk()) {
+            ALOGE("unbindService error:%s", status.toString8().c_str());
+        }
+    }
+}
+
+void ActivityManager::publishService(const sp<IBinder>& token, const sp<IBinder>& serviceBinder) {
+    sp<IActivityManager> service = getService();
+    if (service != nullptr) {
+        Status status = service->publishService(token, serviceBinder);
+        if (!status.isOk()) {
+            ALOGE("publishService error:%s", status.toString8().c_str());
+        }
+    }
+}
+
 } // namespace app
 } // namespace os

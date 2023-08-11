@@ -16,6 +16,8 @@
 
 #include "ServiceRecord.h"
 
+#include <binder/IInterface.h>
+
 #include <optional>
 
 #include "AppRecord.h"
@@ -27,14 +29,62 @@ using std::string;
 
 void ServiceRecord::start(const Intent& intent) {
     if (!mApp.expired()) {
+        mStartFlag |= F_STARTED;
         (mApp.lock()->mAppThread)->scheduleStartService(mServiceName, mToken, intent);
     }
 }
 
 void ServiceRecord::stop() {
     if (!mApp.expired()) {
+        for (auto iter : mConnectRecord) {
+            iter->onServiceDisconnected(mServiceBinder);
+        }
         (mApp.lock()->mAppThread)->scheduleStopService(mToken);
     }
+}
+
+void ServiceRecord::bind(const sp<IBinder>& caller, const sp<IServiceConnection>& conn,
+                         const Intent& intent) {
+    if (!mApp.expired()) {
+        mStartFlag |= F_BINDED;
+        if (mServiceBinder) {
+            conn->onServiceConnected(mServiceBinder);
+        } else {
+            (mApp.lock()->mAppThread)->scheduleBindService(mServiceName, mToken, intent, conn);
+        }
+        bool isExist = false;
+        for (auto iter : mConnectRecord) {
+            if (android::IInterface::asBinder(iter) == android::IInterface::asBinder(conn)) {
+                isExist = true;
+                break;
+            }
+        }
+        if (!isExist) mConnectRecord.emplace_back(conn);
+    }
+}
+
+void ServiceRecord::unbind(const sp<IServiceConnection>& conn) {
+    if (mStartFlag & F_BINDED) {
+        const int size = mConnectRecord.size();
+        for (int i = 0; i < size; ++i) {
+            if (android::IInterface::asBinder(mConnectRecord[i]) ==
+                android::IInterface::asBinder(conn)) {
+                mConnectRecord[i] = mConnectRecord[size - 1];
+                mConnectRecord.pop_back();
+                break;
+            }
+        }
+        if (!mApp.expired()) {
+            if (mConnectRecord.empty()) {
+                mStartFlag &= ~F_BINDED;
+                (mApp.lock()->mAppThread)->scheduleUnbindService(mToken);
+            }
+        }
+    }
+}
+
+bool ServiceRecord::isAlive() {
+    return mStartFlag != F_UNKNOW;
 }
 
 const string* ServiceRecord::getPackageName() {
@@ -94,6 +144,13 @@ void ServiceList::deleteService(const sp<IBinder>& token) {
             it = mServiceList.back();
             mServiceList.pop_back();
         }
+    }
+}
+
+void ServiceList::unbindConnection(const sp<IServiceConnection>& conn) {
+    // It's inefficient, but affordable
+    for (auto& iter : mServiceList) {
+        iter->unbind(conn);
     }
 }
 
