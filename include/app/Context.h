@@ -40,7 +40,7 @@ public:
     virtual ActivityManager& getActivityManager() = 0;
 
     virtual void startActivity(const Intent& intent) = 0;
-    virtual void startActivityForResult(const Intent& intent, int requestCode) = 0;
+    virtual void startActivityForResult(const Intent& intent, int32_t requestCode) = 0;
 
     virtual void startService(const Intent& intent) = 0;
     virtual void stopService(const Intent& intent) = 0;
