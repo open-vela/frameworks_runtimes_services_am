@@ -39,9 +39,9 @@ sp<IActivityManager> ActivityManager::getService() {
     return mService;
 }
 
-int ActivityManager::attachApplication(const sp<IApplicationThread>& app) {
+int32_t ActivityManager::attachApplication(const sp<IApplicationThread>& app) {
     sp<IActivityManager> service = getService();
-    int ret = android::FAILED_TRANSACTION;
+    int32_t ret = android::FAILED_TRANSACTION;
     if (service != nullptr) {
         Status status = service->attachApplication(app, &ret);
         if (!status.isOk()) {
@@ -51,10 +51,10 @@ int ActivityManager::attachApplication(const sp<IApplicationThread>& app) {
     return ret;
 }
 
-int ActivityManager::startActivity(const sp<IBinder>& token, const Intent& intent,
-                                   int32_t requestCode) {
+int32_t ActivityManager::startActivity(const sp<IBinder>& token, const Intent& intent,
+                                       int32_t requestCode) {
     sp<IActivityManager> service = getService();
-    int ret = android::FAILED_TRANSACTION;
+    int32_t ret = android::FAILED_TRANSACTION;
     if (service != nullptr) {
         Status status = service->startActivity(token, intent, requestCode, &ret);
         if (!status.isOk()) {
@@ -94,9 +94,9 @@ void ActivityManager::reportActivityStatus(const sp<IBinder>& token, int32_t act
     return;
 }
 
-int ActivityManager::startService(const Intent& intent) {
+int32_t ActivityManager::startService(const Intent& intent) {
     sp<IActivityManager> service = getService();
-    int ret = android::FAILED_TRANSACTION;
+    int32_t ret = android::FAILED_TRANSACTION;
     if (service != nullptr) {
         Status status = service->startService(intent, &ret);
         if (!status.isOk()) {
@@ -106,9 +106,9 @@ int ActivityManager::startService(const Intent& intent) {
     return ret;
 }
 
-int ActivityManager::stopService(const Intent& intent) {
+int32_t ActivityManager::stopService(const Intent& intent) {
     sp<IActivityManager> service = getService();
-    int ret = android::FAILED_TRANSACTION;
+    int32_t ret = android::FAILED_TRANSACTION;
     if (service != nullptr) {
         Status status = service->stopService(intent, &ret);
         if (!status.isOk()) {
