@@ -59,13 +59,13 @@ public:
         DESTORYED = 11,
     };
 
-    int attachApplication(const sp<os::app::IApplicationThread>& app);
-    int startActivity(const sp<IBinder>& token, const Intent& intent, int32_t requestCode);
+    int32_t attachApplication(const sp<os::app::IApplicationThread>& app);
+    int32_t startActivity(const sp<IBinder>& token, const Intent& intent, int32_t requestCode);
     bool finishActivity(const sp<IBinder>& token, int32_t resultCode,
                         const std::shared_ptr<Intent>& resultData);
     void reportActivityStatus(const sp<IBinder>& token, int32_t status);
-    int startService(const Intent& intent);
-    int stopService(const Intent& intent);
+    int32_t startService(const Intent& intent);
+    int32_t stopService(const Intent& intent);
     void reportServiceStatus(const sp<IBinder>& token, int32_t status);
 
     int bindService(const sp<IBinder>& token, const Intent& intent,
