@@ -29,6 +29,7 @@ class ContextImpl : public Context {
 public:
     ContextImpl(const Application* app, const sp<IBinder>& token);
 
+    const Application* getApplication() const override;
     string getPackageName() override;
     UvLoop* getMainLoop() const override;
     const sp<IBinder>& getToken() const override;

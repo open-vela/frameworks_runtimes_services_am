@@ -30,6 +30,10 @@ void ContextWrapper::attachBaseContext(std::shared_ptr<Context> base) {
     mBase = base;
 }
 
+const Application* ContextWrapper::getApplication() const {
+    return mBase->getApplication();
+}
+
 std::string ContextWrapper::getPackageName() {
     return mBase->getPackageName();
 }
