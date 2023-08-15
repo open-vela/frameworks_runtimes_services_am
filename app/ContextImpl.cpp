@@ -34,6 +34,10 @@ std::shared_ptr<Context> ContextImpl::createServiceContext(const Application* ap
     return std::make_shared<ContextImpl>(app, token);
 }
 
+const Application* ContextImpl::getApplication() const {
+    return mApp;
+}
+
 string ContextImpl::getPackageName() {
     return mApp->getPackageName();
 }

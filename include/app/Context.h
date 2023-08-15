@@ -26,10 +26,14 @@
 namespace os {
 namespace app {
 
+class Application;
+
 class Context {
 public:
     Context() = default;
     virtual ~Context() = default;
+
+    virtual const Application* getApplication() const = 0;
     virtual std::string getPackageName() = 0;
     virtual UvLoop* getMainLoop() const = 0;
     virtual const android::sp<android::IBinder>& getToken() const = 0;
@@ -51,6 +55,8 @@ class ContextWrapper : public Context {
 public:
     std::shared_ptr<Context> getContext();
     void attachBaseContext(std::shared_ptr<Context> base);
+
+    const Application* getApplication() const;
     std::string getPackageName();
     UvLoop* getMainLoop() const;
     const android::sp<android::IBinder>& getToken() const;
