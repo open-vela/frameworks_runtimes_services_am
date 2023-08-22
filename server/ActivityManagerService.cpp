@@ -168,11 +168,12 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
         /** get Application thread */
         auto activityRecord = startActivityReal(appInfo, activityInfo, intent, caller, requestCode);
         /** When the target Activity has been resumed. then stop the previous Activity */
-        const auto task = std::make_shared<ActivityResumeTask>(activityRecord->mToken,
-                                                               [this, topActivity]() -> bool {
-                                                                   topActivity->stop();
-                                                                   return true;
-                                                               });
+        const auto task = std::make_shared<ActivityReportStatusTask>(ActivityRecord::RESUMED,
+                                                                     activityRecord->mToken,
+                                                                     [this, topActivity]() -> bool {
+                                                                         topActivity->stop();
+                                                                         return true;
+                                                                     });
         mPendTask.commitTask(task);
     } else {
         /** The app hasn't started yet */
@@ -187,11 +188,12 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
                 auto record = this->startActivityReal(appRecord, activityInfo, intent, caller,
                                                       requestCode);
                 const auto stopLastActivity =
-                        std::make_shared<ActivityResumeTask>(record->mToken,
-                                                             [this, topActivity]() -> bool {
-                                                                 topActivity->stop();
-                                                                 return true;
-                                                             });
+                        std::make_shared<ActivityReportStatusTask>(ActivityRecord::RESUMED,
+                                                                   record->mToken,
+                                                                   [this, topActivity]() -> bool {
+                                                                       topActivity->stop();
+                                                                       return true;
+                                                                   });
                 mPendTask.commitTask(stopLastActivity);
                 return true;
             };
@@ -342,13 +344,15 @@ bool ActivityManagerInner::finishActivity(const sp<IBinder>& token, int32_t resu
                 // TODO when report destroy. delete it from mActivityMap
                 return true;
             };
-            mPendTask.commitTask(
-                    std::make_shared<ActivityResumeTask>(nextActivity->mToken, destoryActivity));
+            mPendTask.commitTask(std::make_shared<ActivityReportStatusTask>(ActivityRecord::RESUMED,
+                                                                            nextActivity->mToken,
+                                                                            destoryActivity));
             nextActivity->resume();
 
             return true;
         };
-        const auto finishActivityTask = std::make_shared<ActivityPauseTask>(token, task);
+        const auto finishActivityTask =
+                std::make_shared<ActivityReportStatusTask>(ActivityRecord::PAUSED, token, task);
 
         mPendTask.commitTask(finishActivityTask);
     } else {
@@ -369,34 +373,26 @@ void ActivityManagerInner::reportActivityStatus(const sp<IBinder>& token, int32_
     ALOGD("reportActivityStatus %s/%s status:%s->%s", record->getPackageName()->c_str(),
           record->mActivityName.c_str(), ActivityRecord::status2Str(record->mStatus),
           ActivityRecord::status2Str(status));
-    record->mStatus = status;
     switch (status) {
         case ActivityRecord::CREATED:
-        case ActivityRecord::STARTED: {
-            const ActivityReportStatusTask::Event event(status, token);
-            mPendTask.eventTrigger(&event);
-            break;
-        }
-        case ActivityRecord::RESUMED: {
-            const ActivityResumeTask::Event event(token);
-            mPendTask.eventTrigger(&event);
-            break;
-        }
-        case ActivityRecord::PAUSED: {
-            const ActivityPauseTask::Event event(token);
-            mPendTask.eventTrigger(&event);
-            break;
-        }
-        case ActivityRecord::STOPED: {
+        case ActivityRecord::STARTED:
+        case ActivityRecord::RESUMED:
+        case ActivityRecord::PAUSED:
+        case ActivityRecord::STOPPED: {
             break;
         }
         case ActivityRecord::DESTROYED: {
             mActivityMap.erase(token);
-            ALOGW("delete activity record");
+            ALOGI("delete activity record, token[%p]", token.get());
         }
         default:
             break;
     }
+
+    record->mStatus = status;
+    const ActivityReportStatusTask::Event event(status, token);
+    mPendTask.eventTrigger(&event);
+
     return;
 }
 

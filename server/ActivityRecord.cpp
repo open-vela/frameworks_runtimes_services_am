@@ -125,7 +125,7 @@ const char* ActivityRecord::status2Str(const int status) {
             return "paused";
         case ActivityRecord::STOPPING:
             return "stopping";
-        case ActivityRecord::STOPED:
+        case ActivityRecord::STOPPED:
             return "stoped";
         case ActivityRecord::DESTROYING:
             return "destroying";
