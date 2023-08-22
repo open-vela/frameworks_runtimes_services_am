@@ -23,30 +23,17 @@
 namespace os {
 namespace app {
 
-#define CONTEXT_IMPL static_cast<ContextImpl*>(mBase.get())
-
-void Activity::reportActivityStatus(const int status) {
-    mStatus = status;
-    ALOGD("reportActivityStatus: token[%p] status:%d", CONTEXT_IMPL->mToken.get(), status);
-    CONTEXT_IMPL->mAm.reportActivityStatus(CONTEXT_IMPL->mToken, status);
-}
-
 void Activity::setResult(const int resultCode, const std::shared_ptr<Intent>& resultData) {
     mResultCode = resultCode;
     mResultData = resultData;
 }
 
 void Activity::finish() {
-    CONTEXT_IMPL->mAm.finishActivity(CONTEXT_IMPL->mToken, mResultCode, mResultData);
+    getActivityManager().finishActivity(getToken(), mResultCode, mResultData);
 }
 
-int Activity::getStatus() {
-    return mStatus;
-}
-
-void Activity::attach(std::shared_ptr<Context> context, Intent intent) {
+void Activity::attach(std::shared_ptr<Context> context) {
     attachBaseContext(context);
-    setIntent(intent);
 
     mWindow = ::os::wm::WindowManager::getInstance()->newWindow(context.get());
     if (mWindow) {
