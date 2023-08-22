@@ -67,9 +67,6 @@ private:
 /**************************** label signature ******************************/
 enum TASK_LABEL {
     APP_ATTACH,
-    ACTIVITY_RESUME,
-    ACTIVITY_PAUSE,
-    SERVICE_DESTROY,
     ACTIVITY_STATUS_BASE = 100,
     ACTIVITY_STATUS_END = 200,
     SERVICE_STATUS_BASE = 210,
@@ -149,74 +146,6 @@ public:
 
 private:
     sp<android::IBinder> mToken;
-    TaskFunc mCallback;
-};
-
-class ActivityResumeTask : public Task {
-public:
-    struct Event : Label {
-        sp<android::IBinder> mToken;
-        Event(const sp<android::IBinder>& token) : Label(ACTIVITY_RESUME), mToken(token) {}
-    };
-
-    using TaskFunc = std::function<bool()>;
-    ActivityResumeTask(const sp<android::IBinder>& token, const TaskFunc& cb)
-          : Task(ACTIVITY_RESUME), mToken(token), mCallback(cb){};
-    bool execute(const Label* e) override {
-        const Event* event = static_cast<const Event*>(e);
-        if (event->mToken == mToken) {
-            return mCallback();
-        }
-        return false;
-    }
-
-private:
-    sp<android::IBinder> mToken;
-    TaskFunc mCallback;
-};
-
-class ActivityPauseTask : public Task {
-public:
-    struct Event : Label {
-        sp<android::IBinder> mToken;
-        Event(const sp<android::IBinder>& token) : Label(ACTIVITY_PAUSE), mToken(token) {}
-    };
-
-    ActivityPauseTask(const sp<android::IBinder>& token, const std::function<bool()>& cb)
-          : Task(ACTIVITY_PAUSE), mToken(token), mCallback(cb){};
-    bool execute(const Label* e) override {
-        const Event* event = static_cast<const Event*>(e);
-        if (event->mToken == mToken) {
-            return mCallback();
-        }
-        return false;
-    }
-
-private:
-    sp<android::IBinder> mToken;
-    std::function<bool()> mCallback;
-};
-
-class ServiceDestroyTask : public Task {
-public:
-    struct Event : Label {
-        sp<IBinder> mToken;
-        Event(const sp<IBinder>& token) : Label(SERVICE_DESTROY), mToken(token) {}
-    };
-
-    using TaskFunc = std::function<bool(const sp<IBinder>&)>;
-    ServiceDestroyTask(const sp<IBinder>& token, TaskFunc&& cb)
-          : Task(SERVICE_DESTROY), mToken(token), mCallback(cb){};
-    bool execute(const Label* e) override {
-        const Event* event = static_cast<const Event*>(e);
-        if (event->mToken == mToken) {
-            return mCallback(mToken);
-        }
-        return false;
-    }
-
-private:
-    sp<IBinder> mToken;
     TaskFunc mCallback;
 };
 
