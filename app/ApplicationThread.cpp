@@ -27,6 +27,8 @@
 
 #include <mutex>
 
+#include "ActivityClientRecord.h"
+#include "ServiceClientRecord.h"
 #include "app/Application.h"
 #include "app/ContextImpl.h"
 #include "os/app/BnApplicationThread.h"
@@ -200,9 +202,9 @@ Status ApplicationThreadStub::onActivityResult(const sp<IBinder>& token, int32_t
      *  Do it immediately in here
      * */
     ALOGD("onActivityResult package:%s token[%p]", mApp->getPackageName().c_str(), token.get());
-    std::shared_ptr<Activity> activity = mApp->findActivity(token);
-    if (activity) {
-        activity->onActivityResult(requestCode, resultCode, resultData);
+    std::shared_ptr<ActivityClientRecord> activityRecord = mApp->findActivity(token);
+    if (activityRecord) {
+        activityRecord->onActivityResult(requestCode, resultCode, resultData);
     }
     return Status::ok();
 }
@@ -225,80 +227,60 @@ Status ApplicationThreadStub::scheduleStopService(const sp<IBinder>& token) {
 
 int ApplicationThreadStub::onLaunchActivity(const std::string& activityName,
                                             const sp<IBinder>& token, const Intent& intent) {
-    ALOGD("onLaunchActvity package:%s activity:%s token[%p]", mApp->getPackageName().c_str(),
-          activityName.c_str(), token.get());
     std::shared_ptr<Activity> activity = mApp->createActivity(activityName);
     if (activity != nullptr) {
-        auto context = ContextImpl::createActivityContext(mApp, token);
-
-        activity->attach(context, intent);
-
-        mApp->addActivity(token, activity);
-
-        activity->performCreate();
-        activity->reportActivityStatus(ActivityManager::CREATED);
-
+        auto context = ContextImpl::createActivityContext(mApp, token, mApp->getMainLoop());
+        activity->attach(context);
+        auto activityRecord = std::make_shared<ActivityClientRecord>(activityName, activity);
+        activityRecord->onCreate(intent);
+        mApp->addActivity(token, activityRecord);
         return 0;
+    } else {
+        ALOGE("the %s/%s is not register", mApp->getPackageName().c_str(), activityName.c_str());
     }
     return -1;
 }
 
 int ApplicationThreadStub::onStartActivity(const sp<IBinder>& token, const Intent& intent) {
-    ALOGD("onStartActivity package:%s token[%p]", mApp->getPackageName().c_str(), token.get());
-    std::shared_ptr<Activity> activity = mApp->findActivity(token);
-    if (activity != nullptr) {
-        if (activity->getStatus() == ActivityManager::STOPPED) {
-            activity->onNewIntent(intent);
-        }
-        activity->performStart();
-        activity->reportActivityStatus(ActivityManager::STARTED);
+    std::shared_ptr<ActivityClientRecord> activityRecord = mApp->findActivity(token);
+    if (activityRecord != nullptr) {
+        activityRecord->onStart(intent);
         return 0;
     }
     return -1;
 }
 
 int ApplicationThreadStub::onResumeActivity(const sp<IBinder>& token, const Intent& intent) {
-    ALOGD("onResumeActivity package:%s token[%p]", mApp->getPackageName().c_str(), token.get());
-    std::shared_ptr<Activity> activity = mApp->findActivity(token);
-    if (activity != nullptr) {
-        if (activity->getStatus() == ActivityManager::PAUSED) {
-            activity->onNewIntent(intent);
-        }
-        activity->performResume();
-        activity->reportActivityStatus(ActivityManager::RESUMED);
+    std::shared_ptr<ActivityClientRecord> activityRecord = mApp->findActivity(token);
+    if (activityRecord != nullptr) {
+        activityRecord->onResume(intent);
         return 0;
     }
     return -1;
 }
 
 int ApplicationThreadStub::onPauseActivity(const sp<IBinder>& token) {
-    ALOGD("onPauseActivity package:%s token[%p]", mApp->getPackageName().c_str(), token.get());
-    std::shared_ptr<Activity> activity = mApp->findActivity(token);
-    if (activity != nullptr) {
-        activity->performPause();
-        activity->reportActivityStatus(ActivityManager::PAUSED);
+    std::shared_ptr<ActivityClientRecord> activityRecord = mApp->findActivity(token);
+    if (activityRecord != nullptr) {
+        activityRecord->onPause();
         return 0;
     }
     return -1;
 }
 
 int ApplicationThreadStub::onStopActivity(const sp<IBinder>& token) {
-    ALOGD("onStopActivity package:%s token[%p]", mApp->getPackageName().c_str(), token.get());
-    std::shared_ptr<Activity> activity = mApp->findActivity(token);
-    if (activity != nullptr) {
-        activity->performStop();
-        activity->reportActivityStatus(ActivityManager::STOPPED);
+    std::shared_ptr<ActivityClientRecord> activityRecord = mApp->findActivity(token);
+    if (activityRecord != nullptr) {
+        activityRecord->onStop();
         return 0;
     }
     return -1;
 }
 
 int ApplicationThreadStub::onDestoryActivity(const sp<IBinder>& token) {
-    ALOGD("onDestoryActivity package:%s token[%p]", mApp->getPackageName().c_str(), token.get());
-    std::shared_ptr<Activity> activity = mApp->findActivity(token);
-    if (activity != nullptr) {
-        activity->performDestroy();
-        activity->reportActivityStatus(ActivityManager::DESTORYED);
+    std::shared_ptr<ActivityClientRecord> activityRecord = mApp->findActivity(token);
+    if (activityRecord != nullptr) {
+        activityRecord->onDestroy();
         mApp->deleteActivity(token);
         return 0;
     }
@@ -307,37 +289,26 @@ int ApplicationThreadStub::onDestoryActivity(const sp<IBinder>& token) {
 
 int ApplicationThreadStub::onStartService(const string& serviceName, const sp<IBinder>& token,
                                           const Intent& intent) {
-    ALOGD("onStartService package:%s token[%p]", mApp->getPackageName().c_str(), token.get());
-    auto service = mApp->findService(token);
-    if (service) {
-        ALOGW("the %s had been started", serviceName.c_str());
-        service->onStartCommand(intent);
-        return 0;
-    } else {
-        service = mApp->createService(serviceName);
+    auto serviceRecord = mApp->findService(token);
+    if (!serviceRecord) {
+        auto service = mApp->createService(serviceName);
         if (!service) {
             ALOGW("the %s is non-existent", serviceName.c_str());
             return -1;
         }
-        const auto context = ContextImpl::createServiceContext(mApp, token);
+        const auto context = ContextImpl::createServiceContext(mApp, token, mApp->getMainLoop());
         service->attachBaseContext(context);
-        mApp->addService(service);
-
-        service->onCreate();
-        service->reportServiceStatus(Service::CREATED);
-        service->onStartCommand(intent);
-        service->reportServiceStatus(Service::STARTED);
+        serviceRecord = std::make_shared<ServiceClientRecord>(serviceName, service);
+        mApp->addService(serviceRecord);
     }
+    serviceRecord->onStart(intent);
     return 0;
 }
 
 int ApplicationThreadStub::onStopService(const sp<IBinder>& token) {
-    ALOGD("onStopService package:%s token[%p]", mApp->getPackageName().c_str(), token.get());
-    auto service = mApp->findService(token);
-    if (service) {
-        service->onDestory();
-        mApp->deleteService(token);
-        service->reportServiceStatus(Service::DESTROYED);
+    auto serviceRecord = mApp->findService(token);
+    if (serviceRecord) {
+        serviceRecord->onDestroy();
     }
     return 0;
 }
@@ -345,37 +316,26 @@ int ApplicationThreadStub::onStopService(const sp<IBinder>& token) {
 void ApplicationThreadStub::onBindService(const string& serviceName, const sp<IBinder>& token,
                                           const Intent& intent,
                                           const sp<IServiceConnection>& conn) {
-    ALOGD("onBindService token[%p]", token.get());
-    auto service = mApp->findService(token);
-
-    if (service) {
-        ALOGW("the %s had been started", serviceName.c_str());
-        service->bindService(intent, conn);
-    } else {
-        service = mApp->createService(serviceName);
+    auto serviceRecord = mApp->findService(token);
+    if (!serviceRecord) {
+        auto service = mApp->createService(serviceName);
         if (!service) {
-            ALOGE("the %s is non-existent", serviceName.c_str());
+            ALOGE("the %s/%s is non-existent", mApp->getPackageName().c_str(), serviceName.c_str());
             return;
         }
-        const auto context = ContextImpl::createServiceContext(mApp, token);
+        const auto context = ContextImpl::createServiceContext(mApp, token, mApp->getMainLoop());
         service->attachBaseContext(context);
-        mApp->addService(service);
-
-        service->onCreate();
-        service->reportServiceStatus(Service::CREATED);
-        service->bindService(intent, conn);
-        service->reportServiceStatus(Service::BINDED);
+        serviceRecord = std::make_shared<ServiceClientRecord>(serviceName, service);
+        mApp->addService(serviceRecord);
     }
-
+    serviceRecord->onBind(intent, conn);
     return;
 }
 
 void ApplicationThreadStub::onUnbindService(const sp<IBinder>& token) {
-    ALOGD("onUnbindService token[%p]", token.get());
-    auto service = mApp->findService(token);
-    if (service) {
-        service->unbindService();
-        service->reportServiceStatus(Service::UNBINDED);
+    auto serviceRecord = mApp->findService(token);
+    if (serviceRecord) {
+        serviceRecord->onUnbind();
     }
     return;
 }

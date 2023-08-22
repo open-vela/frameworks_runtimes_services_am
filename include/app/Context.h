@@ -34,9 +34,10 @@ public:
     virtual ~Context() = default;
 
     virtual const Application* getApplication() const = 0;
-    virtual std::string getPackageName() = 0;
+    virtual string getPackageName() = 0;
     virtual UvLoop* getMainLoop() const = 0;
-    virtual const android::sp<android::IBinder>& getToken() const = 0;
+    virtual UvLoop* getCurrentLoop() const = 0;
+    virtual const sp<IBinder>& getToken() const = 0;
     virtual ActivityManager& getActivityManager() = 0;
 
     virtual void startActivity(const Intent& intent) = 0;
@@ -59,7 +60,8 @@ public:
     const Application* getApplication() const;
     std::string getPackageName();
     UvLoop* getMainLoop() const;
-    const android::sp<android::IBinder>& getToken() const;
+    UvLoop* getCurrentLoop() const;
+    const sp<IBinder>& getToken() const;
     ActivityManager& getActivityManager();
 
     void startActivity(const Intent& intent);
