@@ -60,7 +60,7 @@ public:
         PAUSING,
         PAUSED,
         STOPPING,
-        STOPED,
+        STOPPED,
         DESTROYING,
         DESTROYED,
     };
