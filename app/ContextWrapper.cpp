@@ -42,6 +42,10 @@ UvLoop* ContextWrapper::getMainLoop() const {
     return mBase->getMainLoop();
 }
 
+UvLoop* ContextWrapper::getCurrentLoop() const {
+    return mBase->getCurrentLoop();
+}
+
 const android::sp<android::IBinder>& ContextWrapper::getToken() const {
     return mBase->getToken();
 }

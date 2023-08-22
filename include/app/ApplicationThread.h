@@ -28,6 +28,8 @@ namespace app {
 
 using TASK_CALLBACK = std::function<void(void*)>;
 
+class ApplicationThreadStub;
+
 class ApplicationThread : public UvLoop {
 public:
     ApplicationThread(Application* app);

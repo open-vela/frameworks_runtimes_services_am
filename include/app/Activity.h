@@ -27,6 +27,9 @@ class WindowManager;
 
 namespace app {
 
+class ActivityClientRecord;
+class ApplicationThreadStub;
+
 class Activity : public ContextWrapper {
 public:
     Activity() = default;
@@ -44,13 +47,18 @@ public:
     virtual void onActivityResult(const int requestCode, const int resultCode,
                                   const Intent& resultData){};
 
-    void reportActivityStatus(const int status);
     void setResult(const int resultCode, const std::shared_ptr<Intent>& resultData);
     void finish();
 
-    int getStatus();
+    /** Not recommended for users*/
+    std::shared_ptr<::os::wm::BaseWindow> getWindow() {
+        return mWindow;
+    }
 
-    void attach(std::shared_ptr<Context> context, Intent intent);
+private:
+    friend class ActivityClientRecord;
+    friend class ApplicationThreadStub;
+    void attach(std::shared_ptr<Context> context);
 
     void performCreate();
     void performStart();
@@ -59,13 +67,8 @@ public:
     void performStop();
     void performDestroy();
 
-    std::shared_ptr<::os::wm::BaseWindow> getWindow() {
-        return mWindow;
-    }
-
 private:
     int mResultCode;
-    int mStatus;
     std::shared_ptr<Intent> mResultData;
     std::shared_ptr<::os::wm::BaseWindow> mWindow;
     ::os::wm::WindowManager* mWindowManager;
