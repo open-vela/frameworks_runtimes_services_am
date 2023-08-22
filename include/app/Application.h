@@ -38,10 +38,9 @@ using std::vector;
 using CreateActivityFunc = std::function<Activity*(void)>;
 using CreateServiceFunc = std::function<Service*(void)>;
 
-struct AppInfo {
-    string packageName;
-    string versionCode;
-};
+class ActivityClientRecord;
+class ServiceClientRecord;
+class ApplicationThreadStub;
 
 #define REGISTER_ACTIVITY(classname) \
     registerActivity(#classname, []() -> os::app::Activity* { return new classname; });
@@ -73,20 +72,24 @@ public:
 
     void registerActivity(const string& name, const CreateActivityFunc& createFunc);
     void registerService(const string& name, const CreateServiceFunc& createFunc);
+
+private:
+    friend class ApplicationThreadStub;
     std::shared_ptr<Activity> createActivity(const string& name);
     std::shared_ptr<Service> createService(const string& name);
 
-    void addActivity(const sp<IBinder>& token, const std::shared_ptr<Activity>& activity);
-    std::shared_ptr<Activity> findActivity(const sp<IBinder>& token);
+    void addActivity(const sp<IBinder>& token,
+                     const std::shared_ptr<ActivityClientRecord>& activity);
+    std::shared_ptr<ActivityClientRecord> findActivity(const sp<IBinder>& token);
     void deleteActivity(const sp<IBinder>& token);
 
-    void addService(const std::shared_ptr<Service>& service);
-    std::shared_ptr<Service> findService(const sp<IBinder>& token);
+    void addService(const std::shared_ptr<ServiceClientRecord>& service);
+    std::shared_ptr<ServiceClientRecord> findService(const sp<IBinder>& token);
     void deleteService(const sp<IBinder>& token);
 
 private:
-    map<sp<IBinder>, std::shared_ptr<Activity>> mExistActivities;
-    vector<std::shared_ptr<Service>> mExistServices;
+    map<sp<IBinder>, std::shared_ptr<ActivityClientRecord>> mExistActivities;
+    vector<std::shared_ptr<ServiceClientRecord>> mExistServices;
     string mPackageName;
     map<string, CreateActivityFunc> mActivityMap;
     map<string, CreateServiceFunc> mServiceMap;

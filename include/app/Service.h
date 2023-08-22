@@ -26,18 +26,12 @@ namespace app {
 
 using os::app::IServiceConnection;
 
+class ServiceClientRecord;
+
 class Service : public ContextWrapper {
 public:
     Service();
     virtual ~Service() = default;
-    /** The status is part of the ServiceRecord inside */
-    enum {
-        CREATED = 1,
-        STARTED = 3,
-        BINDED = 5,
-        UNBINDED = 7,
-        DESTROYED = 9,
-    };
 
     virtual void onCreate() = 0;
     virtual void onStartCommand(const Intent& intent) = 0;
@@ -45,15 +39,11 @@ public:
     virtual sp<IBinder> onBind(const Intent& intent);
     virtual bool onUnbind();
 
-    // TODO set this function private.
-    void setServiceName(const string& name);
-    const std::string& getServiceName();
+private:
+    friend class ServiceClientRecord;
     int bindService(const Intent& intent, const sp<IServiceConnection>& conn);
     void unbindService();
-    void reportServiceStatus(int status);
 
-private:
-    std::string mServiceName;
     sp<IBinder> mServiceBinder;
     bool mIsBinded;
 };

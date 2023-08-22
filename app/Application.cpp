@@ -20,6 +20,7 @@
 #include <unistd.h>
 #include <utils/Log.h>
 
+#include "ServiceClientRecord.h"
 #include "app/ActivityManager.h"
 
 namespace os {
@@ -63,18 +64,18 @@ std::shared_ptr<Service> Application::createService(const string& name) {
     auto it = mServiceMap.find(name);
     if (it != mServiceMap.end()) {
         const auto service = std::shared_ptr<Service>(it->second());
-        service->setServiceName(name);
         return service;
     }
     ALOGE("Application createService failed:%s", name.c_str());
     return nullptr;
 }
 
-void Application::addActivity(const sp<IBinder>& token, const std::shared_ptr<Activity>& activity) {
+void Application::addActivity(const sp<IBinder>& token,
+                              const std::shared_ptr<ActivityClientRecord>& activity) {
     mExistActivities.insert({token, activity});
 }
 
-std::shared_ptr<Activity> Application::findActivity(const sp<IBinder>& token) {
+std::shared_ptr<ActivityClientRecord> Application::findActivity(const sp<IBinder>& token) {
     auto it = mExistActivities.find(token);
     if (it != mExistActivities.end()) {
         return it->second;
@@ -90,11 +91,11 @@ void Application::deleteActivity(const sp<IBinder>& token) {
     }
 }
 
-void Application::addService(const std::shared_ptr<Service>& service) {
+void Application::addService(const std::shared_ptr<ServiceClientRecord>& service) {
     mExistServices.push_back(service);
 }
 
-std::shared_ptr<Service> Application::findService(const sp<IBinder>& token) {
+std::shared_ptr<ServiceClientRecord> Application::findService(const sp<IBinder>& token) {
     for (auto it : mExistServices) {
         if (it->getToken() == token) {
             return it;

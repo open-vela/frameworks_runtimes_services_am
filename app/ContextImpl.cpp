@@ -21,17 +21,18 @@ namespace app {
 
 using std::string;
 
-ContextImpl::ContextImpl(const Application* app, const sp<IBinder>& token)
-      : mApp(app), mToken(token) {}
+ContextImpl::ContextImpl(const Application* app, const sp<IBinder>& token, UvLoop* loop)
+      : mApp(app), mToken(token), mLoop(loop) {}
 
 std::shared_ptr<Context> ContextImpl::createActivityContext(const Application* app,
-                                                            const sp<IBinder>& token) {
-    return std::make_shared<ContextImpl>(app, token);
+                                                            const sp<IBinder>& token,
+                                                            UvLoop* loop) {
+    return std::make_shared<ContextImpl>(app, token, loop);
 }
 
 std::shared_ptr<Context> ContextImpl::createServiceContext(const Application* app,
-                                                           const sp<IBinder>& token) {
-    return std::make_shared<ContextImpl>(app, token);
+                                                           const sp<IBinder>& token, UvLoop* loop) {
+    return std::make_shared<ContextImpl>(app, token, loop);
 }
 
 const Application* ContextImpl::getApplication() const {
@@ -44,6 +45,10 @@ string ContextImpl::getPackageName() {
 
 UvLoop* ContextImpl::getMainLoop() const {
     return mApp->getMainLoop();
+}
+
+UvLoop* ContextImpl::getCurrentLoop() const {
+    return mLoop;
 }
 
 const sp<IBinder>& ContextImpl::getToken() const {

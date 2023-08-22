@@ -27,18 +27,19 @@ namespace app {
 
 class ContextImpl : public Context {
 public:
-    ContextImpl(const Application* app, const sp<IBinder>& token);
+    ContextImpl(const Application* app, const sp<IBinder>& token, UvLoop* loop);
 
     const Application* getApplication() const override;
     string getPackageName() override;
     UvLoop* getMainLoop() const override;
+    UvLoop* getCurrentLoop() const override;
     const sp<IBinder>& getToken() const override;
     ActivityManager& getActivityManager() override;
 
     static std::shared_ptr<Context> createActivityContext(const Application* app,
-                                                          const sp<IBinder>& token);
+                                                          const sp<IBinder>& token, UvLoop* loop);
     static std::shared_ptr<Context> createServiceContext(const Application* app,
-                                                         const sp<IBinder>& token);
+                                                         const sp<IBinder>& token, UvLoop* loop);
 
     void startActivity(const Intent& intent) override;
     void startActivityForResult(const Intent& intent, int32_t requestCode) override;
@@ -53,6 +54,7 @@ public:
 public:
     const Application* mApp;
     const sp<IBinder> mToken;
+    UvLoop* mLoop;
 
     ActivityManager mAm;
     Intent mIntent;
