@@ -135,7 +135,7 @@ int AmCommand::showUsage() {
     printf(" start <INTENT >\n");
     printf(" startservice <INTENT>\n");
     printf(" stopservice  <INTENT>\n");
-    printf(" dump\n  :show all Activity task");
+    printf(" dump  :show all Activity task\n");
     printf("\n You can make <INTENT> like:\n");
     printf("\t-t \t<TARGET> : '-t' is unnecessary when TARGET as the first param\n");
     printf("\t-a \t<ACTION>\n");
