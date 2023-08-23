@@ -128,10 +128,10 @@ void ActivityManager::reportServiceStatus(const sp<IBinder>& token, int32_t serv
     }
 }
 
-int ActivityManager::bindService(const sp<IBinder>& token, const Intent& intent,
-                                 const sp<IServiceConnection>& conn) {
+int32_t ActivityManager::bindService(const sp<IBinder>& token, const Intent& intent,
+                                     const sp<IServiceConnection>& conn) {
     sp<IActivityManager> service = getService();
-    int ret = android::FAILED_TRANSACTION;
+    int32_t ret = android::FAILED_TRANSACTION;
     if (service != nullptr) {
         Status status = service->bindService(token, intent, conn, &ret);
         if (!status.isOk()) {

@@ -68,8 +68,8 @@ public:
     int32_t stopService(const Intent& intent);
     void reportServiceStatus(const sp<IBinder>& token, int32_t status);
 
-    int bindService(const sp<IBinder>& token, const Intent& intent,
-                    const sp<IServiceConnection>& conn);
+    int32_t bindService(const sp<IBinder>& token, const Intent& intent,
+                        const sp<IServiceConnection>& conn);
     void unbindService(const sp<IServiceConnection>& conn);
     void publishService(const sp<IBinder>& token, const sp<IBinder>& serviceHandler);
 
