@@ -63,7 +63,7 @@ public:
     ActivityManager& getActivityManager();
 
     void startActivity(const Intent& intent);
-    void startActivityForResult(const Intent& intent, int requestCode);
+    void startActivityForResult(const Intent& intent, int32_t requestCode);
 
     void startService(const Intent& intent);
     void stopService(const Intent& intent);

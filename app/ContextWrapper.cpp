@@ -54,7 +54,7 @@ void ContextWrapper::startActivity(const Intent& intent) {
     return mBase->startActivity(intent);
 }
 
-void ContextWrapper::startActivityForResult(const Intent& intent, int requestCode) {
+void ContextWrapper::startActivityForResult(const Intent& intent, int32_t requestCode) {
     return mBase->startActivityForResult(intent, requestCode);
 }
 
