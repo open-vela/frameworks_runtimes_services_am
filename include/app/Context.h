@@ -48,6 +48,11 @@ public:
     virtual int bindService(const Intent& intent, const sp<IServiceConnection>& conn) = 0;
     virtual void unbindService(const sp<IServiceConnection>& conn) = 0;
 
+    virtual int32_t sendBroadcast(const Intent& intent) = 0;
+    virtual int32_t registerReceiver(const std::string& action,
+                                     const sp<IBroadcastReceiver>& receiver) = 0;
+    virtual void unregisterReceiver(const sp<IBroadcastReceiver>& receiver) = 0;
+
     virtual void setIntent(const Intent& intent) = 0;
     virtual const Intent& getIntent() = 0;
 };
@@ -71,6 +76,11 @@ public:
     void stopService(const Intent& intent);
     int bindService(const Intent& intent, const sp<IServiceConnection>& conn);
     void unbindService(const sp<IServiceConnection>& conn);
+
+    int32_t sendBroadcast(const Intent& intent) override;
+    int32_t registerReceiver(const std::string& action,
+                             const sp<IBroadcastReceiver>& receiver) override;
+    void unregisterReceiver(const sp<IBroadcastReceiver>& receiver) override;
 
     void setIntent(const Intent& intent);
     const Intent& getIntent();
