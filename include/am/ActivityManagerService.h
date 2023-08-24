@@ -21,6 +21,7 @@
 
 #include "os/am/BnActivityManager.h"
 #include "os/am/IActivityManager.h"
+#include "os/app/IBroadcastReceiver.h"
 #include "os/wm/BnWindowManager.h"
 
 namespace os {
@@ -29,6 +30,7 @@ namespace am {
 using android::IBinder;
 using android::sp;
 using android::binder::Status;
+using os::app::IBroadcastReceiver;
 using os::app::Intent;
 using os::app::IServiceConnection;
 
@@ -57,6 +59,11 @@ public:
                        const sp<IServiceConnection>& conn, int32_t* ret) override;
     Status unbindService(const sp<IServiceConnection>& conn) override;
     Status publishService(const sp<IBinder>& token, const sp<IBinder>& service) override;
+
+    Status sendBroadcast(const Intent& intent, int32_t* ret) override;
+    Status registerReceiver(const std::string& action, const sp<IBroadcastReceiver>& receiver,
+                            int32_t* ret) override;
+    Status unregisterReceiver(const sp<IBroadcastReceiver>& receiver) override;
 
     android::status_t dump(int fd, const android::Vector<android::String16>& args) override;
 

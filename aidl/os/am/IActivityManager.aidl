@@ -19,6 +19,7 @@ package os.am;
 import os.app.Intent;
 import os.app.IApplicationThread;
 import os.app.IServiceConnection;
+import os.app.IBroadcastReceiver;
 
 interface IActivityManager {
     /**
@@ -85,4 +86,20 @@ interface IActivityManager {
      * @param serviceBinder: service IBinder object
      */
     void publishService(in IBinder token, in IBinder serviceBinder);
+
+    /**
+     * @brief sendBroadcast
+     * @param intent, intent.action the broadcast title.
+     */
+    int sendBroadcast(in Intent intent);
+
+    /**
+     * @brief registerReceiver
+     */
+    int registerReceiver(@utf8InCpp String action, in IBroadcastReceiver receiver);
+
+    /**
+     * @brief unregisterReceiver
+     */
+    void unregisterReceiver(in IBroadcastReceiver receiver);
 }

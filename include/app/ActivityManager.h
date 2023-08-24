@@ -73,6 +73,10 @@ public:
     void unbindService(const sp<IServiceConnection>& conn);
     void publishService(const sp<IBinder>& token, const sp<IBinder>& serviceHandler);
 
+    int32_t sendBroadcast(const Intent& intent);
+    int32_t registerReceiver(const std::string& action, const sp<IBroadcastReceiver>& receiver);
+    void unregisterReceiver(const sp<IBroadcastReceiver>& receiver);
+
     sp<IActivityManager> getService();
 
 private:

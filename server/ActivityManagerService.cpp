@@ -65,6 +65,10 @@ public:
     void unbindService(const sp<IServiceConnection>& conn);
     void publishService(const sp<IBinder>& token, const sp<IBinder>& serviceBinder);
 
+    int32_t sendBroadcast(const Intent& intent);
+    int32_t registerReceiver(const std::string& action, const sp<IBroadcastReceiver>& receiver);
+    void unregisterReceiver(const sp<IBroadcastReceiver>& receiver);
+
     void dump(int fd, const android::Vector<android::String16>& args);
 
     void systemReady();
@@ -90,6 +94,7 @@ private:
     TaskBoard mPendTask;
     PackageManager mPm;
     sp<::os::wm::IWindowManager> mWindowManager;
+    map<string, list<sp<IBroadcastReceiver>>> mReceivers; /** Broadcast */
 };
 
 int ActivityManagerInner::attachApplication(const sp<IApplicationThread>& app) {
@@ -632,6 +637,45 @@ void ActivityManagerInner::reportServiceStatus(const sp<IBinder>& token, int32_t
     AM_PROFILER_END();
 }
 
+int32_t ActivityManagerInner::sendBroadcast(const Intent& intent) {
+    ALOGD("sendBroadcast:%s", intent.mAction.c_str());
+    auto receivers = mReceivers.find(intent.mAction);
+    if (receivers != mReceivers.end()) {
+        for (auto& receiver : receivers->second) {
+            receiver->receiveBroadcast(intent);
+        }
+    }
+    return 0;
+}
+
+int32_t ActivityManagerInner::registerReceiver(const std::string& action,
+                                               const sp<IBroadcastReceiver>& receiver) {
+    ALOGD("registerReceiver:%s", action.c_str());
+    auto receivers = mReceivers.find(action);
+    if (receivers != mReceivers.end()) {
+        receivers->second.emplace_back(receiver);
+        ALOGI("register success, cnt:%d", receivers->second.size());
+    } else {
+        std::list<sp<IBroadcastReceiver>> receiverList;
+        receiverList.emplace_back(receiver);
+        mReceivers.emplace(action, std::move(receiverList));
+        ALOGI("add new receiver success");
+    }
+    return 0;
+}
+
+void ActivityManagerInner::unregisterReceiver(const sp<IBroadcastReceiver>& receiver) {
+    ALOGD("unregisterReceiver");
+    for (auto& pair : mReceivers) {
+        for (auto it = pair.second.begin(); it != pair.second.end(); ++it) {
+            if (android::IInterface::asBinder(*it) == android::IInterface::asBinder(receiver)) {
+                pair.second.erase(it);
+                break;
+            }
+        }
+    }
+}
+
 void ActivityManagerInner::systemReady() {
     AM_PROFILER_BEGIN();
     ALOGD("### systemReady ### ");
@@ -790,6 +834,23 @@ Status ActivityManagerService::unbindService(const sp<IServiceConnection>& conn)
 Status ActivityManagerService::publishService(const sp<IBinder>& token,
                                               const sp<IBinder>& service) {
     mInner->publishService(token, service);
+    return Status::ok();
+}
+
+Status ActivityManagerService::sendBroadcast(const Intent& intent, int32_t* ret) {
+    *ret = mInner->sendBroadcast(intent);
+    return Status::ok();
+}
+
+Status ActivityManagerService::registerReceiver(const std::string& action,
+                                                const sp<IBroadcastReceiver>& receiver,
+                                                int32_t* ret) {
+    *ret = mInner->registerReceiver(action, receiver);
+    return Status::ok();
+}
+
+Status ActivityManagerService::unregisterReceiver(const sp<IBroadcastReceiver>& receiver) {
+    mInner->unregisterReceiver(receiver);
     return Status::ok();
 }
 

@@ -183,5 +183,40 @@ void ActivityManager::publishService(const sp<IBinder>& token, const sp<IBinder>
     AM_PROFILER_END();
 }
 
+int32_t ActivityManager::sendBroadcast(const Intent& intent) {
+    sp<IActivityManager> service = getService();
+    int32_t ret = android::FAILED_TRANSACTION;
+    if (service != nullptr) {
+        Status status = service->sendBroadcast(intent, &ret);
+        if (!status.isOk()) {
+            ALOGE("bindService error:%s", status.toString8().c_str());
+        }
+    }
+    return ret;
+}
+
+int32_t ActivityManager::registerReceiver(const std::string& action,
+                                          const sp<IBroadcastReceiver>& receiver) {
+    sp<IActivityManager> service = getService();
+    int32_t ret = android::FAILED_TRANSACTION;
+    if (service != nullptr) {
+        Status status = service->registerReceiver(action, receiver, &ret);
+        if (!status.isOk()) {
+            ALOGE("bindService error:%s", status.toString8().c_str());
+        }
+    }
+    return ret;
+}
+
+void ActivityManager::unregisterReceiver(const sp<IBroadcastReceiver>& receiver) {
+    sp<IActivityManager> service = getService();
+    if (service != nullptr) {
+        Status status = service->unregisterReceiver(receiver);
+        if (!status.isOk()) {
+            ALOGE("bindService error:%s", status.toString8().c_str());
+        }
+    }
+}
+
 } // namespace app
 } // namespace os

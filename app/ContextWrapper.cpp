@@ -78,6 +78,19 @@ void ContextWrapper::unbindService(const sp<IServiceConnection>& conn) {
     return mBase->unbindService(conn);
 }
 
+int32_t ContextWrapper::sendBroadcast(const Intent& intent) {
+    return mBase->sendBroadcast(intent);
+}
+
+int32_t ContextWrapper::registerReceiver(const std::string& action,
+                                         const sp<IBroadcastReceiver>& receiver) {
+    return mBase->registerReceiver(action, receiver);
+}
+
+void ContextWrapper::unregisterReceiver(const sp<IBroadcastReceiver>& receiver) {
+    return mBase->unregisterReceiver(receiver);
+}
+
 void ContextWrapper::setIntent(const Intent& intent) {
     return mBase->setIntent(intent);
 }
