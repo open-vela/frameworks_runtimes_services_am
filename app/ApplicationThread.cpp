@@ -28,6 +28,7 @@
 #include <mutex>
 
 #include "ActivityClientRecord.h"
+#include "Profiler.h"
 #include "ServiceClientRecord.h"
 #include "app/Application.h"
 #include "app/ContextImpl.h"
@@ -227,6 +228,7 @@ Status ApplicationThreadStub::scheduleStopService(const sp<IBinder>& token) {
 
 int ApplicationThreadStub::onLaunchActivity(const std::string& activityName,
                                             const sp<IBinder>& token, const Intent& intent) {
+    AM_PROFILER_BEGIN();
     std::shared_ptr<Activity> activity = mApp->createActivity(activityName);
     if (activity != nullptr) {
         auto context = ContextImpl::createActivityContext(mApp, token, mApp->getMainLoop());
@@ -234,66 +236,85 @@ int ApplicationThreadStub::onLaunchActivity(const std::string& activityName,
         auto activityRecord = std::make_shared<ActivityClientRecord>(activityName, activity);
         activityRecord->onCreate(intent);
         mApp->addActivity(token, activityRecord);
+        AM_PROFILER_END();
         return 0;
     } else {
         ALOGE("the %s/%s is not register", mApp->getPackageName().c_str(), activityName.c_str());
     }
+    AM_PROFILER_END();
     return -1;
 }
 
 int ApplicationThreadStub::onStartActivity(const sp<IBinder>& token, const Intent& intent) {
+    AM_PROFILER_BEGIN();
     std::shared_ptr<ActivityClientRecord> activityRecord = mApp->findActivity(token);
     if (activityRecord != nullptr) {
         activityRecord->onStart(intent);
+        AM_PROFILER_END();
         return 0;
     }
+    AM_PROFILER_END();
     return -1;
 }
 
 int ApplicationThreadStub::onResumeActivity(const sp<IBinder>& token, const Intent& intent) {
+    AM_PROFILER_BEGIN();
     std::shared_ptr<ActivityClientRecord> activityRecord = mApp->findActivity(token);
     if (activityRecord != nullptr) {
         activityRecord->onResume(intent);
+        AM_PROFILER_END();
         return 0;
     }
+    AM_PROFILER_END();
     return -1;
 }
 
 int ApplicationThreadStub::onPauseActivity(const sp<IBinder>& token) {
+    AM_PROFILER_BEGIN();
     std::shared_ptr<ActivityClientRecord> activityRecord = mApp->findActivity(token);
     if (activityRecord != nullptr) {
         activityRecord->onPause();
+        AM_PROFILER_END();
         return 0;
     }
+    AM_PROFILER_END();
     return -1;
 }
 
 int ApplicationThreadStub::onStopActivity(const sp<IBinder>& token) {
+    AM_PROFILER_BEGIN();
     std::shared_ptr<ActivityClientRecord> activityRecord = mApp->findActivity(token);
     if (activityRecord != nullptr) {
         activityRecord->onStop();
+        AM_PROFILER_END();
         return 0;
     }
+    AM_PROFILER_END();
     return -1;
 }
 
 int ApplicationThreadStub::onDestoryActivity(const sp<IBinder>& token) {
+    AM_PROFILER_BEGIN();
     std::shared_ptr<ActivityClientRecord> activityRecord = mApp->findActivity(token);
     if (activityRecord != nullptr) {
         activityRecord->onDestroy();
         mApp->deleteActivity(token);
+        AM_PROFILER_END();
         return 0;
     }
+    AM_PROFILER_END();
     return -1;
 }
 
 int ApplicationThreadStub::onStartService(const string& serviceName, const sp<IBinder>& token,
                                           const Intent& intent) {
+    AM_PROFILER_BEGIN();
     auto serviceRecord = mApp->findService(token);
     if (!serviceRecord) {
         auto service = mApp->createService(serviceName);
         if (!service) {
             ALOGW("the %s is non-existent", serviceName.c_str());
+            AM_PROFILER_END();
             return -1;
         }
         const auto context = ContextImpl::createServiceContext(mApp, token, mApp->getMainLoop());
@@ -302,25 +323,30 @@ int ApplicationThreadStub::onStartService(const string& serviceName, const sp<IB
         mApp->addService(serviceRecord);
     }
     serviceRecord->onStart(intent);
+    AM_PROFILER_END();
     return 0;
 }
 
 int ApplicationThreadStub::onStopService(const sp<IBinder>& token) {
+    AM_PROFILER_BEGIN();
     auto serviceRecord = mApp->findService(token);
     if (serviceRecord) {
         serviceRecord->onDestroy();
     }
+    AM_PROFILER_END();
     return 0;
 }
 
 void ApplicationThreadStub::onBindService(const string& serviceName, const sp<IBinder>& token,
                                           const Intent& intent,
                                           const sp<IServiceConnection>& conn) {
+    AM_PROFILER_BEGIN();
     auto serviceRecord = mApp->findService(token);
     if (!serviceRecord) {
         auto service = mApp->createService(serviceName);
         if (!service) {
             ALOGE("the %s/%s is non-existent", mApp->getPackageName().c_str(), serviceName.c_str());
+            AM_PROFILER_END();
             return;
         }
         const auto context = ContextImpl::createServiceContext(mApp, token, mApp->getMainLoop());
@@ -329,14 +355,17 @@ void ApplicationThreadStub::onBindService(const string& serviceName, const sp<IB
         mApp->addService(serviceRecord);
     }
     serviceRecord->onBind(intent, conn);
+    AM_PROFILER_END();
     return;
 }
 
 void ApplicationThreadStub::onUnbindService(const sp<IBinder>& token) {
+    AM_PROFILER_BEGIN();
     auto serviceRecord = mApp->findService(token);
     if (serviceRecord) {
         serviceRecord->onUnbind();
     }
+    AM_PROFILER_END();
     return;
 }
 

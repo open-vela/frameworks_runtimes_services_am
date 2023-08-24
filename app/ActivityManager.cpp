@@ -23,6 +23,8 @@
 #include <functional>
 #include <optional>
 
+#include "Profiler.h"
+
 namespace os {
 namespace app {
 
@@ -40,6 +42,7 @@ sp<IActivityManager> ActivityManager::getService() {
 }
 
 int32_t ActivityManager::attachApplication(const sp<IApplicationThread>& app) {
+    AM_PROFILER_BEGIN();
     sp<IActivityManager> service = getService();
     int32_t ret = android::FAILED_TRANSACTION;
     if (service != nullptr) {
@@ -48,11 +51,13 @@ int32_t ActivityManager::attachApplication(const sp<IApplicationThread>& app) {
             ALOGE("attachApplication error:%s", status.toString8().c_str());
         }
     }
+    AM_PROFILER_END();
     return ret;
 }
 
 int32_t ActivityManager::startActivity(const sp<IBinder>& token, const Intent& intent,
                                        int32_t requestCode) {
+    AM_PROFILER_BEGIN();
     sp<IActivityManager> service = getService();
     int32_t ret = android::FAILED_TRANSACTION;
     if (service != nullptr) {
@@ -61,11 +66,13 @@ int32_t ActivityManager::startActivity(const sp<IBinder>& token, const Intent& i
             ALOGE("startActivity error:%s", status.toString8().c_str());
         }
     }
+    AM_PROFILER_END();
     return ret;
 }
 
 bool ActivityManager::finishActivity(const sp<IBinder>& token, int32_t resultCode,
                                      const std::shared_ptr<Intent>& resultData) {
+    AM_PROFILER_BEGIN();
     sp<IActivityManager> service = getService();
     bool ret = false;
     if (service != nullptr) {
@@ -80,10 +87,12 @@ bool ActivityManager::finishActivity(const sp<IBinder>& token, int32_t resultCod
             ALOGE("returnActivityResult error:%s", status.toString8().c_str());
         }
     }
+    AM_PROFILER_END();
     return ret;
 }
 
 void ActivityManager::reportActivityStatus(const sp<IBinder>& token, int32_t activityStatus) {
+    AM_PROFILER_BEGIN();
     sp<IActivityManager> service = getService();
     if (service != nullptr) {
         Status status = service->reportActivityStatus(token, activityStatus);
@@ -91,10 +100,12 @@ void ActivityManager::reportActivityStatus(const sp<IBinder>& token, int32_t act
             ALOGE("reportActivityStatus error:%s", status.toString8().c_str());
         }
     }
+    AM_PROFILER_END();
     return;
 }
 
 int32_t ActivityManager::startService(const Intent& intent) {
+    AM_PROFILER_BEGIN();
     sp<IActivityManager> service = getService();
     int32_t ret = android::FAILED_TRANSACTION;
     if (service != nullptr) {
@@ -103,10 +114,12 @@ int32_t ActivityManager::startService(const Intent& intent) {
             ALOGE("startService error:%s", status.toString8().c_str());
         }
     }
+    AM_PROFILER_END();
     return ret;
 }
 
 int32_t ActivityManager::stopService(const Intent& intent) {
+    AM_PROFILER_BEGIN();
     sp<IActivityManager> service = getService();
     int32_t ret = android::FAILED_TRANSACTION;
     if (service != nullptr) {
@@ -115,10 +128,12 @@ int32_t ActivityManager::stopService(const Intent& intent) {
             ALOGE("stopService error:%s", status.toString8().c_str());
         }
     }
+    AM_PROFILER_END();
     return ret;
 }
 
 void ActivityManager::reportServiceStatus(const sp<IBinder>& token, int32_t serviceStatus) {
+    AM_PROFILER_BEGIN();
     sp<IActivityManager> service = getService();
     if (service != nullptr) {
         Status status = service->reportServiceStatus(token, serviceStatus);
@@ -126,10 +141,12 @@ void ActivityManager::reportServiceStatus(const sp<IBinder>& token, int32_t serv
             ALOGE("reportServiceStatus error:%s", status.toString8().c_str());
         }
     }
+    AM_PROFILER_END();
 }
 
 int32_t ActivityManager::bindService(const sp<IBinder>& token, const Intent& intent,
                                      const sp<IServiceConnection>& conn) {
+    AM_PROFILER_BEGIN();
     sp<IActivityManager> service = getService();
     int32_t ret = android::FAILED_TRANSACTION;
     if (service != nullptr) {
@@ -138,10 +155,12 @@ int32_t ActivityManager::bindService(const sp<IBinder>& token, const Intent& int
             ALOGE("bindService error:%s", status.toString8().c_str());
         }
     }
+    AM_PROFILER_END();
     return ret;
 }
 
 void ActivityManager::unbindService(const sp<IServiceConnection>& conn) {
+    AM_PROFILER_BEGIN();
     sp<IActivityManager> service = getService();
     if (service != nullptr) {
         Status status = service->unbindService(conn);
@@ -149,9 +168,11 @@ void ActivityManager::unbindService(const sp<IServiceConnection>& conn) {
             ALOGE("unbindService error:%s", status.toString8().c_str());
         }
     }
+    AM_PROFILER_END();
 }
 
 void ActivityManager::publishService(const sp<IBinder>& token, const sp<IBinder>& serviceBinder) {
+    AM_PROFILER_BEGIN();
     sp<IActivityManager> service = getService();
     if (service != nullptr) {
         Status status = service->publishService(token, serviceBinder);
@@ -159,6 +180,7 @@ void ActivityManager::publishService(const sp<IBinder>& token, const sp<IBinder>
             ALOGE("publishService error:%s", status.toString8().c_str());
         }
     }
+    AM_PROFILER_END();
 }
 
 } // namespace app

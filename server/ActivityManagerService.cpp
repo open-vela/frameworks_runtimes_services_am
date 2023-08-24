@@ -32,6 +32,7 @@
 #include "AppRecord.h"
 #include "AppSpawn.h"
 #include "IntentAction.h"
+#include "Profiler.h"
 #include "TaskBoard.h"
 #include "app/ActivityManager.h"
 
@@ -92,23 +93,26 @@ private:
 };
 
 int ActivityManagerInner::attachApplication(const sp<IApplicationThread>& app) {
+    AM_PROFILER_BEGIN();
     const int callerPid = android::IPCThreadState::self()->getCallingPid();
     const auto appRecord = mAppInfo.findAppInfo(callerPid);
     ALOGD("attachApplication. pid:%d appRecord:[%p]", callerPid, appRecord.get());
     if (appRecord) {
         ALOGE("the application:%s had be attached", appRecord->mPackageName.c_str());
+        AM_PROFILER_END();
         return android::BAD_VALUE;
     }
 
     const int callerUid = android::IPCThreadState::self()->getCallingUid();
     const AppAttachTask::Event event(callerPid, callerUid, app);
     mPendTask.eventTrigger(&event);
-
+    AM_PROFILER_END();
     return android::OK;
 }
 
 int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent& intent,
                                         int32_t requestCode) {
+    AM_PROFILER_BEGIN();
     auto topActivity = mTaskManager.getActiveTask()->getTopActivity();
     if (topActivity->mStatus < ActivityRecord::STARTED ||
         topActivity->mStatus > ActivityRecord::PAUSING) {
@@ -116,12 +120,14 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
          * other startActivity requests */
         ALOGW("the top Activity:(%s) Status(%d) is changing", topActivity->mActivityName.c_str(),
               topActivity->mStatus);
+        AM_PROFILER_END();
         return android::INVALID_OPERATION;
     }
 
     if (caller != topActivity->mToken && !(intent.mFlag & Intent::FLAG_ACTIVITY_NEW_TASK)) {
         /** if the current caller is not the top Activity */
         ALOGW("Inappropriate, the caller must startActivity in other task");
+        AM_PROFILER_END();
         return android::PERMISSION_DENIED;
     }
 
@@ -131,6 +137,7 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
     } else {
         if (!mActionFilter.getFirstTargetByAction(intent.mAction, activityTarget)) {
             ALOGE("can't find the Activity by action:%s", intent.mAction.c_str());
+            AM_PROFILER_END();
             return android::BAD_VALUE;
         }
     }
@@ -144,6 +151,7 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
     PackageInfo packageInfo;
     if (mPm.getPackageInfo(packageName, &packageInfo)) {
         ALOGE("error packagename:%s", packageName.c_str());
+        AM_PROFILER_END();
         return android::BAD_VALUE;
     }
 
@@ -203,7 +211,7 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
             topActivity->resume();
         }
     }
-
+    AM_PROFILER_END();
     return android::OK;
 }
 
@@ -308,9 +316,11 @@ ActivityHandler ActivityManagerInner::startActivityReal(const std::shared_ptr<Ap
 
 bool ActivityManagerInner::finishActivity(const sp<IBinder>& token, int32_t resultCode,
                                           const std::optional<Intent>& resultData) {
+    AM_PROFILER_BEGIN();
     auto currentActivity = getActivityRecord(token);
     if (!currentActivity) {
         ALOGE("finishActivity: The token is invalid");
+        AM_PROFILER_END();
         return false;
     }
     ALOGD("finishActivity called by %s/%s", currentActivity->getPackageName()->c_str(),
@@ -360,14 +370,16 @@ bool ActivityManagerInner::finishActivity(const sp<IBinder>& token, int32_t resu
         currentActivity->stop();
         currentActivity->destroy();
     }
-
+    AM_PROFILER_END();
     return true;
 }
 
 void ActivityManagerInner::reportActivityStatus(const sp<IBinder>& token, int32_t status) {
+    AM_PROFILER_BEGIN();
     auto record = getActivityRecord(token);
     if (!record) {
         ALOGE("The reported token is invalid");
+        AM_PROFILER_END();
         return;
     }
     ALOGD("reportActivityStatus %s/%s status:%s->%s", record->getPackageName()->c_str(),
@@ -392,11 +404,12 @@ void ActivityManagerInner::reportActivityStatus(const sp<IBinder>& token, int32_
     record->mStatus = status;
     const ActivityReportStatusTask::Event event(status, token);
     mPendTask.eventTrigger(&event);
-
+    AM_PROFILER_END();
     return;
 }
 
 int ActivityManagerInner::startService(const Intent& intent) {
+    AM_PROFILER_BEGIN();
     string packageName;
     string serviceName;
     if (intent.mTarget.empty()) {
@@ -410,6 +423,7 @@ int ActivityManagerInner::startService(const Intent& intent) {
     if (serviceName.empty()) {
         ALOGW("startService: incorrect intents[%s %s], can't find target service",
               intent.mTarget.c_str(), intent.mAction.c_str());
+        AM_PROFILER_END();
         return android::BAD_VALUE;
     }
 
@@ -444,15 +458,17 @@ int ActivityManagerInner::startService(const Intent& intent) {
                 mPendTask.commitTask(std::make_shared<AppAttachTask>(pid, task));
             } else {
                 ALOGE("appSpawn App:%s error", targetApp.execfile.c_str());
+                AM_PROFILER_END();
                 return android::BAD_VALUE;
             }
         }
     }
-
+    AM_PROFILER_END();
     return android::OK;
 }
 
 int ActivityManagerInner::stopService(const Intent& intent) {
+    AM_PROFILER_BEGIN();
     string packageName;
     string serviceName;
     if (intent.mTarget.empty()) {
@@ -468,15 +484,18 @@ int ActivityManagerInner::stopService(const Intent& intent) {
     auto service = mServices.findService(packageName, serviceName);
     if (!service) {
         ALOGW("the Service:%s is not running", serviceName.c_str());
+        AM_PROFILER_END();
         return android::DEAD_OBJECT;
     }
 
     stopServiceReal(service);
+    AM_PROFILER_END();
     return 0;
 }
 
 int ActivityManagerInner::bindService(const sp<IBinder>& caller, const Intent& intent,
                                       const sp<IServiceConnection>& conn) {
+    AM_PROFILER_BEGIN();
     string packageName;
     string serviceName;
     if (intent.mTarget.empty()) {
@@ -517,6 +536,7 @@ int ActivityManagerInner::bindService(const sp<IBinder>& caller, const Intent& i
                 mPendTask.commitTask(std::make_shared<AppAttachTask>(pid, task));
             } else {
                 ALOGE("appSpawn App:%s error", targetApp.execfile.c_str());
+                AM_PROFILER_END();
                 return android::BAD_VALUE;
             }
         }
@@ -529,36 +549,43 @@ int ActivityManagerInner::bindService(const sp<IBinder>& caller, const Intent& i
     } else {
         service->bind(caller, conn, intent);
     }
-
+    AM_PROFILER_END();
     return 0;
 }
 
 void ActivityManagerInner::unbindService(const sp<IServiceConnection>& conn) {
+    AM_PROFILER_BEGIN();
     ALOGD("unbindService connection[%p]", conn.get());
     mServices.unbindConnection(conn);
+    AM_PROFILER_END();
     return;
 }
 
 void ActivityManagerInner::publishService(const sp<IBinder>& token,
                                           const sp<IBinder>& serviceBinder) {
+    AM_PROFILER_BEGIN();
     auto service = mServices.getService(token);
     if (service) {
         service->mServiceBinder = serviceBinder;
     } else {
         ALOGE("publishService error. the Service token[%p] isn't exist", token.get());
     }
+    AM_PROFILER_END();
 }
 
 int ActivityManagerInner::stopServiceToken(const sp<IBinder>& token) {
+    AM_PROFILER_BEGIN();
     auto service = mServices.getService(token);
     if (!service) {
         ALOGW("unbelievable! Can't get record when service stop self:%s/%s",
               service->getPackageName()->c_str(), service->mServiceName.c_str());
+        AM_PROFILER_END();
         return android::DEAD_OBJECT;
     }
     ALOGD("stopServiceToken. %s/%s", service->getPackageName()->c_str(),
           service->mServiceName.c_str());
     stopServiceReal(service);
+    AM_PROFILER_END();
     return 0;
 }
 
@@ -570,9 +597,11 @@ void ActivityManagerInner::stopServiceReal(ServiceHandler& service) {
 }
 
 void ActivityManagerInner::reportServiceStatus(const sp<IBinder>& token, int32_t status) {
+    AM_PROFILER_BEGIN();
     auto service = mServices.getService(token);
     if (!service) {
         ALOGE("service is not exist");
+        AM_PROFILER_END();
         return;
     }
     ALOGD("reportServiceStatus %s/%s status:%s->%s", service->getPackageName()->c_str(),
@@ -593,15 +622,18 @@ void ActivityManagerInner::reportServiceStatus(const sp<IBinder>& token, int32_t
         }
         default: {
             ALOGE("unbeliveable!!! service status:%d is illegal", status);
+            AM_PROFILER_END();
             return;
         }
     }
     service->mStatus = status;
     const ServiceReportStatusTask::Event event(status, token);
     mPendTask.eventTrigger(&event);
+    AM_PROFILER_END();
 }
 
 void ActivityManagerInner::systemReady() {
+    AM_PROFILER_BEGIN();
     ALOGD("### systemReady ### ");
     AppSpawn::signalInit([](int pid) { ALOGW("AppSpawn pid:%d had exit", pid); });
     vector<PackageInfo> allPackageInfo;
@@ -617,6 +649,7 @@ void ActivityManagerInner::systemReady() {
     }
 
     startHomeActivity();
+    AM_PROFILER_END();
     return;
 }
 
