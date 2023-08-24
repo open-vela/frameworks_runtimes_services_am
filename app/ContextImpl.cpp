@@ -83,6 +83,19 @@ void ContextImpl::unbindService(const sp<IServiceConnection>& conn) {
     return mAm.unbindService(conn);
 }
 
+int32_t ContextImpl::sendBroadcast(const Intent& intent) {
+    return mAm.sendBroadcast(intent);
+}
+
+int32_t ContextImpl::registerReceiver(const std::string& action,
+                                      const sp<IBroadcastReceiver>& receiver) {
+    return mAm.registerReceiver(action, receiver);
+}
+
+void ContextImpl::unregisterReceiver(const sp<IBroadcastReceiver>& receiver) {
+    return mAm.unregisterReceiver(receiver);
+}
+
 void ContextImpl::setIntent(const Intent& intent) {
     mIntent = intent;
 }
