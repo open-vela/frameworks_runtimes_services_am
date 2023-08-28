@@ -87,6 +87,7 @@ void ActivityRecord::destroy() {
         ALOGD("scheduleDestoryActivity: %s/%s", mApp.lock()->mPackageName.c_str(),
               mActivityName.c_str());
         (mApp.lock()->mAppThread)->scheduleDestoryActivity(mToken);
+        mWindowService->removeWindowToken(mToken, 0);
     }
 }
 
