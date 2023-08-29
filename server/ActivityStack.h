@@ -70,6 +70,9 @@ public:
     void switchTaskToActive(const TaskHandler& task);
     void popFrontTask();
 
+    void deleteTask(const TaskHandler& task);
+    void procAbnormalActivity(const ActivityHandler& activity);
+
     friend std::ostream& operator<<(std::ostream& os, const TaskStackManager& task);
 
 private:

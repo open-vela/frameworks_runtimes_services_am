@@ -70,6 +70,8 @@ public:
                                const Intent& intent, const sp<IServiceConnection>& serviceBinder);
     Status scheduleUnbindService(const sp<IBinder>& token);
 
+    Status terminateApplication();
+
 private:
     int onLaunchActivity(const string& activityName, const sp<IBinder>& token,
                          const Intent& intent);
@@ -129,6 +131,7 @@ int ApplicationThread::mainRun(int argc, char** argv) {
     }
 
     run();
+    ALOGI("Application[%s]:%s has been stop!!!", argv[0], argv[1]);
     return 0;
 }
 
@@ -223,6 +226,15 @@ Status ApplicationThreadStub::scheduleStartService(const string& serviceName,
 Status ApplicationThreadStub::scheduleStopService(const sp<IBinder>& token) {
     ALOGD("scheduleStopService package:%s token[%p]", mApp->getPackageName().c_str(), token.get());
     mApp->getMainLoop()->postTask([this, token](void*) { this->onStopService(token); });
+    return Status::ok();
+}
+
+Status ApplicationThreadStub::terminateApplication() {
+    ALOGD("terminateApplication package:%s", mApp->getPackageName().c_str());
+    mApp->getMainLoop()->postTask([this](void*) {
+        mApp->onDestroy();
+        mApp->getMainLoop()->stop();
+    });
     return Status::ok();
 }
 

@@ -33,75 +33,77 @@ using os::app::Intent;
 using os::wm::LayoutParams;
 
 void ActivityRecord::create() {
-    if (!mApp.expired()) {
-        mStatus = CREATING;
-        mWindowService->addWindowToken(mToken, LayoutParams::TYPE_APPLICATION, 0);
-        ALOGD("scheduleLaunchActivity: %s/%s", mApp.lock()->mPackageName.c_str(),
+    mStatus = CREATING;
+    mWindowService->addWindowToken(mToken, LayoutParams::TYPE_APPLICATION, 0);
+    if (auto appRecord = mApp.lock()) {
+        ALOGD("scheduleLaunchActivity: %s/%s", appRecord->mPackageName.c_str(),
               mActivityName.c_str());
-        (mApp.lock()->mAppThread)->scheduleLaunchActivity(mActivityName, mToken, mIntent);
+        appRecord->addActivity(shared_from_this());
+        appRecord->mAppThread->scheduleLaunchActivity(mActivityName, mToken, mIntent);
     }
 }
 
 void ActivityRecord::start() {
-    if (!mApp.expired()) {
-        mStatus = STARTING;
-        ALOGD("scheduleStartActivity: %s/%s", mApp.lock()->mPackageName.c_str(),
+    mStatus = STARTING;
+    if (auto appRecord = mApp.lock()) {
+        ALOGD("scheduleStartActivity: %s/%s", appRecord->mPackageName.c_str(),
               mActivityName.c_str());
-        (mApp.lock()->mAppThread)->scheduleStartActivity(mToken, mIntent);
+        appRecord->mAppThread->scheduleStartActivity(mToken, mIntent);
     }
 }
 
 void ActivityRecord::resume() {
-    if (!mApp.expired()) {
-        mStatus = RESUMING;
-        mWindowService->updateWindowTokenVisibility(mToken, LayoutParams::WINDOW_VISIBLE);
+    mStatus = RESUMING;
+    mWindowService->updateWindowTokenVisibility(mToken, LayoutParams::WINDOW_VISIBLE);
+    if (auto appRecord = mApp.lock()) {
         ALOGD("scheduleResumeActivity: %s/%s", mApp.lock()->mPackageName.c_str(),
               mActivityName.c_str());
-        (mApp.lock()->mAppThread)->scheduleResumeActivity(mToken, mIntent);
+        appRecord->mAppThread->scheduleResumeActivity(mToken, mIntent);
     }
 }
 
 void ActivityRecord::pause() {
-    if (!mApp.expired()) {
-        mStatus = PAUSING;
-        mWindowService->updateWindowTokenVisibility(mToken, LayoutParams::WINDOW_INVISIBLE);
+    mStatus = PAUSING;
+    mWindowService->updateWindowTokenVisibility(mToken, LayoutParams::WINDOW_INVISIBLE);
+    if (auto appRecord = mApp.lock()) {
         ALOGD("schedulePauseActivity: %s/%s", mApp.lock()->mPackageName.c_str(),
               mActivityName.c_str());
-        (mApp.lock()->mAppThread)->schedulePauseActivity(mToken);
+        appRecord->mAppThread->schedulePauseActivity(mToken);
     }
 }
 
 void ActivityRecord::stop() {
-    if (!mApp.expired()) {
-        mStatus = STOPPING;
-        mWindowService->updateWindowTokenVisibility(mToken, LayoutParams::WINDOW_GONE);
+    mStatus = STOPPING;
+    mWindowService->updateWindowTokenVisibility(mToken, LayoutParams::WINDOW_GONE);
+    if (auto appRecord = mApp.lock()) {
         ALOGD("scheduleStopActivity: %s/%s", mApp.lock()->mPackageName.c_str(),
               mActivityName.c_str());
-        (mApp.lock()->mAppThread)->scheduleStopActivity(mToken);
+        appRecord->mAppThread->scheduleStopActivity(mToken);
     }
 }
 
 void ActivityRecord::destroy() {
-    if (!mApp.expired()) {
-        mStatus = DESTROYING;
+    mStatus = DESTROYING;
+    if (auto appRecord = mApp.lock()) {
         ALOGD("scheduleDestoryActivity: %s/%s", mApp.lock()->mPackageName.c_str(),
               mActivityName.c_str());
-        (mApp.lock()->mAppThread)->scheduleDestoryActivity(mToken);
-        mWindowService->removeWindowToken(mToken, 0);
+        appRecord->deleteActivity(shared_from_this());
+        appRecord->mAppThread->scheduleDestoryActivity(mToken);
     }
+    mWindowService->removeWindowToken(mToken, 0);
 }
 
 void ActivityRecord::onResult(int32_t requestCode, int32_t resultCode, const Intent& resultData) {
-    if (!mApp.expired()) {
+    if (auto appRecord = mApp.lock()) {
         ALOGD("%s/%s onActivityResult: %d, %d", mApp.lock()->mPackageName.c_str(),
               mActivityName.c_str(), requestCode, resultCode);
-        (mApp.lock()->mAppThread)->onActivityResult(mToken, requestCode, resultCode, resultData);
+        appRecord->mAppThread->onActivityResult(mToken, requestCode, resultCode, resultData);
     }
 }
 
 const std::string* ActivityRecord::getPackageName() const {
-    if (!mApp.expired()) {
-        return &(mApp.lock()->mPackageName);
+    if (auto appRecord = mApp.lock()) {
+        return &(appRecord->mPackageName);
     }
     return nullptr;
 }
@@ -138,8 +140,8 @@ const char* ActivityRecord::status2Str(const int status) {
 }
 
 std::ostream& operator<<(std::ostream& os, const ActivityRecord& record) {
-    if (!record.mApp.expired()) {
-        os << record.mApp.lock()->mPackageName << "/" << record.mActivityName;
+    if (auto appRecord = record.mApp.lock()) {
+        os << appRecord->mPackageName << "/" << record.mActivityName;
         os << " [";
         os << ActivityRecord::status2Str(record.mStatus);
         os << "] ";
