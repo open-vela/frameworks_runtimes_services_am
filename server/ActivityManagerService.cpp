@@ -72,6 +72,7 @@ public:
     void dump(int fd, const android::Vector<android::String16>& args);
 
     void systemReady();
+    void procAppTerminated(const std::shared_ptr<AppRecord>& appRecord);
 
     void setWindowManager(sp<::os::wm::IWindowManager> wm) {
         mWindowManager = wm;
@@ -400,6 +401,9 @@ void ActivityManagerInner::reportActivityStatus(const sp<IBinder>& token, int32_
         }
         case ActivityRecord::DESTROYED: {
             mActivityMap.erase(token);
+            if (auto appRecord = record->mApp.lock()) {
+                appRecord->checkActiveStatus();
+            }
             ALOGI("delete activity record, token[%p]", token.get());
         }
         default:
@@ -623,6 +627,9 @@ void ActivityManagerInner::reportServiceStatus(const sp<IBinder>& token, int32_t
         }
         case ServiceRecord::DESTROYED: {
             mServices.deleteService(token);
+            if (auto appRecord = service->mApp.lock()) {
+                appRecord->checkActiveStatus();
+            }
             break;
         }
         default: {
@@ -679,7 +686,15 @@ void ActivityManagerInner::unregisterReceiver(const sp<IBroadcastReceiver>& rece
 void ActivityManagerInner::systemReady() {
     AM_PROFILER_BEGIN();
     ALOGD("### systemReady ### ");
-    AppSpawn::signalInit([](int pid) { ALOGW("AppSpawn pid:%d had exit", pid); });
+    AppSpawn::signalInit([this](int pid) {
+        ALOGW("AppSpawn pid:%d had exit", pid);
+        auto app = mAppInfo.findAppInfo(pid);
+        if (app) {
+            procAppTerminated(app);
+            mAppInfo.deleteAppInfo(pid);
+        }
+    });
+
     vector<PackageInfo> allPackageInfo;
     if (mPm.getAllPackageInfo(&allPackageInfo) == 0) {
         for (auto item : allPackageInfo) {
@@ -695,6 +710,34 @@ void ActivityManagerInner::systemReady() {
     startHomeActivity();
     AM_PROFILER_END();
     return;
+}
+
+void ActivityManagerInner::procAppTerminated(const std::shared_ptr<AppRecord>& appRecord) {
+    /** All activity needs to be destroyed from the stack */
+    for (auto& it : appRecord->mExistActivity) {
+        if (auto activityRecord = it.lock()) {
+            activityRecord->destroy();
+            mTaskManager.procAbnormalActivity(activityRecord);
+            mActivityMap.erase(activityRecord->mToken);
+        }
+    }
+
+    for (auto& it : appRecord->mExistService) {
+        if (auto serviceRecord = it.lock()) {
+            serviceRecord->stop();
+            mServices.deleteService(serviceRecord->mToken);
+        }
+    }
+
+    auto topActivity = mTaskManager.getActiveTask()->getTopActivity();
+    if (topActivity->mStatus > ActivityRecord::RESUMED) {
+        if (topActivity->mStatus > ActivityRecord::STOPPING) {
+            topActivity->start();
+            topActivity->resume();
+        } else {
+            topActivity->resume();
+        }
+    }
 }
 
 void ActivityManagerInner::dump(int fd, const android::Vector<android::String16>& args) {
