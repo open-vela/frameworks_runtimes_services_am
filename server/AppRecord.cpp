@@ -41,6 +41,46 @@ ServiceHandler AppRecord::checkService(const std::string& serviceName) {
     return nullptr;
 }
 
+void AppRecord::addActivity(const std::shared_ptr<ActivityRecord>& activity) {
+    mExistActivity.emplace_back(activity);
+}
+
+int AppRecord::deleteActivity(const std::shared_ptr<ActivityRecord>& activity) {
+    const int size = mExistActivity.size();
+    for (int i = 0; i < size; ++i) {
+        if (mExistActivity[i].lock() == activity) {
+            mExistActivity[i] = mExistActivity[size - 1];
+            mExistActivity.pop_back();
+            break;
+        }
+    }
+    return 0;
+}
+
+void AppRecord::addService(const std::shared_ptr<ServiceRecord>& service) {
+    mExistService.emplace_back(service);
+}
+
+int AppRecord::deleteService(const std::shared_ptr<ServiceRecord>& service) {
+    const int size = mExistService.size();
+    for (int i = 0; i < size; ++i) {
+        if (mExistService[i].lock() == service) {
+            mExistService[i] = mExistService[size - 1];
+            mExistService.pop_back();
+            break;
+        }
+    }
+    return 0;
+}
+
+int AppRecord::checkActiveStatus() {
+    if (mExistActivity.empty() && mExistService.empty()) {
+        mAppThread->terminateApplication();
+        return 1;
+    }
+    return 0;
+}
+
 const shared_ptr<AppRecord> AppInfoList::findAppInfo(const int pid) {
     const int size = mAppList.size();
     for (int i = 0; i < size; ++i) {
