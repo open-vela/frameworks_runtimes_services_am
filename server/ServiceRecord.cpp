@@ -28,29 +28,31 @@ namespace am {
 using std::string;
 
 void ServiceRecord::start(const Intent& intent) {
-    if (!mApp.expired()) {
+    if (auto appRecord = mApp.lock()) {
         mStartFlag |= F_STARTED;
-        (mApp.lock()->mAppThread)->scheduleStartService(mServiceName, mToken, intent);
+        appRecord->addService(shared_from_this());
+        appRecord->mAppThread->scheduleStartService(mServiceName, mToken, intent);
     }
 }
 
 void ServiceRecord::stop() {
-    if (!mApp.expired()) {
-        for (auto iter : mConnectRecord) {
-            iter->onServiceDisconnected(mServiceBinder);
-        }
-        (mApp.lock()->mAppThread)->scheduleStopService(mToken);
+    for (auto iter : mConnectRecord) {
+        iter->onServiceDisconnected(mServiceBinder);
+    }
+    if (auto appRecord = mApp.lock()) {
+        appRecord->deleteService(shared_from_this());
+        appRecord->mAppThread->scheduleStopService(mToken);
     }
 }
 
 void ServiceRecord::bind(const sp<IBinder>& caller, const sp<IServiceConnection>& conn,
                          const Intent& intent) {
-    if (!mApp.expired()) {
+    if (auto appRecord = mApp.lock()) {
         mStartFlag |= F_BINDED;
         if (mServiceBinder) {
             conn->onServiceConnected(mServiceBinder);
         } else {
-            (mApp.lock()->mAppThread)->scheduleBindService(mServiceName, mToken, intent, conn);
+            appRecord->mAppThread->scheduleBindService(mServiceName, mToken, intent, conn);
         }
         bool isExist = false;
         for (auto iter : mConnectRecord) {
@@ -74,10 +76,10 @@ void ServiceRecord::unbind(const sp<IServiceConnection>& conn) {
                 break;
             }
         }
-        if (!mApp.expired()) {
+        if (auto appRecord = mApp.lock()) {
             if (mConnectRecord.empty()) {
                 mStartFlag &= ~F_BINDED;
-                (mApp.lock()->mAppThread)->scheduleUnbindService(mToken);
+                appRecord->mAppThread->scheduleUnbindService(mToken);
             }
         }
     }
@@ -88,8 +90,8 @@ bool ServiceRecord::isAlive() {
 }
 
 const string* ServiceRecord::getPackageName() {
-    if (!mApp.expired()) {
-        return &(mApp.lock()->mPackageName);
+    if (auto appRecord = mApp.lock()) {
+        return &appRecord->mPackageName;
     }
     return nullptr;
 }

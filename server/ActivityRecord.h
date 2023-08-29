@@ -34,7 +34,7 @@ using os::app::Intent;
 class AppRecord;
 class ActivityStack;
 
-class ActivityRecord {
+class ActivityRecord : public std::enable_shared_from_this<ActivityRecord> {
 public:
     ActivityRecord(const std::string& name, const sp<IBinder>& token, const sp<IBinder>& caller,
                    const int32_t requestCode, const std::string& launchMode,

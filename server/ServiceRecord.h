@@ -32,7 +32,7 @@ using os::app::IServiceConnection;
 
 class AppRecord;
 
-class ServiceRecord {
+class ServiceRecord : public std::enable_shared_from_this<ServiceRecord> {
 public:
     enum {
         CREATING = 0,

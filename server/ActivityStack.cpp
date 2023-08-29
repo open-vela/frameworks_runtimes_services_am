@@ -116,6 +116,34 @@ void TaskStackManager::popFrontTask() {
     mAllTasks.pop_front();
 }
 
+void TaskStackManager::deleteTask(const TaskHandler& task) {
+    for (auto it = mAllTasks.begin(); it != mAllTasks.end(); ++it) {
+        if (*it == task) {
+            mAllTasks.erase(it);
+            break;
+        }
+    }
+}
+
+void TaskStackManager::procAbnormalActivity(const ActivityHandler& activity) {
+    if (auto task = activity->mInTask.lock()) {
+        task->popToActivity(activity);
+        task->popActivity();
+
+        if (task->getSize() == 0) {
+            if (task == mAllTasks.front()) {
+                mAllTasks.pop_front();
+            } else {
+                deleteTask(task);
+            }
+        } else {
+            auto nextActivity = task->getTopActivity();
+            const Intent nodata; // TODO, -1:AbnormalActivity
+            nextActivity->onResult(activity->mRequestCode, -1, nodata);
+        }
+    }
+}
+
 std::ostream& operator<<(std::ostream& os, const TaskStackManager& task) {
 #define RESET "\033[0m"
 #define GREEN "\033[32m"

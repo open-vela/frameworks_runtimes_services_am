@@ -43,6 +43,13 @@ struct AppRecord {
 
     ActivityHandler checkActivity(const std::string& activityName);
     ServiceHandler checkService(const std::string& serviceName);
+
+    int checkActiveStatus();
+
+    void addActivity(const std::shared_ptr<ActivityRecord>& activity);
+    int deleteActivity(const std::shared_ptr<ActivityRecord>& activity);
+    void addService(const std::shared_ptr<ServiceRecord>& service);
+    int deleteService(const std::shared_ptr<ServiceRecord>& service);
 };
 
 class AppInfoList {
