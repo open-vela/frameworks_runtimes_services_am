@@ -66,8 +66,8 @@ void ActivityRecord::resume() {
         ALOGD("scheduleResumeActivity: %s/%s", mApp.lock()->mPackageName.c_str(),
               mActivityName.c_str());
         appRecord->mAppThread->scheduleResumeActivity(mToken, mIntent);
-        mWindowService->updateWindowTokenVisibility(mToken, LayoutParams::WINDOW_VISIBLE);
     }
+    mWindowService->updateWindowTokenVisibility(mToken, LayoutParams::WINDOW_VISIBLE);
 }
 
 void ActivityRecord::pause() {
@@ -77,8 +77,8 @@ void ActivityRecord::pause() {
             ALOGD("schedulePauseActivity: %s/%s", mApp.lock()->mPackageName.c_str(),
                   mActivityName.c_str());
             appRecord->mAppThread->schedulePauseActivity(mToken);
-            mWindowService->updateWindowTokenVisibility(mToken, LayoutParams::WINDOW_INVISIBLE);
         }
+        mWindowService->updateWindowTokenVisibility(mToken, LayoutParams::WINDOW_INVISIBLE);
     }
 }
 
@@ -89,8 +89,8 @@ void ActivityRecord::stop() {
             ALOGD("scheduleStopActivity: %s/%s", mApp.lock()->mPackageName.c_str(),
                   mActivityName.c_str());
             appRecord->mAppThread->scheduleStopActivity(mToken);
-            mWindowService->updateWindowTokenVisibility(mToken, LayoutParams::WINDOW_GONE);
         }
+        mWindowService->updateWindowTokenVisibility(mToken, LayoutParams::WINDOW_GONE);
     }
 }
 
