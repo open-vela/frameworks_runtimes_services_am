@@ -33,26 +33,34 @@ using os::app::Intent;
 using os::wm::LayoutParams;
 
 void ActivityRecord::create() {
-    mStatus = CREATING;
-    mWindowService->addWindowToken(mToken, LayoutParams::TYPE_APPLICATION, 0);
-    if (auto appRecord = mApp.lock()) {
-        ALOGD("scheduleLaunchActivity: %s/%s", appRecord->mPackageName.c_str(),
-              mActivityName.c_str());
-        appRecord->addActivity(shared_from_this());
-        appRecord->mAppThread->scheduleLaunchActivity(mActivityName, mToken, mIntent);
+    if (mStatus == CREATING) {
+        mWindowService->addWindowToken(mToken, LayoutParams::TYPE_APPLICATION, 0);
+        if (auto appRecord = mApp.lock()) {
+            ALOGD("scheduleLaunchActivity: %s/%s", appRecord->mPackageName.c_str(),
+                  mActivityName.c_str());
+            appRecord->addActivity(shared_from_this());
+            appRecord->mAppThread->scheduleLaunchActivity(mActivityName, mToken, mIntent);
+        }
     }
 }
 
 void ActivityRecord::start() {
-    mStatus = STARTING;
-    if (auto appRecord = mApp.lock()) {
-        ALOGD("scheduleStartActivity: %s/%s", appRecord->mPackageName.c_str(),
-              mActivityName.c_str());
-        appRecord->mAppThread->scheduleStartActivity(mToken, mIntent);
+    if (mStatus > CREATING && mStatus < DESTROYED) {
+        mStatus = STARTING;
+        if (auto appRecord = mApp.lock()) {
+            ALOGD("scheduleStartActivity: %s/%s", appRecord->mPackageName.c_str(),
+                  mActivityName.c_str());
+            appRecord->mAppThread->scheduleStartActivity(mToken, mIntent);
+        }
     }
 }
 
 void ActivityRecord::resume() {
+    if (mStatus < STARTING || mStatus > STOPPED) {
+        ALOGW("activity:%s want to 'resume' but current is '%s'", mActivityName.c_str(),
+              status2Str(mStatus));
+        return;
+    }
     mStatus = RESUMING;
     mWindowService->updateWindowTokenVisibility(mToken, LayoutParams::WINDOW_VISIBLE);
     if (auto appRecord = mApp.lock()) {
@@ -63,34 +71,40 @@ void ActivityRecord::resume() {
 }
 
 void ActivityRecord::pause() {
-    mStatus = PAUSING;
-    mWindowService->updateWindowTokenVisibility(mToken, LayoutParams::WINDOW_INVISIBLE);
-    if (auto appRecord = mApp.lock()) {
-        ALOGD("schedulePauseActivity: %s/%s", mApp.lock()->mPackageName.c_str(),
-              mActivityName.c_str());
-        appRecord->mAppThread->schedulePauseActivity(mToken);
+    if (mStatus < PAUSING) {
+        mStatus = PAUSING;
+        mWindowService->updateWindowTokenVisibility(mToken, LayoutParams::WINDOW_INVISIBLE);
+        if (auto appRecord = mApp.lock()) {
+            ALOGD("schedulePauseActivity: %s/%s", mApp.lock()->mPackageName.c_str(),
+                  mActivityName.c_str());
+            appRecord->mAppThread->schedulePauseActivity(mToken);
+        }
     }
 }
 
 void ActivityRecord::stop() {
-    mStatus = STOPPING;
-    mWindowService->updateWindowTokenVisibility(mToken, LayoutParams::WINDOW_GONE);
-    if (auto appRecord = mApp.lock()) {
-        ALOGD("scheduleStopActivity: %s/%s", mApp.lock()->mPackageName.c_str(),
-              mActivityName.c_str());
-        appRecord->mAppThread->scheduleStopActivity(mToken);
+    if (mStatus < STOPPING) {
+        mStatus = STOPPING;
+        mWindowService->updateWindowTokenVisibility(mToken, LayoutParams::WINDOW_GONE);
+        if (auto appRecord = mApp.lock()) {
+            ALOGD("scheduleStopActivity: %s/%s", mApp.lock()->mPackageName.c_str(),
+                  mActivityName.c_str());
+            appRecord->mAppThread->scheduleStopActivity(mToken);
+        }
     }
 }
 
 void ActivityRecord::destroy() {
-    mStatus = DESTROYING;
-    if (auto appRecord = mApp.lock()) {
-        ALOGD("scheduleDestoryActivity: %s/%s", mApp.lock()->mPackageName.c_str(),
-              mActivityName.c_str());
-        appRecord->deleteActivity(shared_from_this());
-        appRecord->mAppThread->scheduleDestoryActivity(mToken);
+    if (mStatus < DESTROYING) {
+        mStatus = DESTROYING;
+        if (auto appRecord = mApp.lock()) {
+            ALOGD("scheduleDestoryActivity: %s/%s", mApp.lock()->mPackageName.c_str(),
+                  mActivityName.c_str());
+            appRecord->deleteActivity(shared_from_this());
+            appRecord->mAppThread->scheduleDestoryActivity(mToken);
+        }
+        mWindowService->removeWindowToken(mToken, 0);
     }
-    mWindowService->removeWindowToken(mToken, 0);
 }
 
 void ActivityRecord::onResult(int32_t requestCode, int32_t resultCode, const Intent& resultData) {
