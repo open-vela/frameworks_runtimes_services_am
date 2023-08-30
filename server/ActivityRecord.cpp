@@ -62,22 +62,22 @@ void ActivityRecord::resume() {
         return;
     }
     mStatus = RESUMING;
-    mWindowService->updateWindowTokenVisibility(mToken, LayoutParams::WINDOW_VISIBLE);
     if (auto appRecord = mApp.lock()) {
         ALOGD("scheduleResumeActivity: %s/%s", mApp.lock()->mPackageName.c_str(),
               mActivityName.c_str());
         appRecord->mAppThread->scheduleResumeActivity(mToken, mIntent);
+        mWindowService->updateWindowTokenVisibility(mToken, LayoutParams::WINDOW_VISIBLE);
     }
 }
 
 void ActivityRecord::pause() {
     if (mStatus < PAUSING) {
         mStatus = PAUSING;
-        mWindowService->updateWindowTokenVisibility(mToken, LayoutParams::WINDOW_INVISIBLE);
         if (auto appRecord = mApp.lock()) {
             ALOGD("schedulePauseActivity: %s/%s", mApp.lock()->mPackageName.c_str(),
                   mActivityName.c_str());
             appRecord->mAppThread->schedulePauseActivity(mToken);
+            mWindowService->updateWindowTokenVisibility(mToken, LayoutParams::WINDOW_INVISIBLE);
         }
     }
 }
@@ -85,11 +85,11 @@ void ActivityRecord::pause() {
 void ActivityRecord::stop() {
     if (mStatus < STOPPING) {
         mStatus = STOPPING;
-        mWindowService->updateWindowTokenVisibility(mToken, LayoutParams::WINDOW_GONE);
         if (auto appRecord = mApp.lock()) {
             ALOGD("scheduleStopActivity: %s/%s", mApp.lock()->mPackageName.c_str(),
                   mActivityName.c_str());
             appRecord->mAppThread->scheduleStopActivity(mToken);
+            mWindowService->updateWindowTokenVisibility(mToken, LayoutParams::WINDOW_GONE);
         }
     }
 }
