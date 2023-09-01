@@ -71,6 +71,7 @@ public:
     void pause();
     void stop();
     void destroy();
+    void abnormalExit();
     void onResult(int32_t requestCode, int32_t resultCode, const Intent& resultData);
 
     const std::string* getPackageName() const;

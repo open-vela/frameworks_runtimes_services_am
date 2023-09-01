@@ -107,6 +107,16 @@ void ActivityRecord::destroy() {
     }
 }
 
+void ActivityRecord::abnormalExit() {
+    mStatus = DESTROYED;
+    if (auto appRecord = mApp.lock()) {
+        ALOGW("Activity:%s/%s abnormal exit!", mApp.lock()->mPackageName.c_str(),
+              mActivityName.c_str());
+        appRecord->deleteActivity(shared_from_this());
+        mWindowService->removeWindowToken(mToken, 0);
+    }
+}
+
 void ActivityRecord::onResult(int32_t requestCode, int32_t resultCode, const Intent& resultData) {
     if (auto appRecord = mApp.lock()) {
         ALOGD("%s/%s onActivityResult: %d, %d", mApp.lock()->mPackageName.c_str(),
