@@ -66,6 +66,7 @@ public:
     void bind(const sp<IBinder>& caller, const sp<IServiceConnection>& conn, const Intent& intent);
     void unbind(const sp<IServiceConnection>& conn);
 
+    void abnormalExit();
     const std::string* getPackageName();
     bool isAlive();
     static const char* status2Str(int status);

@@ -85,6 +85,17 @@ void ServiceRecord::unbind(const sp<IServiceConnection>& conn) {
     }
 }
 
+void ServiceRecord::abnormalExit() {
+    for (auto iter : mConnectRecord) {
+        iter->onServiceDisconnected(mServiceBinder);
+    }
+    if (auto appRecord = mApp.lock()) {
+        ALOGW("Service:%s/%s abnormal exit!", mApp.lock()->mPackageName.c_str(),
+              mServiceName.c_str());
+        appRecord->deleteService(shared_from_this());
+    }
+}
+
 bool ServiceRecord::isAlive() {
     return mStartFlag != F_UNKNOW;
 }

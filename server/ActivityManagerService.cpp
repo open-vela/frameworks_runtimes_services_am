@@ -716,7 +716,7 @@ void ActivityManagerInner::procAppTerminated(const std::shared_ptr<AppRecord>& a
     /** All activity needs to be destroyed from the stack */
     for (auto& it : appRecord->mExistActivity) {
         if (auto activityRecord = it.lock()) {
-            activityRecord->destroy();
+            activityRecord->abnormalExit();
             mTaskManager.procAbnormalActivity(activityRecord);
             mActivityMap.erase(activityRecord->mToken);
         }
@@ -724,7 +724,7 @@ void ActivityManagerInner::procAppTerminated(const std::shared_ptr<AppRecord>& a
 
     for (auto& it : appRecord->mExistService) {
         if (auto serviceRecord = it.lock()) {
-            serviceRecord->stop();
+            serviceRecord->abnormalExit();
             mServices.deleteService(serviceRecord->mToken);
         }
     }
