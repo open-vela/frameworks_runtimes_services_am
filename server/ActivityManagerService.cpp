@@ -161,7 +161,9 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
         return android::BAD_VALUE;
     }
 
+    bool isStartApp = false;
     if (activityName.empty()) {
+        isStartApp = true;
         activityName = packageInfo.entry;
     }
 
@@ -179,15 +181,29 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
     /** ready to start Activity */
     auto appInfo = mAppInfo.findAppInfo(packageName);
     if (appInfo) {
-        /** get Application thread */
-        auto activityRecord = startActivityReal(appInfo, activityInfo, intent, caller, requestCode);
+        ActivityHandler activityRecord;
+        if (isStartApp) {
+            /** if the target app task is already launched, just switch */
+            auto targetTask = mTaskManager.findTask(packageName);
+            mTaskManager.switchTaskToActive(targetTask);
+            activityRecord = mTaskManager.getActiveTask()->getTopActivity();
+            activityRecord->resume();
+        } else {
+            /** get Application thread */
+            activityRecord = startActivityReal(appInfo, activityInfo, intent, caller, requestCode);
+        }
+
         /** When the target Activity has been resumed. then stop the previous Activity */
-        const auto task = std::make_shared<ActivityReportStatusTask>(ActivityRecord::RESUMED,
-                                                                     activityRecord->mToken,
-                                                                     [this, topActivity]() -> bool {
-                                                                         topActivity->stop();
-                                                                         return true;
-                                                                     });
+        const auto task =
+                std::make_shared<ActivityReportStatusTask>(ActivityRecord::RESUMED,
+                                                           activityRecord->mToken,
+                                                           [this, topActivity]() -> bool {
+                                                               if (mTaskManager.getActiveTask()
+                                                                           ->getTopActivity() !=
+                                                                   topActivity)
+                                                                   topActivity->stop();
+                                                               return true;
+                                                           });
         mPendTask.commitTask(task);
     } else {
         /** The app hasn't started yet */
