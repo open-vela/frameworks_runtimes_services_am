@@ -330,7 +330,14 @@ ActivityHandler ActivityManagerInner::startActivityReal(const std::shared_ptr<Ap
         record->create();
     } else {
         record->mIntent = intent;
-        record->resume();
+        const auto resumeActivityTask = [this, record]() -> bool {
+            record->resume();
+            return true;
+        };
+        mPendTask.commitTask(std::make_shared<ActivityReportStatusTask>(ActivityRecord::STARTED,
+                                                                        record->mToken,
+                                                                        resumeActivityTask));
+        record->start();
     }
 
     return record;
@@ -379,7 +386,14 @@ bool ActivityManagerInner::finishActivity(const sp<IBinder>& token, int32_t resu
             mPendTask.commitTask(std::make_shared<ActivityReportStatusTask>(ActivityRecord::RESUMED,
                                                                             nextActivity->mToken,
                                                                             destoryActivity));
-            nextActivity->resume();
+            const auto resumeActivityTask = [this, nextActivity]() -> bool {
+                nextActivity->resume();
+                return true;
+            };
+            mPendTask.commitTask(std::make_shared<ActivityReportStatusTask>(ActivityRecord::STARTED,
+                                                                            nextActivity->mToken,
+                                                                            resumeActivityTask));
+            nextActivity->start();
 
             return true;
         };
