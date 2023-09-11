@@ -35,7 +35,7 @@ public:
 
     virtual void onCreate() = 0;
     virtual void onStartCommand(const Intent& intent) = 0;
-    virtual void onDestory() = 0;
+    virtual void onDestroy() = 0;
     virtual sp<IBinder> onBind(const Intent& intent);
     virtual bool onUnbind();
 

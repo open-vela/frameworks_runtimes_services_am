@@ -58,7 +58,7 @@ public:
     Status scheduleResumeActivity(const sp<IBinder>& token, const Intent& intent);
     Status schedulePauseActivity(const sp<IBinder>& token);
     Status scheduleStopActivity(const sp<IBinder>& token);
-    Status scheduleDestoryActivity(const sp<IBinder>& token);
+    Status scheduleDestroyActivity(const sp<IBinder>& token);
     Status onActivityResult(const sp<IBinder>& token, int32_t requestCode, int32_t resultCode,
                             const Intent& data);
 
@@ -79,7 +79,7 @@ private:
     int onResumeActivity(const sp<IBinder>& token, const Intent& intent);
     int onPauseActivity(const sp<IBinder>& token);
     int onStopActivity(const sp<IBinder>& token);
-    int onDestoryActivity(const sp<IBinder>& token);
+    int onDestroyActivity(const sp<IBinder>& token);
     int onStartService(const string& serviceName, const sp<IBinder>& token, const Intent& intent);
     int onStopService(const sp<IBinder>& token);
 
@@ -177,10 +177,10 @@ Status ApplicationThreadStub::scheduleStopActivity(const sp<IBinder>& token) {
     return Status::ok();
 }
 
-Status ApplicationThreadStub::scheduleDestoryActivity(const sp<IBinder>& token) {
-    ALOGD("scheduleDestoryActivity package:%s token[%p]", mApp->getPackageName().c_str(),
+Status ApplicationThreadStub::scheduleDestroyActivity(const sp<IBinder>& token) {
+    ALOGD("scheduleDestroyActivity package:%s token[%p]", mApp->getPackageName().c_str(),
           token.get());
-    mApp->getMainLoop()->postTask([this, token](void*) { this->onDestoryActivity(token); });
+    mApp->getMainLoop()->postTask([this, token](void*) { this->onDestroyActivity(token); });
     return Status::ok();
 }
 
@@ -305,7 +305,7 @@ int ApplicationThreadStub::onStopActivity(const sp<IBinder>& token) {
     return -1;
 }
 
-int ApplicationThreadStub::onDestoryActivity(const sp<IBinder>& token) {
+int ApplicationThreadStub::onDestroyActivity(const sp<IBinder>& token) {
     AM_PROFILER_BEGIN();
     std::shared_ptr<ActivityClientRecord> activityRecord = mApp->findActivity(token);
     if (activityRecord != nullptr) {

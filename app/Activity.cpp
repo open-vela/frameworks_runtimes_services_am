@@ -70,7 +70,7 @@ void Activity::performDestroy() {
         mWindowManager->removeWindow(mWindow);
         mWindow.reset();
     }
-    onDestory();
+    onDestroy();
 }
 
 } // namespace app

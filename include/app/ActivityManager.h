@@ -56,7 +56,7 @@ public:
         RESUMED = 5,
         PAUSED = 7,
         STOPPED = 9,
-        DESTORYED = 11,
+        DESTROYED = 11,
     };
 
     int32_t attachApplication(const sp<os::app::IApplicationThread>& app);

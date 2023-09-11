@@ -370,14 +370,14 @@ bool ActivityManagerInner::finishActivity(const sp<IBinder>& token, int32_t resu
             auto nextActivity = currentStack->getTopActivity();
             if (!nextActivity) {
                 /** nextActivity is null, the ActivityStack should be
-                 * destory */
+                 * destroy */
                 mTaskManager.popFrontTask();
                 const auto activeTask = mTaskManager.getActiveTask();
                 nextActivity = activeTask->getTopActivity();
             }
 
             /*resume next Activity then stop last Activity*/
-            const auto destoryActivity = [this, currentActivity]() -> bool {
+            const auto destroyActivity = [this, currentActivity]() -> bool {
                 currentActivity->stop();
                 currentActivity->destroy();
                 // TODO when report destroy. delete it from mActivityMap
@@ -385,7 +385,7 @@ bool ActivityManagerInner::finishActivity(const sp<IBinder>& token, int32_t resu
             };
             mPendTask.commitTask(std::make_shared<ActivityReportStatusTask>(ActivityRecord::RESUMED,
                                                                             nextActivity->mToken,
-                                                                            destoryActivity));
+                                                                            destroyActivity));
             const auto resumeActivityTask = [this, nextActivity]() -> bool {
                 nextActivity->resume();
                 return true;
