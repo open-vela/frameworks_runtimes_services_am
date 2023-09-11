@@ -72,7 +72,7 @@ void ServiceClientRecord::onUnbind() {
 
 void ServiceClientRecord::onDestroy() {
     ALOGD("Service onDestroy: %s[%p]", mServiceName.c_str(), mService->getToken().get());
-    mService->onDestory();
+    mService->onDestroy();
     reportServiceStatus(DESTROYED);
 }
 
