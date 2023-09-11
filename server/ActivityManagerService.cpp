@@ -29,10 +29,10 @@
 #include <vector>
 
 #include "ActivityStack.h"
+#include "ActivityTrace.h"
 #include "AppRecord.h"
 #include "AppSpawn.h"
 #include "IntentAction.h"
-#include "Profiler.h"
 #include "TaskBoard.h"
 #include "app/ActivityManager.h"
 

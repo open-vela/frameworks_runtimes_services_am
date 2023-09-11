@@ -23,7 +23,7 @@
 #include <functional>
 #include <optional>
 
-#include "Profiler.h"
+#include "ActivityTrace.h"
 
 namespace os {
 namespace app {

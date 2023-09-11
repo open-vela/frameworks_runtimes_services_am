@@ -28,7 +28,7 @@
 #include <mutex>
 
 #include "ActivityClientRecord.h"
-#include "Profiler.h"
+#include "ActivityTrace.h"
 #include "ServiceClientRecord.h"
 #include "app/Application.h"
 #include "app/ContextImpl.h"
