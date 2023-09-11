@@ -98,10 +98,10 @@ void ActivityRecord::destroy() {
     if (mStatus < DESTROYING) {
         mStatus = DESTROYING;
         if (auto appRecord = mApp.lock()) {
-            ALOGD("scheduleDestoryActivity: %s/%s", mApp.lock()->mPackageName.c_str(),
+            ALOGD("scheduleDestroyActivity: %s/%s", mApp.lock()->mPackageName.c_str(),
                   mActivityName.c_str());
             appRecord->deleteActivity(shared_from_this());
-            appRecord->mAppThread->scheduleDestoryActivity(mToken);
+            appRecord->mAppThread->scheduleDestroyActivity(mToken);
         }
         mWindowService->removeWindowToken(mToken, 0);
     }
