@@ -16,4 +16,7 @@
 
 #pragma once
 
-#include "../system_server/BaseProfiler.h"
+#include <nuttx/trace.h>
+
+#define AM_PROFILER_BEGIN() app_trace_begin();
+#define AM_PROFILER_END() app_trace_end();
