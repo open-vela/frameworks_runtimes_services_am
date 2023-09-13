@@ -78,6 +78,20 @@ class UvLoop {
 public:
     UvLoop(bool useDefault = false);
 
+    using TaskCB = std::function<void()>;
+    struct MsgCB {
+        TaskCB callback;
+        MsgCB(const TaskCB& cb) : callback(cb) {}
+    };
+    class MessageHandler : public UvMsgQueue<MsgCB> {
+        void handleMessage(const MsgCB& msg) override {
+            msg.callback();
+        }
+    };
+    int postTask(TaskCB&& cb) {
+        return mMsgHandler.emplace(cb);
+    }
+
     uv_loop_t* get() const;
     int postTask(const UV_CALLBACK& callback, void* data = nullptr);
     int postDelayTask(const UV_CALLBACK& callback, uint64_t timeout, void* data = nullptr);
@@ -97,6 +111,7 @@ private:
     }
     bool mIsDefaultLoop;
     std::unique_ptr<uv_loop_t, Deleter> mLooper;
+    MessageHandler mMsgHandler;
 };
 
 class UvAsync {
