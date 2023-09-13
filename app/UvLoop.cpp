@@ -29,6 +29,7 @@ UvLoop::UvLoop(bool useDefault)
     if (!mIsDefaultLoop) {
         LOG_ALWAYS_FATAL_IF(uv_loop_init(mLooper.get()) != 0, "UvLoop init failure");
     }
+    mMsgHandler.attachLoop(this->get());
 }
 
 uv_loop_t* UvLoop::get() const {
