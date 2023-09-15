@@ -41,8 +41,8 @@ public:
 
 private:
     friend class ServiceClientRecord;
-    int bindService(const Intent& intent, const sp<IServiceConnection>& conn);
-    void unbindService();
+    int bind(const Intent& intent, const sp<IServiceConnection>& conn);
+    void unbind();
 
     sp<IBinder> mServiceBinder;
     bool mIsBinded;
