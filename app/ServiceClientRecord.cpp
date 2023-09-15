@@ -57,7 +57,7 @@ void ServiceClientRecord::onBind(const Intent& intent, const sp<IServiceConnecti
     }
     ALOGD("Service onBind: %s[%p]", mServiceName.c_str(), mService->getToken().get());
     mService->setIntent(intent);
-    mService->bindService(intent, conn);
+    mService->bind(intent, conn);
     mStartFlag |= F_BINDED;
     reportServiceStatus(BINDED);
 }
@@ -65,7 +65,7 @@ void ServiceClientRecord::onBind(const Intent& intent, const sp<IServiceConnecti
 void ServiceClientRecord::onUnbind() {
     if (mStartFlag & F_BINDED) {
         ALOGD("Service onUnbind: %s[%p]", mServiceName.c_str(), mService->getToken().get());
-        mService->unbindService();
+        mService->unbind();
         reportServiceStatus(UNBINDED);
     }
 }
