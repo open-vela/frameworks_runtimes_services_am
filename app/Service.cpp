@@ -31,14 +31,14 @@ bool Service::onUnbind() {
     return false;
 }
 
-void Service::unbindService() {
+void Service::unbind() {
     if (mIsBinded) {
         onUnbind();
         mIsBinded = false;
     }
 }
 
-int Service::bindService(const Intent& intent, const sp<IServiceConnection>& conn) {
+int Service::bind(const Intent& intent, const sp<IServiceConnection>& conn) {
     if (!mIsBinded) {
         /** bind only once */
         mServiceBinder = onBind(intent);
