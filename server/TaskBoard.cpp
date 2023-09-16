@@ -19,16 +19,35 @@
 namespace os {
 namespace am {
 
-void TaskBoard::commitTask(const std::shared_ptr<Task>& t) {
-    mTask.emplace_back(t);
+TaskBoard::TaskBoard() : mLooper(Looper::getForThread()) {}
+
+void TaskBoard::commitTask(const std::shared_ptr<Task>& task, uint32_t msLimitedTime) {
+    const auto taskHandler = sp<TaskMsgHandler>::make(task);
+    if (msLimitedTime < UINT_MAX) {
+        mLooper->sendMessageDelayed(msLimitedTime * 1000000, taskHandler, Message());
+    }
+    mTasklist.emplace_back(taskHandler);
 }
 
-void TaskBoard::eventTrigger(const Label* e) {
-    for (auto iter = mTask.begin(); iter != mTask.end(); ++iter) {
-        if (*(iter->get()) == *e && iter->get()->execute(e)) {
-            mTask.erase(iter);
+void TaskBoard::eventTrigger(const Label& e) {
+    for (auto iter = mTasklist.begin(); iter != mTasklist.end();) {
+        if ((*iter)->isDone()) {
+            /** This situation is handled by timeout. need delete it*/
+            auto tmp = iter;
+            ++iter;
+            mTasklist.erase(tmp);
+            continue;
+        }
+        if (*((*iter)->getTask()) == e) {
+            (*iter)->doing(e);
+            // execute finish,
+            // remove it from looper
+            mLooper->removeMessages(*iter);
+            // remove it from list
+            mTasklist.erase(iter);
             break;
         }
+        ++iter;
     }
 }
 
