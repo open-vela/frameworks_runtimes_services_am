@@ -17,7 +17,9 @@
 #pragma once
 
 #include <binder/IBinder.h>
+#include <utils/Looper.h>
 
+#include <climits>
 #include <functional>
 #include <list>
 #include <memory>
@@ -29,6 +31,9 @@ namespace os {
 namespace am {
 
 using android::IBinder;
+using android::Looper;
+using android::Message;
+using android::MessageHandler;
 using android::sp;
 using os::app::IApplicationThread;
 using std::string;
@@ -36,7 +41,7 @@ using std::string;
 struct Label {
     int mId;
     Label(const int Id) : mId(Id){};
-    bool operator==(const Label& e) {
+    virtual bool operator==(const Label& e) const {
         return mId == e.mId;
     }
 };
@@ -46,22 +51,47 @@ public:
     Task(const int Id) : Label(Id) {}
     virtual ~Task(){};
     /**
-     * @param Pending event with Label
-     * @return: true: Processing completed, event stop
-     *          false: Processing completed and continue Passing;
+     * The task is expected to be executed only once,
+     * it will either be completed or timeout.
      */
-    virtual bool execute(const Label* e) {
-        return false;
+    virtual void execute(const Label& e) = 0;
+    virtual void timeout() {
+        ALOGW("Task timeouts are not handled in any way!");
     }
+};
+
+class TaskMsgHandler : public MessageHandler {
+public:
+    TaskMsgHandler(const std::shared_ptr<Task>& task) : mTask(task), mIsDone(false) {}
+    void handleMessage(const Message& message) {
+        mTask->timeout();
+        mIsDone = true;
+    }
+    Task* getTask() const {
+        return mTask.get();
+    }
+    void doing(const Label& label) {
+        mTask->execute(label);
+        mIsDone = true;
+    }
+    bool isDone() const {
+        return mIsDone;
+    }
+
+private:
+    std::shared_ptr<Task> mTask;
+    bool mIsDone;
 };
 
 class TaskBoard {
 public:
-    void commitTask(const std::shared_ptr<Task>& t);
-    void eventTrigger(const Label* e);
+    TaskBoard();
+    void commitTask(const std::shared_ptr<Task>& task, uint32_t msLimitedTime = UINT_MAX);
+    void eventTrigger(const Label& e);
 
 private:
-    std::list<std::shared_ptr<Task>> mTask;
+    std::list<sp<TaskMsgHandler>> mTasklist;
+    sp<Looper> mLooper;
 };
 
 /**************************** label signature ******************************/
@@ -84,15 +114,18 @@ public:
               : Label(APP_ATTACH), mPid(pid), mUid(uid), mAppHandler(app) {}
     };
 
-    using TaskFunc = std::function<bool(const Event*)>;
+    using TaskFunc = std::function<void(const Event*)>;
     AppAttachTask(const int pid, const TaskFunc& cb) : Task(APP_ATTACH), mPid(pid), mCallback(cb) {}
 
-    bool execute(const Label* e) override {
-        const Event* event = static_cast<const Event*>(e);
-        if (event->mPid == mPid) {
-            return mCallback(event);
+    bool operator==(const Label& e) const {
+        if (mId == e.mId) {
+            return mPid == static_cast<const Event*>(&e)->mPid;
         }
         return false;
+    }
+
+    void execute(const Label& e) override {
+        mCallback(static_cast<const Event*>(&e));
     }
 
 private:
@@ -108,16 +141,20 @@ public:
               : Label(ACTIVITY_STATUS_BASE + status), mToken(token) {}
     };
 
-    using TaskFunc = std::function<bool()>;
+    using TaskFunc = std::function<void()>;
     ActivityReportStatusTask(const int status, const sp<android::IBinder>& token,
                              const TaskFunc& cb)
           : Task(ACTIVITY_STATUS_BASE + status), mToken(token), mCallback(cb){};
-    bool execute(const Label* e) override {
-        const Event* event = static_cast<const Event*>(e);
-        if (event->mToken == mToken) {
-            return mCallback();
+
+    bool operator==(const Label& e) const {
+        if (mId == e.mId) {
+            return mToken == static_cast<const Event*>(&e)->mToken;
         }
         return false;
+    }
+
+    void execute(const Label& e) override {
+        mCallback();
     }
 
 private:
@@ -133,15 +170,18 @@ public:
               : Label(SERVICE_STATUS_BASE + status), mToken(token) {}
     };
 
-    using TaskFunc = std::function<bool()>;
+    using TaskFunc = std::function<void()>;
     ServiceReportStatusTask(const int status, const sp<android::IBinder>& token, const TaskFunc& cb)
           : Task(SERVICE_STATUS_BASE + status), mToken(token), mCallback(cb) {}
-    bool execute(const Label* e) override {
-        const Event* event = static_cast<const Event*>(e);
-        if (event->mToken == mToken) {
-            return mCallback();
+
+    bool operator==(const Label& e) const {
+        if (mId == e.mId) {
+            return mToken == static_cast<const Event*>(&e)->mToken;
         }
         return false;
+    }
+    void execute(const Label& e) override {
+        mCallback();
     }
 
 private:

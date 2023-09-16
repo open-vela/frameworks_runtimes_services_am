@@ -111,7 +111,7 @@ int ActivityManagerInner::attachApplication(const sp<IApplicationThread>& app) {
 
     const int callerUid = android::IPCThreadState::self()->getCallingUid();
     const AppAttachTask::Event event(callerPid, callerUid, app);
-    mPendTask.eventTrigger(&event);
+    mPendTask.eventTrigger(event);
     AM_PROFILER_END();
     return android::OK;
 }
@@ -197,12 +197,11 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
         const auto task =
                 std::make_shared<ActivityReportStatusTask>(ActivityRecord::RESUMED,
                                                            activityRecord->mToken,
-                                                           [this, topActivity]() -> bool {
+                                                           [this, topActivity]() {
                                                                if (mTaskManager.getActiveTask()
                                                                            ->getTopActivity() !=
                                                                    topActivity)
                                                                    topActivity->stop();
-                                                               return true;
                                                            });
         mPendTask.commitTask(task);
     } else {
@@ -210,8 +209,7 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
         const int pid = AppSpawn::appSpawn(packageInfo.execfile.c_str(), {packageName});
         if (pid > 0) {
             const auto waitAppAttach = [this, packageName, activityInfo, intent, caller,
-                                        requestCode,
-                                        topActivity](const AppAttachTask::Event* e) -> bool {
+                                        requestCode, topActivity](const AppAttachTask::Event* e) {
                 auto appRecord =
                         std::make_shared<AppRecord>(e->mAppHandler, packageName, e->mPid, e->mUid);
                 this->mAppInfo.addAppInfo(appRecord);
@@ -220,12 +218,10 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
                 const auto stopLastActivity =
                         std::make_shared<ActivityReportStatusTask>(ActivityRecord::RESUMED,
                                                                    record->mToken,
-                                                                   [this, topActivity]() -> bool {
+                                                                   [this, topActivity]() {
                                                                        topActivity->stop();
-                                                                       return true;
                                                                    });
                 mPendTask.commitTask(stopLastActivity);
-                return true;
             };
             mPendTask.commitTask(std::make_shared<AppAttachTask>(pid, waitAppAttach));
         } else {
@@ -314,26 +310,19 @@ ActivityHandler ActivityManagerInner::startActivityReal(const std::shared_ptr<Ap
                                                   mWindowManager);
         mActivityMap.emplace(token, record);
         targetTask->pushActivity(record);
-        const auto startActivity = [this, record]() -> bool {
-            const auto resumeActivity = [this, record]() -> bool {
-                record->resume();
-                return true;
-            };
+        const auto startActivity = [this, record]() {
+            const auto resumeActivity = [this, record]() { record->resume(); };
             mPendTask.commitTask(std::make_shared<ActivityReportStatusTask>(ActivityRecord::STARTED,
                                                                             record->mToken,
                                                                             resumeActivity));
             record->start();
-            return true;
         };
         mPendTask.commitTask(std::make_shared<ActivityReportStatusTask>(ActivityRecord::CREATED,
                                                                         token, startActivity));
         record->create();
     } else {
         record->mIntent = intent;
-        const auto resumeActivityTask = [this, record]() -> bool {
-            record->resume();
-            return true;
-        };
+        const auto resumeActivityTask = [this, record]() { record->resume(); };
         mPendTask.commitTask(std::make_shared<ActivityReportStatusTask>(ActivityRecord::STARTED,
                                                                         record->mToken,
                                                                         resumeActivityTask));
@@ -357,7 +346,7 @@ bool ActivityManagerInner::finishActivity(const sp<IBinder>& token, int32_t resu
     if (currentActivity->mStatus == ActivityRecord::RESUMED) {
         currentActivity->pause();
 
-        const auto task = [this, currentActivity, resultCode, resultData]() -> bool {
+        const auto task = [this, currentActivity, resultCode, resultData]() {
             auto currentStack = currentActivity->mInTask.lock();
             /** when last pasued, then set result to next */
             const auto callActivity = getActivityRecord(currentActivity->mCaller);
@@ -377,25 +366,19 @@ bool ActivityManagerInner::finishActivity(const sp<IBinder>& token, int32_t resu
             }
 
             /*resume next Activity then stop last Activity*/
-            const auto destroyActivity = [this, currentActivity]() -> bool {
+            const auto destroyActivity = [this, currentActivity]() {
                 currentActivity->stop();
                 currentActivity->destroy();
                 // TODO when report destroy. delete it from mActivityMap
-                return true;
             };
             mPendTask.commitTask(std::make_shared<ActivityReportStatusTask>(ActivityRecord::RESUMED,
                                                                             nextActivity->mToken,
                                                                             destroyActivity));
-            const auto resumeActivityTask = [this, nextActivity]() -> bool {
-                nextActivity->resume();
-                return true;
-            };
+            const auto resumeActivityTask = [this, nextActivity]() { nextActivity->resume(); };
             mPendTask.commitTask(std::make_shared<ActivityReportStatusTask>(ActivityRecord::STARTED,
                                                                             nextActivity->mToken,
                                                                             resumeActivityTask));
             nextActivity->start();
-
-            return true;
         };
         const auto finishActivityTask =
                 std::make_shared<ActivityReportStatusTask>(ActivityRecord::PAUSED, token, task);
@@ -442,7 +425,7 @@ void ActivityManagerInner::reportActivityStatus(const sp<IBinder>& token, int32_
 
     record->mStatus = status;
     const ActivityReportStatusTask::Event event(status, token);
-    mPendTask.eventTrigger(&event);
+    mPendTask.eventTrigger(event);
     AM_PROFILER_END();
     return;
 }
@@ -484,7 +467,7 @@ int ActivityManagerInner::startService(const Intent& intent) {
             const int pid = AppSpawn::appSpawn(targetApp.execfile.c_str(), {packageName});
             if (pid > 0) {
                 const auto task = [this, serviceName, packageName,
-                                   intent](const AppAttachTask::Event* e) -> bool {
+                                   intent](const AppAttachTask::Event* e) {
                     auto app = std::make_shared<AppRecord>(e->mAppHandler, packageName, e->mPid,
                                                            e->mUid);
                     this->mAppInfo.addAppInfo(app);
@@ -492,7 +475,6 @@ int ActivityManagerInner::startService(const Intent& intent) {
                     auto serviceRecord = std::make_shared<ServiceRecord>(serviceName, token, app);
                     mServices.addService(serviceRecord);
                     serviceRecord->start(intent);
-                    return true;
                 };
                 mPendTask.commitTask(std::make_shared<AppAttachTask>(pid, task));
             } else {
@@ -562,7 +544,7 @@ int ActivityManagerInner::bindService(const sp<IBinder>& caller, const Intent& i
             const int pid = AppSpawn::appSpawn(targetApp.execfile.c_str(), {packageName});
             if (pid > 0) {
                 const auto task = [this, serviceName, packageName, caller, conn,
-                                   intent](const AppAttachTask::Event* e) -> bool {
+                                   intent](const AppAttachTask::Event* e) {
                     auto app = std::make_shared<AppRecord>(e->mAppHandler, packageName, e->mPid,
                                                            e->mUid);
                     this->mAppInfo.addAppInfo(app);
@@ -570,7 +552,6 @@ int ActivityManagerInner::bindService(const sp<IBinder>& caller, const Intent& i
                     auto serviceRecord = std::make_shared<ServiceRecord>(serviceName, token, app);
                     mServices.addService(serviceRecord);
                     serviceRecord->bind(caller, conn, intent);
-                    return true;
                 };
                 mPendTask.commitTask(std::make_shared<AppAttachTask>(pid, task));
             } else {
@@ -579,9 +560,8 @@ int ActivityManagerInner::bindService(const sp<IBinder>& caller, const Intent& i
                 return android::BAD_VALUE;
             }
         }
-        const auto bindtask = [this, service, caller, intent, conn]() -> bool {
+        const auto bindtask = [this, service, caller, intent, conn]() {
             service->bind(caller, conn, intent);
-            return true;
         };
         mPendTask.commitTask(std::make_shared<ServiceReportStatusTask>(ServiceRecord::STARTED,
                                                                        service->mToken, bindtask));
@@ -670,7 +650,7 @@ void ActivityManagerInner::reportServiceStatus(const sp<IBinder>& token, int32_t
     }
     service->mStatus = status;
     const ServiceReportStatusTask::Event event(status, token);
-    mPendTask.eventTrigger(&event);
+    mPendTask.eventTrigger(event);
     AM_PROFILER_END();
 }
 
@@ -801,7 +781,7 @@ int ActivityManagerInner::startHomeActivity() {
             auto task = std::make_shared<
                     AppAttachTask>(pid,
                                    [this, packageName,
-                                    entryActivity](const AppAttachTask::Event* e) -> bool {
+                                    entryActivity](const AppAttachTask::Event* e) {
                                        auto appRecord =
                                                std::make_shared<AppRecord>(e->mAppHandler,
                                                                            packageName, e->mPid,
@@ -812,7 +792,6 @@ int ActivityManagerInner::startHomeActivity() {
                                        this->startActivityReal(appRecord, entryActivity, intent,
                                                                sp<IBinder>(nullptr),
                                                                ActivityManager::NO_REQUEST);
-                                       return true;
                                    });
             mPendTask.commitTask(task);
         } else {
