@@ -107,7 +107,7 @@ const string* ServiceRecord::getPackageName() {
     return nullptr;
 }
 
-const char* ServiceRecord::status2Str(const int status) {
+const char* ServiceRecord::statusToStr(const int status) {
     switch (status) {
         case ServiceRecord::CREATING:
             return "creating";

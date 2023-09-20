@@ -34,23 +34,12 @@ using os::app::Intent;
 class AppRecord;
 class ActivityStack;
 
+using ActivityStackHandler = std::shared_ptr<ActivityStack>;
+
 class ActivityRecord : public std::enable_shared_from_this<ActivityRecord> {
 public:
-    ActivityRecord(const std::string& name, const sp<IBinder>& token, const sp<IBinder>& caller,
-                   const int32_t requestCode, const std::string& launchMode,
-                   const std::shared_ptr<AppRecord>& app,
-                   const std::shared_ptr<ActivityStack>& task, sp<::os::wm::IWindowManager> wm)
-          : mActivityName(name),
-            mToken(token),
-            mCaller(caller),
-            mRequestCode(requestCode),
-            mStatus(CREATING),
-            mLaunchMode(launchMode),
-            mApp(app),
-            mInTask(task),
-            mWindowService(wm) {}
-
-    enum {
+    enum Status {
+        ERROR = -1,
         CREATING = 0,
         CREATED,
         STARTING,
@@ -65,27 +54,54 @@ public:
         DESTROYED,
     };
 
+    enum LaunchMode { STANDARD, SINGLE_TOP, SINGLE_TASK, SINGLE_INSTANCE };
+
+    ActivityRecord(const std::string& name, const sp<IBinder>& caller, const int32_t requestCode,
+                   const LaunchMode launchMode, const ActivityStackHandler& task,
+                   const Intent& intent, sp<::os::wm::IWindowManager> wm);
+
     void create();
     void start();
     void resume();
     void pause();
     void stop();
     void destroy();
+
     void abnormalExit();
     void onResult(int32_t requestCode, int32_t resultCode, const Intent& resultData);
 
+    const sp<IBinder>& getToken() const;
+    const std::string& getName() const;
+    LaunchMode getLaunchMode() const;
+
+    const sp<IBinder>& getCaller() const;
+    int32_t getRequestCode() const;
+    ActivityStackHandler getTask() const;
+
+    void setAppThread(const std::shared_ptr<AppRecord>& app);
+    std::shared_ptr<AppRecord> getAppRecord() const;
+
+    void setIntent(const Intent& intent);
+    const Intent& getIntent() const;
+
+    void setStatus(Status status);
+    Status getStatus() const;
+
     const std::string* getPackageName() const;
-    static const char* status2Str(const int status);
+
+    const char* getStatusStr() const;
+    static const char* statusToStr(const int status);
+    static LaunchMode launchModeToInt(const std::string& launchModeStr);
 
     friend std::ostream& operator<<(std::ostream& os, const ActivityRecord& record);
 
-public:
-    std::string mActivityName;
+private:
+    std::string mName;
     sp<IBinder> mToken;
     sp<IBinder> mCaller;
     int32_t mRequestCode;
-    int mStatus;
-    std::string mLaunchMode;
+    Status mStatus;
+    LaunchMode mLaunchMode;
     std::weak_ptr<AppRecord> mApp;
     std::weak_ptr<ActivityStack> mInTask;
     Intent mIntent;
@@ -95,5 +111,4 @@ public:
 using ActivityHandler = std::shared_ptr<ActivityRecord>;
 
 } // namespace am
-
 } // namespace os
