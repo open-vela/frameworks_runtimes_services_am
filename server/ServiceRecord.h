@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "TaskBoard.h"
 #include "app/Intent.h"
 #include "os/app/IServiceConnection.h"
 
@@ -69,7 +70,7 @@ public:
     void abnormalExit();
     const std::string* getPackageName();
     bool isAlive();
-    static const char* status2Str(int status);
+    static const char* statusToStr(int status);
 
 public:
     const std::string mServiceName;
@@ -93,6 +94,34 @@ public:
 
 private:
     std::vector<ServiceHandler> mServiceList;
+};
+
+class ServiceReportStatusTask : public Task {
+public:
+    struct Event : Label {
+        sp<android::IBinder> mToken;
+        Event(const int status, const sp<android::IBinder>& token)
+              : Label(SERVICE_STATUS_BASE + status), mToken(token) {}
+    };
+
+    using TaskFunc = std::function<void()>;
+    ServiceReportStatusTask(const int status, const sp<android::IBinder>& token, const TaskFunc& cb)
+          : Task(SERVICE_STATUS_BASE + status), mToken(token), mCallback(cb) {}
+
+    bool operator==(const Label& e) const {
+        if (mId == e.mId) {
+            return mToken == static_cast<const Event*>(&e)->mToken;
+        }
+        return false;
+    }
+
+    void execute(const Label& e) override {
+        mCallback();
+    }
+
+private:
+    sp<android::IBinder> mToken;
+    TaskFunc mCallback;
 };
 
 } // namespace am

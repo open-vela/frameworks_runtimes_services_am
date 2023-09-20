@@ -32,14 +32,78 @@ namespace am {
 using os::app::Intent;
 using os::wm::LayoutParams;
 
+ActivityRecord::ActivityRecord(const std::string& name, const sp<IBinder>& caller,
+                               const int32_t requestCode, const LaunchMode launchMode,
+                               const ActivityStackHandler& task, const Intent& intent,
+                               sp<::os::wm::IWindowManager> wm) {
+    mName = name;
+    mToken = new android::BBinder();
+    mCaller = caller;
+    mRequestCode = requestCode;
+    mStatus = CREATING;
+    mLaunchMode = launchMode;
+    mInTask = task;
+    mIntent = intent;
+    mWindowService = wm;
+}
+
+const sp<IBinder>& ActivityRecord::getToken() const {
+    return mToken;
+}
+
+const std::string& ActivityRecord::getName() const {
+    return mName;
+}
+
+ActivityRecord::LaunchMode ActivityRecord::getLaunchMode() const {
+    return mLaunchMode;
+}
+
+const sp<IBinder>& ActivityRecord::getCaller() const {
+    return mCaller;
+}
+
+int32_t ActivityRecord::getRequestCode() const {
+    return mRequestCode;
+}
+
+ActivityStackHandler ActivityRecord::getTask() const {
+    return mInTask.lock();
+}
+
+void ActivityRecord::setAppThread(const std::shared_ptr<AppRecord>& app) {
+    mApp = app;
+}
+
+std::shared_ptr<AppRecord> ActivityRecord::getAppRecord() const {
+    return mApp.lock();
+}
+
+void ActivityRecord::setIntent(const Intent& intent) {
+    mIntent = intent;
+}
+
+const Intent& ActivityRecord::getIntent() const {
+    return mIntent;
+}
+
+void ActivityRecord::setStatus(Status status) {
+    mStatus = status;
+}
+
+ActivityRecord::Status ActivityRecord::getStatus() const {
+    return mStatus;
+}
+
 void ActivityRecord::create() {
     if (mStatus == CREATING) {
         mWindowService->addWindowToken(mToken, LayoutParams::TYPE_APPLICATION, 0);
         if (auto appRecord = mApp.lock()) {
-            ALOGD("scheduleLaunchActivity: %s/%s", appRecord->mPackageName.c_str(),
-                  mActivityName.c_str());
+            ALOGD("scheduleLaunchActivity: %s", mName.c_str());
             appRecord->addActivity(shared_from_this());
-            appRecord->mAppThread->scheduleLaunchActivity(mActivityName, mToken, mIntent);
+            const auto pos = mName.find_first_of('/');
+            appRecord->mAppThread->scheduleLaunchActivity(mName.substr(pos + 1, std::string::npos),
+                                                          mToken, mIntent);
         }
     }
 }
@@ -48,34 +112,29 @@ void ActivityRecord::start() {
     if (mStatus > CREATING && mStatus < DESTROYED) {
         mStatus = STARTING;
         if (auto appRecord = mApp.lock()) {
-            ALOGD("scheduleStartActivity: %s/%s", appRecord->mPackageName.c_str(),
-                  mActivityName.c_str());
+            ALOGD("scheduleStartActivity: %s", mName.c_str());
             appRecord->mAppThread->scheduleStartActivity(mToken, mIntent);
         }
     }
 }
 
 void ActivityRecord::resume() {
-    if (mStatus < STARTING || mStatus > STOPPED) {
-        ALOGW("activity:%s want to 'resume' but current is '%s'", mActivityName.c_str(),
-              status2Str(mStatus));
+    if (mStatus >= STARTING && mStatus <= STOPPED) {
+        mStatus = RESUMING;
+        if (auto appRecord = mApp.lock()) {
+            ALOGD("scheduleResumeActivity: %s", mName.c_str());
+            appRecord->mAppThread->scheduleResumeActivity(mToken, mIntent);
+        }
+        mWindowService->updateWindowTokenVisibility(mToken, LayoutParams::WINDOW_VISIBLE);
         return;
     }
-    mStatus = RESUMING;
-    if (auto appRecord = mApp.lock()) {
-        ALOGD("scheduleResumeActivity: %s/%s", mApp.lock()->mPackageName.c_str(),
-              mActivityName.c_str());
-        appRecord->mAppThread->scheduleResumeActivity(mToken, mIntent);
-    }
-    mWindowService->updateWindowTokenVisibility(mToken, LayoutParams::WINDOW_VISIBLE);
 }
 
 void ActivityRecord::pause() {
-    if (mStatus < PAUSING) {
+    if (mStatus > STARTING && mStatus < PAUSING) {
         mStatus = PAUSING;
         if (auto appRecord = mApp.lock()) {
-            ALOGD("schedulePauseActivity: %s/%s", mApp.lock()->mPackageName.c_str(),
-                  mActivityName.c_str());
+            ALOGD("schedulePauseActivity: %s", mName.c_str());
             appRecord->mAppThread->schedulePauseActivity(mToken);
         }
         mWindowService->updateWindowTokenVisibility(mToken, LayoutParams::WINDOW_INVISIBLE);
@@ -83,11 +142,10 @@ void ActivityRecord::pause() {
 }
 
 void ActivityRecord::stop() {
-    if (mStatus < STOPPING) {
+    if (mStatus > STARTING && mStatus < STOPPING) {
         mStatus = STOPPING;
         if (auto appRecord = mApp.lock()) {
-            ALOGD("scheduleStopActivity: %s/%s", mApp.lock()->mPackageName.c_str(),
-                  mActivityName.c_str());
+            ALOGD("scheduleStopActivity: %s", mName.c_str());
             appRecord->mAppThread->scheduleStopActivity(mToken);
         }
         mWindowService->updateWindowTokenVisibility(mToken, LayoutParams::WINDOW_GONE);
@@ -95,11 +153,10 @@ void ActivityRecord::stop() {
 }
 
 void ActivityRecord::destroy() {
-    if (mStatus < DESTROYING) {
+    if (mStatus > CREATING && mStatus < DESTROYING) {
         mStatus = DESTROYING;
         if (auto appRecord = mApp.lock()) {
-            ALOGD("scheduleDestroyActivity: %s/%s", mApp.lock()->mPackageName.c_str(),
-                  mActivityName.c_str());
+            ALOGD("scheduleDestroyActivity: %s", mName.c_str());
             appRecord->deleteActivity(shared_from_this());
             appRecord->mAppThread->scheduleDestroyActivity(mToken);
         }
@@ -110,8 +167,7 @@ void ActivityRecord::destroy() {
 void ActivityRecord::abnormalExit() {
     mStatus = DESTROYED;
     if (auto appRecord = mApp.lock()) {
-        ALOGW("Activity:%s/%s abnormal exit!", mApp.lock()->mPackageName.c_str(),
-              mActivityName.c_str());
+        ALOGW("Activity:%s abnormal exit!", mName.c_str());
         appRecord->deleteActivity(shared_from_this());
         mWindowService->removeWindowToken(mToken, 0);
     }
@@ -119,8 +175,7 @@ void ActivityRecord::abnormalExit() {
 
 void ActivityRecord::onResult(int32_t requestCode, int32_t resultCode, const Intent& resultData) {
     if (auto appRecord = mApp.lock()) {
-        ALOGD("%s/%s onActivityResult: %d, %d", mApp.lock()->mPackageName.c_str(),
-              mActivityName.c_str(), requestCode, resultCode);
+        ALOGD("%s onActivityResult: %d, %d", mName.c_str(), requestCode, resultCode);
         appRecord->mAppThread->onActivityResult(mToken, requestCode, resultCode, resultData);
     }
 }
@@ -132,7 +187,26 @@ const std::string* ActivityRecord::getPackageName() const {
     return nullptr;
 }
 
-const char* ActivityRecord::status2Str(const int status) {
+ActivityRecord::LaunchMode ActivityRecord::launchModeToInt(const std::string& launchMode) {
+    if (launchMode == "standard") {
+        return ActivityRecord::STANDARD;
+    } else if (launchMode == "singleTask") {
+        return ActivityRecord::SINGLE_TASK;
+    } else if (launchMode == "singleTop") {
+        return ActivityRecord::SINGLE_TOP;
+    } else if (launchMode == "singleInstance") {
+        return ActivityRecord::SINGLE_INSTANCE;
+    } else {
+        ALOGW("Activity launchMode:%s is illegally", launchMode.c_str());
+        return ActivityRecord::STANDARD;
+    }
+}
+
+const char* ActivityRecord::getStatusStr() const {
+    return statusToStr(mStatus);
+}
+
+const char* ActivityRecord::statusToStr(const int status) {
     switch (status) {
         case ActivityRecord::CREATING:
             return "creating";
@@ -158,18 +232,18 @@ const char* ActivityRecord::status2Str(const int status) {
             return "destroying";
         case ActivityRecord::DESTROYED:
             return "destroyed";
+        case ActivityRecord::ERROR:
+            return "error";
         default:
             return "undefined";
     }
 }
 
 std::ostream& operator<<(std::ostream& os, const ActivityRecord& record) {
-    if (auto appRecord = record.mApp.lock()) {
-        os << appRecord->mPackageName << "/" << record.mActivityName;
-        os << " [";
-        os << ActivityRecord::status2Str(record.mStatus);
-        os << "] ";
-    }
+    os << record.mName;
+    os << " [";
+    os << ActivityRecord::statusToStr(record.mStatus);
+    os << "] ";
     return os;
 }
 

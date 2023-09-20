@@ -24,7 +24,7 @@ using namespace std;
 ActivityHandler AppRecord::checkActivity(const std::string& activityName) {
     const int size = mExistActivity.size();
     for (int i = 0; i < size; ++i) {
-        if (mExistActivity[i].lock()->mActivityName == activityName) {
+        if (mExistActivity[i].lock()->getName() == activityName) {
             return mExistActivity[i].lock();
         }
     }
@@ -73,12 +73,10 @@ int AppRecord::deleteService(const std::shared_ptr<ServiceRecord>& service) {
     return 0;
 }
 
-int AppRecord::checkActiveStatus() {
+void AppRecord::checkActiveStatus() const {
     if (mExistActivity.empty() && mExistService.empty()) {
         mAppThread->terminateApplication();
-        return 1;
     }
-    return 0;
 }
 
 const shared_ptr<AppRecord> AppInfoList::findAppInfo(const int pid) {

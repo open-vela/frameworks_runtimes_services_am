@@ -22,6 +22,7 @@
 
 #include "ActivityRecord.h"
 #include "ServiceRecord.h"
+#include "TaskBoard.h"
 #include "os/app/IApplicationThread.h"
 
 namespace os {
@@ -44,7 +45,7 @@ struct AppRecord {
     ActivityHandler checkActivity(const std::string& activityName);
     ServiceHandler checkService(const std::string& serviceName);
 
-    int checkActiveStatus();
+    void checkActiveStatus() const;
 
     void addActivity(const std::shared_ptr<ActivityRecord>& activity);
     int deleteActivity(const std::shared_ptr<ActivityRecord>& activity);
@@ -62,6 +63,35 @@ public:
 
 private:
     std::vector<std::shared_ptr<AppRecord>> mAppList;
+};
+
+class AppAttachTask : public Task {
+public:
+    struct Event : Label {
+        int mPid;
+        int mUid;
+        sp<IApplicationThread> mAppHandler;
+        Event(const int pid, const int uid, sp<IApplicationThread> app)
+              : Label(APP_ATTACH), mPid(pid), mUid(uid), mAppHandler(app) {}
+    };
+
+    using TaskFunc = std::function<void(const Event*)>;
+    AppAttachTask(const int pid, const TaskFunc& cb) : Task(APP_ATTACH), mPid(pid), mCallback(cb) {}
+
+    bool operator==(const Label& e) const {
+        if (mId == e.mId) {
+            return mPid == static_cast<const Event*>(&e)->mPid;
+        }
+        return false;
+    }
+
+    void execute(const Label& e) override {
+        mCallback(static_cast<const Event*>(&e));
+    }
+
+private:
+    int mPid;
+    TaskFunc mCallback;
 };
 
 } // namespace am

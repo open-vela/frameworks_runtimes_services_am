@@ -20,23 +20,16 @@
 #include <utils/Looper.h>
 
 #include <climits>
-#include <functional>
 #include <list>
 #include <memory>
-#include <string>
-
-#include "os/app/IApplicationThread.h"
 
 namespace os {
 namespace am {
 
-using android::IBinder;
 using android::Looper;
 using android::Message;
 using android::MessageHandler;
 using android::sp;
-using os::app::IApplicationThread;
-using std::string;
 
 struct Label {
     int mId;
@@ -64,15 +57,15 @@ class TaskMsgHandler : public MessageHandler {
 public:
     TaskMsgHandler(const std::shared_ptr<Task>& task) : mTask(task), mIsDone(false) {}
     void handleMessage(const Message& message) {
-        mTask->timeout();
         mIsDone = true;
+        mTask->timeout();
     }
     Task* getTask() const {
         return mTask.get();
     }
     void doing(const Label& label) {
-        mTask->execute(label);
         mIsDone = true;
+        mTask->execute(label);
     }
     bool isDone() const {
         return mIsDone;
@@ -97,97 +90,14 @@ private:
 /**************************** label signature ******************************/
 enum TASK_LABEL {
     APP_ATTACH,
-    ACTIVITY_STATUS_BASE = 100,
-    ACTIVITY_STATUS_END = 200,
+    ACTIVITY_STATUS_REPORT,
+    ACTIVITY_WAIT_RESUME,
     SERVICE_STATUS_BASE = 210,
     SERVICE_STATUS_END = 230,
 };
+
+#define REQUEST_TIMEOUT_MS 10000
 /***************************************************************************/
-
-class AppAttachTask : public Task {
-public:
-    struct Event : Label {
-        int mPid;
-        int mUid;
-        sp<IApplicationThread> mAppHandler;
-        Event(const int pid, const int uid, sp<IApplicationThread> app)
-              : Label(APP_ATTACH), mPid(pid), mUid(uid), mAppHandler(app) {}
-    };
-
-    using TaskFunc = std::function<void(const Event*)>;
-    AppAttachTask(const int pid, const TaskFunc& cb) : Task(APP_ATTACH), mPid(pid), mCallback(cb) {}
-
-    bool operator==(const Label& e) const {
-        if (mId == e.mId) {
-            return mPid == static_cast<const Event*>(&e)->mPid;
-        }
-        return false;
-    }
-
-    void execute(const Label& e) override {
-        mCallback(static_cast<const Event*>(&e));
-    }
-
-private:
-    int mPid;
-    TaskFunc mCallback;
-};
-
-class ActivityReportStatusTask : public Task {
-public:
-    struct Event : Label {
-        sp<android::IBinder> mToken;
-        Event(const int status, const sp<android::IBinder>& token)
-              : Label(ACTIVITY_STATUS_BASE + status), mToken(token) {}
-    };
-
-    using TaskFunc = std::function<void()>;
-    ActivityReportStatusTask(const int status, const sp<android::IBinder>& token,
-                             const TaskFunc& cb)
-          : Task(ACTIVITY_STATUS_BASE + status), mToken(token), mCallback(cb){};
-
-    bool operator==(const Label& e) const {
-        if (mId == e.mId) {
-            return mToken == static_cast<const Event*>(&e)->mToken;
-        }
-        return false;
-    }
-
-    void execute(const Label& e) override {
-        mCallback();
-    }
-
-private:
-    sp<android::IBinder> mToken;
-    TaskFunc mCallback;
-};
-
-class ServiceReportStatusTask : public Task {
-public:
-    struct Event : Label {
-        sp<android::IBinder> mToken;
-        Event(const int status, const sp<android::IBinder>& token)
-              : Label(SERVICE_STATUS_BASE + status), mToken(token) {}
-    };
-
-    using TaskFunc = std::function<void()>;
-    ServiceReportStatusTask(const int status, const sp<android::IBinder>& token, const TaskFunc& cb)
-          : Task(SERVICE_STATUS_BASE + status), mToken(token), mCallback(cb) {}
-
-    bool operator==(const Label& e) const {
-        if (mId == e.mId) {
-            return mToken == static_cast<const Event*>(&e)->mToken;
-        }
-        return false;
-    }
-    void execute(const Label& e) override {
-        mCallback();
-    }
-
-private:
-    sp<android::IBinder> mToken;
-    TaskFunc mCallback;
-};
 
 } // namespace am
 } // namespace os

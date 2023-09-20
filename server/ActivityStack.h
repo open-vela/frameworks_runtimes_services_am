@@ -22,7 +22,6 @@
 #include <string>
 
 #include "ActivityRecord.h"
-#include "os/app/IApplicationThread.h"
 
 namespace os {
 namespace am {
@@ -42,42 +41,13 @@ public:
     void popActivity();
     ActivityHandler getTopActivity();
     ActivityHandler findActivity(const std::string& activityName);
-    void popToActivity(const ActivityHandler& target);
-    void popAll();
+    ActivityHandler findActivity(const sp<IBinder>& token);
 
     friend std::ostream& operator<<(std::ostream& os, const ActivityStack& obj);
 
 private:
-    std::vector<ActivityHandler> mTask;
+    std::vector<ActivityHandler> mStack;
     std::string mTag;
-};
-
-using TaskHandler = std::shared_ptr<ActivityStack>;
-
-/**
- * task list:
- * front-|active|---|foreground task|---|home task|---|background task|-back
- */
-
-class TaskStackManager {
-public:
-    TaskHandler getActiveTask();
-    TaskHandler findTask(const std::string& tag);
-
-    void initHomeTask(const TaskHandler& task);
-    void pushHomeTaskToFront();
-    void pushActiveTask(const TaskHandler& task);
-    void switchTaskToActive(const TaskHandler& task);
-    void popFrontTask();
-
-    void deleteTask(const TaskHandler& task);
-    void procAbnormalActivity(const ActivityHandler& activity);
-
-    friend std::ostream& operator<<(std::ostream& os, const TaskStackManager& task);
-
-private:
-    std::list<TaskHandler> mAllTasks;
-    TaskHandler mHomeTask;
 };
 
 } // namespace am
