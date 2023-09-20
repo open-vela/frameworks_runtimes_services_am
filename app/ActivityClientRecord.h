@@ -27,6 +27,7 @@ public:
 
     /** The status is part of the ServiceRecord inside */
     enum {
+        ERROR = -1,
         CREATING = 0,
         CREATED,
         STARTING,
@@ -44,12 +45,12 @@ public:
     void reportActivityStatus(const int32_t status);
     void onActivityResult(const int requestCode, const int resultCode, const Intent& resultData);
 
-    void onCreate(const Intent& intent);
-    void onStart(const Intent& intent);
-    void onResume(const Intent& intent);
-    void onPause();
-    void onStop();
-    void onDestroy();
+    int onCreate(const Intent& intent);
+    int onStart(const Intent& intent);
+    int onResume(const Intent& intent);
+    int onPause();
+    int onStop();
+    int onDestroy();
 
 private:
     const string mActivityName;

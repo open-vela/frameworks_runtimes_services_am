@@ -50,7 +50,6 @@ public:
     void setResult(const int resultCode, const std::shared_ptr<Intent>& resultData);
     void finish();
 
-    /** Not recommended for users*/
     std::shared_ptr<::os::wm::BaseWindow> getWindow() {
         return mWindow;
     }
@@ -58,14 +57,13 @@ public:
 private:
     friend class ActivityClientRecord;
     friend class ApplicationThreadStub;
-    void attach(std::shared_ptr<Context> context);
-
-    void performCreate();
-    void performStart();
-    void performResume();
-    void performPause();
-    void performStop();
-    void performDestroy();
+    int attach(std::shared_ptr<Context> context);
+    bool performCreate();
+    bool performStart();
+    bool performResume();
+    bool performPause();
+    bool performStop();
+    bool performDestroy();
 
 private:
     int mResultCode;
