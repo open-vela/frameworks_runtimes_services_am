@@ -32,45 +32,58 @@ void Activity::finish() {
     getActivityManager().finishActivity(getToken(), mResultCode, mResultData);
 }
 
-void Activity::attach(std::shared_ptr<Context> context) {
+int Activity::attach(std::shared_ptr<Context> context) {
     attachBaseContext(context);
 
     mWindow = ::os::wm::WindowManager::getInstance()->newWindow(context.get());
-    if (mWindow) {
-        mWindowManager = (::os::wm::WindowManager*)mWindow->getWindowManager();
-
-    } else {
+    if (!mWindow) {
         ALOGE("Activity: new window failed!");
+        return -1;
     }
+    mWindowManager = (::os::wm::WindowManager*)mWindow->getWindowManager();
+    return 0;
 }
 
-void Activity::performCreate() {
-    if (mWindowManager) mWindowManager->attachIWindow(mWindow);
-    onCreate();
+bool Activity::performCreate() {
+    if (mWindowManager) {
+        if (mWindowManager->attachIWindow(mWindow) == 0) {
+            onCreate();
+            return true;
+        } else {
+            mWindowManager->removeWindow(mWindow);
+            mWindow.reset();
+        }
+    }
+    return false;
 }
 
-void Activity::performStart() {
+bool Activity::performStart() {
     onStart();
+    return true;
 }
 
-void Activity::performResume() {
+bool Activity::performResume() {
     onResume();
+    return true;
 }
 
-void Activity::performPause() {
+bool Activity::performPause() {
     onPause();
+    return true;
 }
 
-void Activity::performStop() {
+bool Activity::performStop() {
     onStop();
+    return true;
 }
 
-void Activity::performDestroy() {
+bool Activity::performDestroy() {
     if (mWindowManager && mWindow) {
         mWindowManager->removeWindow(mWindow);
         mWindow.reset();
     }
     onDestroy();
+    return true;
 }
 
 } // namespace app

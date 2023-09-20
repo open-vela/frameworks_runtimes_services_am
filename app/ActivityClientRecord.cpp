@@ -37,14 +37,19 @@ void ActivityClientRecord::onActivityResult(const int requestCode, const int res
     mActivity->onActivityResult(requestCode, resultCode, resultData);
 }
 
-void ActivityClientRecord::onCreate(const Intent& intent) {
+int ActivityClientRecord::onCreate(const Intent& intent) {
     ALOGD("Activity onCreate: %s[%p]", mActivityName.c_str(), mActivity->getToken().get());
     mActivity->setIntent(intent);
-    mActivity->performCreate();
-    reportActivityStatus(CREATED);
+    if (mActivity->performCreate()) {
+        reportActivityStatus(CREATED);
+    } else {
+        reportActivityStatus(ERROR);
+        return -1;
+    }
+    return 0;
 }
 
-void ActivityClientRecord::onStart(const Intent& intent) {
+int ActivityClientRecord::onStart(const Intent& intent) {
     ALOGD("Activity onStart: %s[%p]", mActivityName.c_str(), mActivity->getToken().get());
     if (mStatus == STOPPED) {
         mActivity->setIntent(intent);
@@ -54,9 +59,10 @@ void ActivityClientRecord::onStart(const Intent& intent) {
 
     mActivity->performStart();
     reportActivityStatus(STARTED);
+    return 0;
 }
 
-void ActivityClientRecord::onResume(const Intent& intent) {
+int ActivityClientRecord::onResume(const Intent& intent) {
     ALOGD("Activity onResume: %s[%p]", mActivityName.c_str(), mActivity->getToken().get());
     if (mStatus == PAUSED) {
         mActivity->setIntent(intent);
@@ -65,24 +71,28 @@ void ActivityClientRecord::onResume(const Intent& intent) {
 
     mActivity->performResume();
     reportActivityStatus(RESUMED);
+    return 0;
 }
 
-void ActivityClientRecord::onPause() {
+int ActivityClientRecord::onPause() {
     ALOGD("Activity onPause: %s[%p]", mActivityName.c_str(), mActivity->getToken().get());
     mActivity->performPause();
     reportActivityStatus(PAUSED);
+    return 0;
 }
 
-void ActivityClientRecord::onStop() {
+int ActivityClientRecord::onStop() {
     ALOGD("Activity onStop: %s[%p]", mActivityName.c_str(), mActivity->getToken().get());
     mActivity->performStop();
     reportActivityStatus(STOPPED);
+    return 0;
 }
 
-void ActivityClientRecord::onDestroy() {
+int ActivityClientRecord::onDestroy() {
     ALOGD("Activity onDestroy: %s[%p]", mActivityName.c_str(), mActivity->getToken().get());
     mActivity->performDestroy();
     reportActivityStatus(DESTROYED);
+    return 0;
 }
 
 } // namespace app
