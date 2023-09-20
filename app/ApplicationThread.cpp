@@ -239,20 +239,25 @@ Status ApplicationThreadStub::terminateApplication() {
 int ApplicationThreadStub::onLaunchActivity(const std::string& activityName,
                                             const sp<IBinder>& token, const Intent& intent) {
     AM_PROFILER_BEGIN();
+    int ret = 0;
     std::shared_ptr<Activity> activity = mApp->createActivity(activityName);
     if (activity != nullptr) {
         auto context = ContextImpl::createActivityContext(mApp, token, mApp->getMainLoop());
         activity->attach(context);
         auto activityRecord = std::make_shared<ActivityClientRecord>(activityName, activity);
-        activityRecord->onCreate(intent);
-        mApp->addActivity(token, activityRecord);
-        AM_PROFILER_END();
-        return 0;
+        if (activityRecord->onCreate(intent) == 0) {
+            mApp->addActivity(token, activityRecord);
+        } else {
+            ALOGE("Activity %s/%s create failure", mApp->getPackageName().c_str(),
+                  activityName.c_str());
+            ret = -1;
+        }
     } else {
         ALOGE("the %s/%s is not register", mApp->getPackageName().c_str(), activityName.c_str());
+        ret = -2;
     }
     AM_PROFILER_END();
-    return -1;
+    return ret;
 }
 
 int ApplicationThreadStub::onStartActivity(const sp<IBinder>& token, const Intent& intent) {
