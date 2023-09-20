@@ -26,139 +26,43 @@ const std::string& ActivityStack::getTaskTag() const {
 }
 
 const int ActivityStack::getSize() const {
-    return mTask.size();
+    return mStack.size();
 }
 
 void ActivityStack::pushActivity(const ActivityHandler& activity) {
-    mTask.push_back(activity);
+    mStack.push_back(activity);
 }
 
 void ActivityStack::popActivity() {
-    mTask.pop_back();
+    mStack.pop_back();
 }
 
 ActivityHandler ActivityStack::getTopActivity() {
-    return mTask.empty() ? nullptr : mTask.back();
+    return mStack.empty() ? nullptr : mStack.back();
 }
 
-ActivityHandler ActivityStack::findActivity(const string& activityName) {
-    for (auto it : mTask) {
-        if (it->mActivityName == activityName) {
+ActivityHandler ActivityStack::findActivity(const string& name) {
+    for (const auto& it : mStack) {
+        if (it->getName() == name) {
             return it;
         }
     }
     return nullptr;
 }
 
-void ActivityStack::popToActivity(const ActivityHandler& target) {
-    for (auto it = mTask.rbegin(); it != mTask.rend(); ++it) {
-        if (*it == target) {
-            break;
-        }
-        /** call Activity Destroy */
-        it->get()->destroy();
-        mTask.pop_back();
-    }
-}
-
-void ActivityStack::popAll() {
-    for (auto it = mTask.rbegin(); it != mTask.rend(); ++it) {
-        /** call Activity Destroy */
-        it->get()->destroy();
-        mTask.pop_back();
-    }
-}
-
-std::ostream& operator<<(std::ostream& os, const ActivityStack& activityStack) {
-    os << "Tag{" << activityStack.mTag << "}: ";
-    for (auto it = activityStack.mTask.rbegin(); it != activityStack.mTask.rend(); ++it) {
-        os << "\n\t" << *(it->get());
-    }
-    return os;
-}
-
-/*
- * TaskStackManager: Manage all tasks
- */
-TaskHandler TaskStackManager::getActiveTask() {
-    return mAllTasks.front();
-}
-
-TaskHandler TaskStackManager::findTask(const std::string& tag) {
-    for (auto t : mAllTasks) {
-        if (t->getTaskTag() == tag) {
-            return t;
+ActivityHandler ActivityStack::findActivity(const sp<IBinder>& token) {
+    for (const auto& it : mStack) {
+        if (it->getToken() == token) {
+            return it;
         }
     }
     return nullptr;
 }
 
-void TaskStackManager::initHomeTask(const TaskHandler& task) {
-    mAllTasks.emplace_front(task);
-    mHomeTask = task;
-}
-
-void TaskStackManager::pushHomeTaskToFront() {
-    mAllTasks.remove(mHomeTask);
-    mAllTasks.emplace_front(mHomeTask);
-}
-
-void TaskStackManager::pushActiveTask(const TaskHandler& task) {
-    mAllTasks.emplace_front(task);
-}
-
-void TaskStackManager::switchTaskToActive(const TaskHandler& task) {
-    mAllTasks.remove(task);
-    mAllTasks.push_front(task);
-}
-
-void TaskStackManager::popFrontTask() {
-    mAllTasks.pop_front();
-}
-
-void TaskStackManager::deleteTask(const TaskHandler& task) {
-    for (auto it = mAllTasks.begin(); it != mAllTasks.end(); ++it) {
-        if (*it == task) {
-            mAllTasks.erase(it);
-            break;
-        }
-    }
-}
-
-void TaskStackManager::procAbnormalActivity(const ActivityHandler& activity) {
-    if (auto task = activity->mInTask.lock()) {
-        task->popToActivity(activity);
-        task->popActivity();
-
-        if (task->getSize() == 0) {
-            if (task == mAllTasks.front()) {
-                mAllTasks.pop_front();
-            } else {
-                deleteTask(task);
-            }
-        } else {
-            auto nextActivity = task->getTopActivity();
-            const Intent nodata; // TODO, -1:AbnormalActivity
-            nextActivity->onResult(activity->mRequestCode, -1, nodata);
-        }
-    }
-}
-
-std::ostream& operator<<(std::ostream& os, const TaskStackManager& task) {
-#define RESET "\033[0m"
-#define GREEN "\033[32m"
-#define YELLOW "\033[33m"
-#define BLUE "\033[34m"
-
-    os << GREEN << "foreground task:" << RESET << endl;
-    for (auto& it : task.mAllTasks) {
-        if (it == task.mHomeTask) {
-            os << YELLOW << "home task:" << RESET << endl;
-            os << *it << endl;
-            os << BLUE << "background task:" << RESET << endl;
-        } else {
-            os << *it << endl;
-        }
+std::ostream& operator<<(std::ostream& os, const ActivityStack& activityStack) {
+    os << "Tag{" << activityStack.mTag << "}: ";
+    for (auto it = activityStack.mStack.rbegin(); it != activityStack.mStack.rend(); ++it) {
+        os << "\n\t" << *(it->get());
     }
     return os;
 }

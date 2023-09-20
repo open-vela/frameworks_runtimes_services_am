@@ -28,12 +28,12 @@
 #include <string>
 #include <vector>
 
-#include "ActivityStack.h"
 #include "ActivityTrace.h"
 #include "AppRecord.h"
 #include "AppSpawn.h"
 #include "IntentAction.h"
 #include "TaskBoard.h"
+#include "TaskStackManager.h"
 #include "app/ActivityManager.h"
 
 namespace os {
@@ -50,6 +50,8 @@ void getPackageAndComponentName(const string& target, string& packageName, strin
 
 class ActivityManagerInner {
 public:
+    ActivityManagerInner();
+
     int attachApplication(const sp<IApplicationThread>& app);
     int startActivity(const sp<IBinder>& token, const Intent& intent, int32_t requestCode);
     bool finishActivity(const sp<IBinder>& token, int32_t resultCode,
@@ -79,15 +81,10 @@ public:
     }
 
 private:
-    ActivityHandler getActivityRecord(const sp<IBinder>& token);
-    ActivityHandler startActivityReal(const std::shared_ptr<AppRecord>& app,
-                                      const ActivityInfo& activityName, const Intent& intent,
-                                      const sp<IBinder>& caller, const int32_t requestCode);
     void stopServiceReal(ServiceHandler& service);
     int startHomeActivity();
 
 private:
-    map<sp<IBinder>, ActivityHandler> mActivityMap;
     ServiceList mServices;
     AppInfoList mAppInfo;
     TaskStackManager mTaskManager;
@@ -97,6 +94,8 @@ private:
     sp<::os::wm::IWindowManager> mWindowManager;
     map<string, list<sp<IBroadcastReceiver>>> mReceivers; /** Broadcast */
 };
+
+ActivityManagerInner::ActivityManagerInner() : mTaskManager(mPendTask) {}
 
 int ActivityManagerInner::attachApplication(const sp<IApplicationThread>& app) {
     AM_PROFILER_BEGIN();
@@ -119,24 +118,6 @@ int ActivityManagerInner::attachApplication(const sp<IApplicationThread>& app) {
 int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent& intent,
                                         int32_t requestCode) {
     AM_PROFILER_BEGIN();
-    auto topActivity = mTaskManager.getActiveTask()->getTopActivity();
-    if (topActivity->mStatus < ActivityRecord::STARTED ||
-        topActivity->mStatus > ActivityRecord::PAUSING) {
-        /** The currently active Activity is undergoing a state transition, it is't accepting
-         * other startActivity requests */
-        ALOGW("the top Activity:(%s) Status(%d) is changing", topActivity->mActivityName.c_str(),
-              topActivity->mStatus);
-        AM_PROFILER_END();
-        return android::INVALID_OPERATION;
-    }
-
-    if (caller != topActivity->mToken && !(intent.mFlag & Intent::FLAG_ACTIVITY_NEW_TASK)) {
-        /** if the current caller is not the top Activity */
-        ALOGW("Inappropriate, the caller must startActivity in other task");
-        AM_PROFILER_END();
-        return android::PERMISSION_DENIED;
-    }
-
     string activityTarget;
     if (!intent.mTarget.empty()) {
         activityTarget = intent.mTarget;
@@ -153,279 +134,160 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
     /** get Package and Activity info for PMS */
     string packageName;
     string activityName;
+    string taskAffinity;
+    ActivityRecord::LaunchMode launchMode;
     getPackageAndComponentName(intent.mTarget, packageName, activityName);
+
     PackageInfo packageInfo;
     if (mPm.getPackageInfo(packageName, &packageInfo)) {
-        ALOGE("error packagename:%s", packageName.c_str());
+        ALOGE("packagename:%s is not installed!!!", packageName.c_str());
         AM_PROFILER_END();
         return android::BAD_VALUE;
     }
 
-    bool isStartApp = false;
-    if (activityName.empty()) {
-        isStartApp = true;
-        activityName = packageInfo.entry;
-    }
-
-    ActivityInfo activityInfo;
-    for (auto it : packageInfo.activitiesInfo) {
-        if (it.name == activityName) {
-            activityInfo = it;
-        }
-    }
-
-    if (topActivity != nullptr) {
-        topActivity->pause(); /** pause windows interactive*/
-    }
-
     /** ready to start Activity */
-    auto appInfo = mAppInfo.findAppInfo(packageName);
-    if (appInfo) {
-        ActivityHandler activityRecord;
-        if (isStartApp) {
-            /** if the target app task is already launched, just switch */
-            auto targetTask = mTaskManager.findTask(packageName);
-            mTaskManager.switchTaskToActive(targetTask);
-            activityRecord = mTaskManager.getActiveTask()->getTopActivity();
-            activityRecord->resume();
+    if (activityName.empty()) {
+        auto appTask = mTaskManager.findTask(packageName);
+        if (appTask) {
+            mTaskManager.switchTaskToActive(appTask, intent);
+            AM_PROFILER_END();
+            return android::OK;
         } else {
-            /** get Application thread */
-            activityRecord = startActivityReal(appInfo, activityInfo, intent, caller, requestCode);
-        }
-
-        /** When the target Activity has been resumed. then stop the previous Activity */
-        const auto task =
-                std::make_shared<ActivityReportStatusTask>(ActivityRecord::RESUMED,
-                                                           activityRecord->mToken,
-                                                           [this, topActivity]() {
-                                                               if (mTaskManager.getActiveTask()
-                                                                           ->getTopActivity() !=
-                                                                   topActivity)
-                                                                   topActivity->stop();
-                                                           });
-        mPendTask.commitTask(task);
-    } else {
-        /** The app hasn't started yet */
-        const int pid = AppSpawn::appSpawn(packageInfo.execfile.c_str(), {packageName});
-        if (pid > 0) {
-            const auto waitAppAttach = [this, packageName, activityInfo, intent, caller,
-                                        requestCode, topActivity](const AppAttachTask::Event* e) {
-                auto appRecord =
-                        std::make_shared<AppRecord>(e->mAppHandler, packageName, e->mPid, e->mUid);
-                this->mAppInfo.addAppInfo(appRecord);
-                auto record = this->startActivityReal(appRecord, activityInfo, intent, caller,
-                                                      requestCode);
-                const auto stopLastActivity =
-                        std::make_shared<ActivityReportStatusTask>(ActivityRecord::RESUMED,
-                                                                   record->mToken,
-                                                                   [this, topActivity]() {
-                                                                       topActivity->stop();
-                                                                   });
-                mPendTask.commitTask(stopLastActivity);
-            };
-            mPendTask.commitTask(std::make_shared<AppAttachTask>(pid, waitAppAttach));
-        } else {
-            /** Failed to start, restore the previous pause activity */
-            topActivity->resume();
+            activityName = packageInfo.entry;
         }
     }
-    AM_PROFILER_END();
-    return android::OK;
-}
 
-ActivityHandler ActivityManagerInner::startActivityReal(const std::shared_ptr<AppRecord>& app,
-                                                        const ActivityInfo& activityInfo,
-                                                        const Intent& intent,
-                                                        const sp<IBinder>& caller,
-                                                        const int32_t requestCode) {
-    TaskHandler targetTask;
-    auto callerActivity = getActivityRecord(caller);
+    /** We need to check that the Intent.flag makes sense and perhaps modify it */
+    int startFlag = intent.mFlag;
 
-    /** check if into another taskStack */
-    const string& launchMode = activityInfo.launchMode;
-    bool isCreateTask = false;
-    if (intent.mFlag & Intent::FLAG_ACTIVITY_NEW_TASK || launchMode == "singleTask" ||
-        launchMode == "singleInstance" || callerActivity->mLaunchMode == "singleInstance") {
-        targetTask = mTaskManager.findTask(activityInfo.taskAffinity);
+    for (const auto& it : packageInfo.activitiesInfo) {
+        if (it.name == activityName) {
+            launchMode = ActivityRecord::launchModeToInt(it.launchMode);
+        }
+    }
+    /** Entry Activity taskAffinity can only be packagename */
+    if (activityName == packageInfo.entry) {
+        taskAffinity = packageName;
+        /** The entry activity must be taskTag for the taskStack, so we need it in another task
+         */
+        startFlag |= Intent::FLAG_ACTIVITY_NEW_TASK;
+        if (launchMode != ActivityRecord::SINGLE_TASK) {
+            /** Entry Activity only support singleTask or singleInstance */
+            launchMode = ActivityRecord::SINGLE_INSTANCE;
+        }
+    }
+
+    auto callActivity = mTaskManager.getActivity(caller);
+    if (!callActivity || callActivity->getLaunchMode() == ActivityRecord::SINGLE_INSTANCE ||
+        launchMode == ActivityRecord::SINGLE_INSTANCE) {
+        /** if the caller's(maybe Service) Stack does't exist, we must new a task */
+        startFlag |= Intent::FLAG_ACTIVITY_NEW_TASK;
+    }
+
+    ActivityStackHandler targetTask;
+    bool isNewTask = false;
+    if (startFlag & Intent::FLAG_ACTIVITY_NEW_TASK) {
+        targetTask = mTaskManager.findTask(taskAffinity);
         if (!targetTask) {
-            isCreateTask = true;
-            targetTask = std::make_shared<ActivityStack>(activityInfo.taskAffinity);
+            targetTask = std::make_shared<ActivityStack>(taskAffinity);
+            isNewTask = true;
         }
     } else {
         targetTask = mTaskManager.getActiveTask();
     }
 
-    ALOGD("start activity:%s launchMode:%s flag:%d", activityInfo.name.c_str(), launchMode.c_str(),
-          intent.mFlag);
-    bool isCreateActivity = true;
-    ActivityHandler record;
-    if (!isCreateTask) {
-        if (intent.mFlag == Intent::NO_FLAG || intent.mFlag == Intent::FLAG_ACTIVITY_NEW_TASK) {
-            if (launchMode == "standard") {
-                isCreateActivity = true;
-            } else if (launchMode == "singleTop") {
-                if (targetTask->getTopActivity()->mActivityName == activityInfo.name) {
-                    isCreateActivity = false;
-                    record = targetTask->getTopActivity();
+    ActivityHandler targetActivity;
+    if (!isNewTask) {
+        switch (launchMode) {
+            case ActivityRecord::SINGLE_TOP:
+                startFlag |= Intent::FLAG_ACTIVITY_SINGLE_TOP;
+                if (targetTask->getTopActivity()->getName() == (packageName + "/" + activityName)) {
+                    targetActivity = targetTask->getTopActivity();
                 }
-            } else if (launchMode == "singleTask") {
-                record = targetTask->findActivity(activityInfo.name);
-                if (record) {
-                    isCreateActivity = false;
-                    /** The Activities above the target will be out of the stack */
-                    targetTask->popToActivity(record);
-                }
-            } else if (launchMode == "singleInstance") {
-                record = targetTask->getTopActivity();
-                if (record) {
-                    isCreateActivity = false;
-                }
-            }
+                break;
+            case ActivityRecord::SINGLE_TASK:
+            case ActivityRecord::SINGLE_INSTANCE:
+                startFlag |= Intent::FLAG_ACTIVITY_CLEAR_TOP;
+                targetActivity = targetTask->findActivity(packageName + "/" + activityName);
+                break;
+            default:
+                break;
+        }
+    }
+
+    if (!targetActivity) {
+        auto newActivity = std::make_shared<ActivityRecord>(packageName + "/" + activityName,
+                                                            caller, requestCode, launchMode,
+                                                            targetTask, intent, mWindowManager);
+        const auto appInfo = mAppInfo.findAppInfo(packageName);
+        if (appInfo) {
+            newActivity->setAppThread(appInfo);
+            mTaskManager.pushNewActivity(targetTask, newActivity, startFlag);
         } else {
-            if (intent.mFlag & Intent::FLAG_ACTIVITY_CLEAR_TASK) {
-                /** clear all Activities, and new a target Activity. */
-                targetTask->popAll();
-            } else if (intent.mFlag & Intent::FLAG_ACTIVITY_CLEAR_TOP) {
-                record = targetTask->findActivity(activityInfo.name);
-                if (record) {
-                    isCreateActivity = false;
-                    targetTask->popToActivity(record);
-                }
-            } else if (intent.mFlag & Intent::FLAG_ACTIVITY_SINGLE_TOP) {
-                if (targetTask->getTopActivity()->mActivityName == activityInfo.name) {
-                    isCreateActivity = false;
-                }
+            const int pid = AppSpawn::appSpawn(packageInfo.execfile.c_str(), {packageName});
+            if (pid < 0) {
+                ALOGE("packagename:%s bin:%s startup failure", packageName.c_str(),
+                      packageInfo.execfile.c_str());
+                AM_PROFILER_END();
+                return android::OK;
+            } else {
+                auto appAttachTask = [this, packageName, targetTask, newActivity,
+                                      startFlag](const AppAttachTask::Event* e) {
+                    auto appRecord = std::make_shared<AppRecord>(e->mAppHandler, packageName,
+                                                                 e->mPid, e->mUid);
+                    this->mAppInfo.addAppInfo(appRecord);
+                    newActivity->setAppThread(appRecord);
+                    mTaskManager.pushNewActivity(targetTask, newActivity, startFlag);
+                };
+                mPendTask.commitTask(std::make_shared<AppAttachTask>(pid, appAttachTask));
             }
         }
-
-        mTaskManager.switchTaskToActive(targetTask);
     } else {
-        mTaskManager.pushActiveTask(targetTask);
+        /** if there is no need to create an Activity, caller/requestCode is invalid */
+        mTaskManager.turnToActivity(targetTask, targetActivity, intent, startFlag);
     }
 
-    if (isCreateActivity) {
-        sp<IBinder> token(new android::BBinder());
-        record = std::make_shared<ActivityRecord>(activityInfo.name, token, caller, requestCode,
-                                                  activityInfo.launchMode, app, targetTask,
-                                                  mWindowManager);
-        mActivityMap.emplace(token, record);
-        targetTask->pushActivity(record);
-        const auto startActivity = [this, record]() {
-            const auto resumeActivity = [this, record]() { record->resume(); };
-            mPendTask.commitTask(std::make_shared<ActivityReportStatusTask>(ActivityRecord::STARTED,
-                                                                            record->mToken,
-                                                                            resumeActivity));
-            record->start();
-        };
-        mPendTask.commitTask(std::make_shared<ActivityReportStatusTask>(ActivityRecord::CREATED,
-                                                                        token, startActivity));
-        record->create();
-    } else {
-        record->mIntent = intent;
-        const auto resumeActivityTask = [this, record]() { record->resume(); };
-        mPendTask.commitTask(std::make_shared<ActivityReportStatusTask>(ActivityRecord::STARTED,
-                                                                        record->mToken,
-                                                                        resumeActivityTask));
-        record->start();
-    }
-
-    return record;
+    AM_PROFILER_END();
+    return android::OK;
 }
 
 bool ActivityManagerInner::finishActivity(const sp<IBinder>& token, int32_t resultCode,
                                           const std::optional<Intent>& resultData) {
     AM_PROFILER_BEGIN();
-    auto currentActivity = getActivityRecord(token);
-    if (!currentActivity) {
+    auto activity = mTaskManager.getActivity(token);
+    if (!activity) {
         ALOGE("finishActivity: The token is invalid");
         AM_PROFILER_END();
         return false;
     }
-    ALOGD("finishActivity called by %s/%s", currentActivity->getPackageName()->c_str(),
-          currentActivity->mActivityName.c_str());
-    if (currentActivity->mStatus == ActivityRecord::RESUMED) {
-        currentActivity->pause();
+    ALOGD("finishActivity called by %s", activity->getName().c_str());
 
-        const auto task = [this, currentActivity, resultCode, resultData]() {
-            auto currentStack = currentActivity->mInTask.lock();
-            /** when last pasued, then set result to next */
-            const auto callActivity = getActivityRecord(currentActivity->mCaller);
-            if (currentActivity->mRequestCode != ActivityManager::NO_REQUEST &&
-                resultData.has_value() && callActivity) {
-                callActivity->onResult(currentActivity->mRequestCode, resultCode,
-                                       resultData.value());
-            }
-            currentStack->popActivity();
-            auto nextActivity = currentStack->getTopActivity();
-            if (!nextActivity) {
-                /** nextActivity is null, the ActivityStack should be
-                 * destroy */
-                mTaskManager.popFrontTask();
-                const auto activeTask = mTaskManager.getActiveTask();
-                nextActivity = activeTask->getTopActivity();
-            }
-
-            /*resume next Activity then stop last Activity*/
-            const auto destroyActivity = [this, currentActivity]() {
-                currentActivity->stop();
-                currentActivity->destroy();
-                // TODO when report destroy. delete it from mActivityMap
-            };
-            mPendTask.commitTask(std::make_shared<ActivityReportStatusTask>(ActivityRecord::RESUMED,
-                                                                            nextActivity->mToken,
-                                                                            destroyActivity));
-            const auto resumeActivityTask = [this, nextActivity]() { nextActivity->resume(); };
-            mPendTask.commitTask(std::make_shared<ActivityReportStatusTask>(ActivityRecord::STARTED,
-                                                                            nextActivity->mToken,
-                                                                            resumeActivityTask));
-            nextActivity->start();
-        };
-        const auto finishActivityTask =
-                std::make_shared<ActivityReportStatusTask>(ActivityRecord::PAUSED, token, task);
-
-        mPendTask.commitTask(finishActivityTask);
-    } else {
-        ALOGE("the Activity that being finished is inactive !!!");
-        currentActivity->stop();
-        currentActivity->destroy();
+    /** when last pasued, then set result to next */
+    const auto callActivity = mTaskManager.getActivity(activity->getCaller());
+    if (activity->getRequestCode() != ActivityManager::NO_REQUEST && resultData.has_value() &&
+        callActivity) {
+        callActivity->onResult(activity->getRequestCode(), resultCode, resultData.value());
     }
+
+    mTaskManager.finishActivity(activity);
+
     AM_PROFILER_END();
     return true;
 }
 
 void ActivityManagerInner::reportActivityStatus(const sp<IBinder>& token, int32_t status) {
     AM_PROFILER_BEGIN();
-    auto record = getActivityRecord(token);
-    if (!record) {
-        ALOGE("The reported token is invalid");
-        AM_PROFILER_END();
-        return;
-    }
-    ALOGD("reportActivityStatus %s/%s status:%s->%s", record->getPackageName()->c_str(),
-          record->mActivityName.c_str(), ActivityRecord::status2Str(record->mStatus),
-          ActivityRecord::status2Str(status));
-    switch (status) {
-        case ActivityRecord::CREATED:
-        case ActivityRecord::STARTED:
-        case ActivityRecord::RESUMED:
-        case ActivityRecord::PAUSED:
-        case ActivityRecord::STOPPED: {
-            break;
-        }
-        case ActivityRecord::DESTROYED: {
-            mActivityMap.erase(token);
-            if (auto appRecord = record->mApp.lock()) {
-                appRecord->checkActiveStatus();
-            }
-            ALOGI("delete activity record, token[%p]", token.get());
-        }
-        default:
-            break;
+    ALOGD("reportActivityStatus called by %s [%s]",
+          mTaskManager.getActivity(token)->getName().c_str(), ActivityRecord::statusToStr(status));
+
+    const ActivityLifeCycleTask::Event event((ActivityRecord::Status)status, token);
+    mPendTask.eventTrigger(event);
+
+    if (status == ActivityRecord::RESUMED) {
+        const ActivityWaitResume::Event event2(token);
+        mPendTask.eventTrigger(event2);
     }
 
-    record->mStatus = status;
-    const ActivityReportStatusTask::Event event(status, token);
-    mPendTask.eventTrigger(event);
     AM_PROFILER_END();
     return;
 }
@@ -587,7 +449,7 @@ void ActivityManagerInner::publishService(const sp<IBinder>& token,
     if (service) {
         service->mServiceBinder = serviceBinder;
     } else {
-        ALOGE("publishService error. the Service token[%p] isn't exist", token.get());
+        ALOGE("publishService error. the Service token[%p] does not exist", token.get());
     }
     AM_PROFILER_END();
 }
@@ -624,8 +486,9 @@ void ActivityManagerInner::reportServiceStatus(const sp<IBinder>& token, int32_t
         return;
     }
     ALOGD("reportServiceStatus %s/%s status:%s->%s", service->getPackageName()->c_str(),
-          service->mServiceName.c_str(), ServiceRecord::status2Str(service->mStatus),
-          ServiceRecord::status2Str(status));
+          service->mServiceName.c_str(), ServiceRecord::statusToStr(service->mStatus),
+          ServiceRecord::statusToStr(status));
+
     switch (status) {
         case ServiceRecord::CREATED:
         case ServiceRecord::STARTED:
@@ -727,8 +590,7 @@ void ActivityManagerInner::procAppTerminated(const std::shared_ptr<AppRecord>& a
     for (auto& it : appRecord->mExistActivity) {
         if (auto activityRecord = it.lock()) {
             activityRecord->abnormalExit();
-            mTaskManager.procAbnormalActivity(activityRecord);
-            mActivityMap.erase(activityRecord->mToken);
+            mTaskManager.deleteActivity(activityRecord);
         }
     }
 
@@ -740,14 +602,7 @@ void ActivityManagerInner::procAppTerminated(const std::shared_ptr<AppRecord>& a
     }
 
     auto topActivity = mTaskManager.getActiveTask()->getTopActivity();
-    if (topActivity->mStatus > ActivityRecord::RESUMED) {
-        if (topActivity->mStatus > ActivityRecord::STOPPING) {
-            topActivity->start();
-            topActivity->resume();
-        } else {
-            topActivity->resume();
-        }
-    }
+    mTaskManager.turnToActivity(topActivity->getTask(), topActivity, Intent(), 0);
 }
 
 void ActivityManagerInner::dump(int fd, const android::Vector<android::String16>& args) {
@@ -775,23 +630,25 @@ int ActivityManagerInner::startHomeActivity() {
             }
         }
         /** init Home ActivityStack task, the Home Activity will be pushed to this task */
-        mTaskManager.initHomeTask(std::make_shared<ActivityStack>(entryActivity.taskAffinity));
+        const auto homeTask = std::make_shared<ActivityStack>(entryActivity.taskAffinity);
+        auto newActivity =
+                std::make_shared<ActivityRecord>(packageName + "/" + activityName, nullptr,
+                                                 (int32_t)ActivityManager::NO_REQUEST,
+                                                 ActivityRecord::SINGLE_TASK, homeTask, Intent(),
+                                                 mWindowManager);
         const int pid = AppSpawn::appSpawn(homeApp.execfile.c_str(), {packageName});
         if (pid > 0) {
             auto task = std::make_shared<
                     AppAttachTask>(pid,
-                                   [this, packageName,
-                                    entryActivity](const AppAttachTask::Event* e) {
+                                   [this, packageName, homeTask,
+                                    newActivity](const AppAttachTask::Event* e) {
                                        auto appRecord =
                                                std::make_shared<AppRecord>(e->mAppHandler,
                                                                            packageName, e->mPid,
                                                                            e->mUid);
                                        this->mAppInfo.addAppInfo(appRecord);
-                                       Intent intent;
-                                       intent.setFlag(Intent::FLAG_ACTIVITY_NEW_TASK);
-                                       this->startActivityReal(appRecord, entryActivity, intent,
-                                                               sp<IBinder>(nullptr),
-                                                               ActivityManager::NO_REQUEST);
+                                       newActivity->setAppThread(appRecord);
+                                       this->mTaskManager.initHomeTask(homeTask, newActivity);
                                    });
             mPendTask.commitTask(task);
         } else {
@@ -804,15 +661,6 @@ int ActivityManagerInner::startHomeActivity() {
     }
 
     return android::OK;
-}
-
-ActivityHandler ActivityManagerInner::getActivityRecord(const sp<IBinder>& token) {
-    auto iter = mActivityMap.find(token);
-    if (iter != mActivityMap.end()) {
-        return iter->second;
-    } else {
-        return nullptr;
-    }
 }
 
 void getPackageAndComponentName(const string& target, string& packageName, string& componentName) {
