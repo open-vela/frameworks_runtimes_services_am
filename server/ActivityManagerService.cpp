@@ -422,11 +422,6 @@ int ActivityManagerInner::bindService(const sp<IBinder>& caller, const Intent& i
                 return android::BAD_VALUE;
             }
         }
-        const auto bindtask = [this, service, caller, intent, conn]() {
-            service->bind(caller, conn, intent);
-        };
-        mPendTask.commitTask(std::make_shared<ServiceReportStatusTask>(ServiceRecord::STARTED,
-                                                                       service->mToken, bindtask));
     } else {
         service->bind(caller, conn, intent);
     }
