@@ -132,6 +132,20 @@ int32_t ActivityManager::stopService(const Intent& intent) {
     return ret;
 }
 
+int32_t ActivityManager::stopServiceByToken(const sp<IBinder>& token) {
+    AM_PROFILER_BEGIN();
+    sp<IActivityManager> service = getService();
+    int32_t ret = android::FAILED_TRANSACTION;
+    if (service != nullptr) {
+        Status status = service->stopServiceByToken(token, &ret);
+        if (!status.isOk()) {
+            ALOGE("stopServiceByToken error:%s", status.toString8().c_str());
+        }
+    }
+    AM_PROFILER_END();
+    return ret;
+}
+
 void ActivityManager::reportServiceStatus(const sp<IBinder>& token, int32_t serviceStatus) {
     AM_PROFILER_BEGIN();
     sp<IActivityManager> service = getService();
