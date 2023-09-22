@@ -67,12 +67,16 @@ void ContextImpl::startActivityForResult(const Intent& intent, int32_t requestCo
     mAm.startActivity(mToken, intent, requestCode);
 }
 
-void ContextImpl::startService(const Intent& intent) {
-    mAm.startService(intent);
+int32_t ContextImpl::startService(const Intent& intent) {
+    return mAm.startService(intent);
 }
 
-void ContextImpl::stopService(const Intent& intent) {
-    mAm.stopService(intent);
+int32_t ContextImpl::stopService(const Intent& intent) {
+    return mAm.stopService(intent);
+}
+
+int32_t ContextImpl::stopService() {
+    return mAm.stopServiceByToken(mToken);
 }
 
 int ContextImpl::bindService(const Intent& intent, const sp<IServiceConnection>& conn) {

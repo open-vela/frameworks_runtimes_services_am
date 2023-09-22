@@ -59,9 +59,9 @@ interface IActivityManager {
     int stopService(in Intent intent);
 
     /**
-     * @param token: service token
+     * @param token: service token, use to stop self
      */
-    int stopServiceToken(IBinder token);
+    int stopServiceByToken(in IBinder token);
 
     /**
      * @param token: service token

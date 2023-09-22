@@ -43,8 +43,9 @@ public:
     virtual void startActivity(const Intent& intent) = 0;
     virtual void startActivityForResult(const Intent& intent, int32_t requestCode) = 0;
 
-    virtual void startService(const Intent& intent) = 0;
-    virtual void stopService(const Intent& intent) = 0;
+    virtual int32_t startService(const Intent& intent) = 0;
+    virtual int32_t stopService(const Intent& intent) = 0;
+    virtual int32_t stopService() = 0;
     virtual int bindService(const Intent& intent, const sp<IServiceConnection>& conn) = 0;
     virtual void unbindService(const sp<IServiceConnection>& conn) = 0;
 
@@ -72,10 +73,11 @@ public:
     void startActivity(const Intent& intent);
     void startActivityForResult(const Intent& intent, int32_t requestCode);
 
-    void startService(const Intent& intent);
-    void stopService(const Intent& intent);
-    int bindService(const Intent& intent, const sp<IServiceConnection>& conn);
-    void unbindService(const sp<IServiceConnection>& conn);
+    int32_t startService(const Intent& intent) override;
+    int32_t stopService(const Intent& intent) override;
+    int32_t stopService() override;
+    int bindService(const Intent& intent, const sp<IServiceConnection>& conn) override;
+    void unbindService(const sp<IServiceConnection>& conn) override;
 
     int32_t sendBroadcast(const Intent& intent) override;
     int32_t registerReceiver(const std::string& action,

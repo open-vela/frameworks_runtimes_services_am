@@ -59,7 +59,7 @@ public:
     void reportActivityStatus(const sp<IBinder>& token, int32_t status);
     int startService(const Intent& intent);
     int stopService(const Intent& intent);
-    int stopServiceToken(const sp<IBinder>& token);
+    int stopServiceByToken(const sp<IBinder>& token);
     void reportServiceStatus(const sp<IBinder>& token, int32_t status);
 
     int bindService(const sp<IBinder>& caller, const Intent& intent,
@@ -449,7 +449,7 @@ void ActivityManagerInner::publishService(const sp<IBinder>& token,
     AM_PROFILER_END();
 }
 
-int ActivityManagerInner::stopServiceToken(const sp<IBinder>& token) {
+int ActivityManagerInner::stopServiceByToken(const sp<IBinder>& token) {
     AM_PROFILER_BEGIN();
     auto service = mServices.getService(token);
     if (!service) {
@@ -458,7 +458,7 @@ int ActivityManagerInner::stopServiceToken(const sp<IBinder>& token) {
         AM_PROFILER_END();
         return android::DEAD_OBJECT;
     }
-    ALOGD("stopServiceToken. %s/%s", service->getPackageName()->c_str(),
+    ALOGD("stopServiceByToken. %s/%s", service->getPackageName()->c_str(),
           service->mServiceName.c_str());
     stopServiceReal(service);
     AM_PROFILER_END();
@@ -705,8 +705,8 @@ Status ActivityManagerService::stopService(const Intent& intent, int32_t* ret) {
     return Status::ok();
 }
 
-Status ActivityManagerService::stopServiceToken(const sp<IBinder>& token, int32_t* ret) {
-    *ret = mInner->stopServiceToken(token);
+Status ActivityManagerService::stopServiceByToken(const sp<IBinder>& token, int32_t* ret) {
+    *ret = mInner->stopServiceByToken(token);
     return Status::ok();
 }
 

@@ -62,12 +62,16 @@ void ContextWrapper::startActivityForResult(const Intent& intent, int32_t reques
     return mBase->startActivityForResult(intent, requestCode);
 }
 
-void ContextWrapper::startService(const Intent& intent) {
+int32_t ContextWrapper::startService(const Intent& intent) {
     return mBase->startService(intent);
 }
 
-void ContextWrapper::stopService(const Intent& intent) {
+int32_t ContextWrapper::stopService(const Intent& intent) {
     return mBase->stopService(intent);
+}
+
+int32_t ContextWrapper::stopService() {
+    return mBase->stopService();
 }
 
 int ContextWrapper::bindService(const Intent& intent, const sp<IServiceConnection>& conn) {

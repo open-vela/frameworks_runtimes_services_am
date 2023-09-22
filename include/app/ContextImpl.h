@@ -43,8 +43,10 @@ public:
 
     void startActivity(const Intent& intent) override;
     void startActivityForResult(const Intent& intent, int32_t requestCode) override;
-    void startService(const Intent& intent) override;
-    void stopService(const Intent& intent) override;
+
+    int32_t startService(const Intent& intent) override;
+    int32_t stopService(const Intent& intent) override;
+    int32_t stopService() override;
     int bindService(const Intent& intent, const sp<IServiceConnection>& conn) override;
     void unbindService(const sp<IServiceConnection>& conn) override;
 
