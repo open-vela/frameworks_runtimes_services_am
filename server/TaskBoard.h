@@ -96,7 +96,7 @@ enum TASK_LABEL {
     SERVICE_STATUS_END = 230,
 };
 
-#define REQUEST_TIMEOUT_MS 10000
+#define REQUEST_TIMEOUT_MS 50000
 /***************************************************************************/
 
 } // namespace am
