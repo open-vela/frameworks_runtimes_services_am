@@ -36,16 +36,22 @@ struct AppRecord {
     std::string mPackageName;
     int mPid;
     int mUid;
+    bool mIsForeground;
     std::vector<std::weak_ptr<ActivityRecord>> mExistActivity;
     std::vector<std::weak_ptr<ServiceRecord>> mExistService;
 
     AppRecord(sp<IApplicationThread> app, std::string packageName, int pid, int uid)
-          : mAppThread(app), mPackageName(packageName), mPid(pid), mUid(uid) {}
+          : mAppThread(app),
+            mPackageName(packageName),
+            mPid(pid),
+            mUid(uid),
+            mIsForeground(false) {}
 
     ActivityHandler checkActivity(const std::string& activityName);
     ServiceHandler checkService(const std::string& serviceName);
 
     void checkActiveStatus() const;
+    void setForeground(const bool isForeground);
 
     void addActivity(const std::shared_ptr<ActivityRecord>& activity);
     int deleteActivity(const std::shared_ptr<ActivityRecord>& activity);
