@@ -16,6 +16,8 @@
 
 #include "ActivityStack.h"
 
+#include "AppRecord.h"
+
 namespace os {
 namespace am {
 
@@ -57,6 +59,12 @@ ActivityHandler ActivityStack::findActivity(const sp<IBinder>& token) {
         }
     }
     return nullptr;
+}
+
+void ActivityStack::setForeground(const bool isForeground) {
+    for (const auto& it : mStack) {
+        (it->getAppRecord())->setForeground(isForeground);
+    }
 }
 
 std::ostream& operator<<(std::ostream& os, const ActivityStack& activityStack) {

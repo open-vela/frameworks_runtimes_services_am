@@ -34,5 +34,6 @@ oneway interface IApplicationThread {
                              in IServiceConnection connection);
     void scheduleUnbindService(in IBinder token);
 
+    void setForegroundApplication(boolean isForeground);
     void terminateApplication();
 }

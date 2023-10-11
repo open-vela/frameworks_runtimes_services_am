@@ -42,6 +42,7 @@ public:
     ActivityHandler getTopActivity();
     ActivityHandler findActivity(const std::string& activityName);
     ActivityHandler findActivity(const sp<IBinder>& token);
+    void setForeground(const bool isForeground);
 
     friend std::ostream& operator<<(std::ostream& os, const ActivityStack& obj);
 

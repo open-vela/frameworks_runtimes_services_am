@@ -38,6 +38,7 @@ void TaskStackManager::initHomeTask(const ActivityStackHandler& taskStack,
     mActivityMap.emplace(activity->getToken(), activity);
     activity->create();
     ActivityLifecycleTransition(activity, ActivityRecord::RESUMED);
+    mHomeTask->setForeground(true);
 }
 
 void TaskStackManager::switchTaskToActive(const ActivityStackHandler& targetStack,
@@ -244,6 +245,15 @@ void TaskStackManager::pushTaskToFront(const ActivityStackHandler& activityStack
     if (activityStack != mAllTasks.front()) {
         mAllTasks.remove(activityStack);
         mAllTasks.push_front(activityStack);
+    }
+
+    /** TaskStack switching, modifies foreground and background applications */
+    if (activityStack != mHomeTask) {
+        activityStack->setForeground(true);
+    } else {
+        for (auto iter = ++mAllTasks.begin(); iter != mAllTasks.end(); ++iter) {
+            (*iter)->setForeground(false);
+        }
     }
 }
 

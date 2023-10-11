@@ -70,6 +70,7 @@ public:
                                const Intent& intent, const sp<IServiceConnection>& serviceBinder);
     Status scheduleUnbindService(const sp<IBinder>& token);
 
+    Status setForegroundApplication(bool isForeground);
     Status terminateApplication();
 
 private:
@@ -224,6 +225,18 @@ Status ApplicationThreadStub::scheduleStartService(const string& serviceName,
 Status ApplicationThreadStub::scheduleStopService(const sp<IBinder>& token) {
     ALOGD("scheduleStopService package:%s token[%p]", mApp->getPackageName().c_str(), token.get());
     mApp->getMainLoop()->postTask([this, token] { this->onStopService(token); });
+    return Status::ok();
+}
+
+Status ApplicationThreadStub::setForegroundApplication(bool isForeground) {
+    ALOGD("setForegroundApplication package:%s %s", mApp->getPackageName().c_str(),
+          isForeground ? "true" : "false");
+    if (isForeground) {
+        mApp->onForeground();
+    } else {
+        mApp->onBackground();
+    }
+
     return Status::ok();
 }
 
