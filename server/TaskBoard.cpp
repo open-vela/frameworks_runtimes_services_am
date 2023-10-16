@@ -24,7 +24,7 @@ TaskBoard::TaskBoard() : mLooper(Looper::getForThread()) {}
 void TaskBoard::commitTask(const std::shared_ptr<Task>& task, uint32_t msLimitedTime) {
     const auto taskHandler = sp<TaskMsgHandler>::make(task);
     if (msLimitedTime < UINT_MAX) {
-        mLooper->sendMessageDelayed(msLimitedTime * 1000000, taskHandler, Message());
+        mLooper->sendMessageDelayed(milliseconds_to_nanoseconds(msLimitedTime), taskHandler, Message());
     }
     mTasklist.emplace_back(taskHandler);
 }
