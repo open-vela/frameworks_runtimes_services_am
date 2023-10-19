@@ -77,6 +77,8 @@ private:
 class UvLoop {
 public:
     UvLoop(bool useDefault = false);
+    /** use exist uvloop */
+    UvLoop(uv_loop_t* loop);
 
     using TaskCB = std::function<void()>;
     struct MsgCB {
@@ -155,20 +157,28 @@ private:
 
 class UvTimer {
 public:
-    UvTimer() {}
+    UvTimer() {
+        mHandle = new uv_timer_t;
+    }
     UvTimer(const UvLoop& loop, const UV_CALLBACK& cb) {
+        mHandle = new uv_timer_t;
         init(loop, cb);
     }
+    ~UvTimer() {
+        uv_close((uv_handle_t*)mHandle,
+                 [](uv_handle_t* handler) { delete reinterpret_cast<uv_timer_t*>(handler); });
+    }
+
     int init(const UvLoop& loop, const UV_CALLBACK& cb) {
         mCallback = cb;
-        mHandle.data = this;
-        return uv_timer_init(loop.get(), &mHandle);
+        mHandle->data = this;
+        return uv_timer_init(loop.get(), mHandle);
     }
 
     int start(int64_t timeout, int64_t repeat = 0, void* data = nullptr) {
         mData = data;
         return uv_timer_start(
-                &mHandle,
+                mHandle,
                 [](uv_timer_t* handle) {
                     UvTimer* my = reinterpret_cast<UvTimer*>(handle->data);
                     my->mCallback(my->mData);
@@ -177,15 +187,15 @@ public:
     }
 
     int stop() {
-        return uv_timer_stop(&mHandle);
+        return uv_timer_stop(mHandle);
     }
 
     int again() {
-        return uv_timer_again(&mHandle);
+        return uv_timer_again(mHandle);
     }
 
 private:
-    uv_timer_t mHandle;
+    uv_timer_t* mHandle;
     UV_CALLBACK mCallback;
     void* mData;
 };
