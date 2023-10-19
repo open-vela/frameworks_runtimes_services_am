@@ -35,6 +35,7 @@
 #include "TaskBoard.h"
 #include "TaskStackManager.h"
 #include "app/ActivityManager.h"
+#include "app/UvLoop.h"
 
 namespace os {
 namespace am {
@@ -50,7 +51,7 @@ void getPackageAndComponentName(const string& target, string& packageName, strin
 
 class ActivityManagerInner {
 public:
-    ActivityManagerInner();
+    ActivityManagerInner(uv_loop_t* looper);
 
     int attachApplication(const sp<IApplicationThread>& app);
     int startActivity(const sp<IBinder>& token, const Intent& intent, int32_t requestCode);
@@ -85,17 +86,21 @@ private:
     int startHomeActivity();
 
 private:
+    std::shared_ptr<UvLoop> mLooper;
+    TaskBoard mPendTask;
     ServiceList mServices;
     AppInfoList mAppInfo;
     TaskStackManager mTaskManager;
     IntentAction mActionFilter;
-    TaskBoard mPendTask;
     PackageManager mPm;
     sp<::os::wm::IWindowManager> mWindowManager;
     map<string, list<sp<IBroadcastReceiver>>> mReceivers; /** Broadcast */
 };
 
-ActivityManagerInner::ActivityManagerInner() : mTaskManager(mPendTask) {}
+ActivityManagerInner::ActivityManagerInner(uv_loop_t* looper) : mTaskManager(mPendTask) {
+    mLooper = std::make_shared<UvLoop>(looper);
+    mPendTask.attachLoop(mLooper);
+}
 
 int ActivityManagerInner::attachApplication(const sp<IApplicationThread>& app) {
     AM_PROFILER_BEGIN();
@@ -665,8 +670,8 @@ void getPackageAndComponentName(const string& target, string& packageName, strin
             std::move(pos == std::string::npos ? "" : target.substr(pos + 1, std::string::npos));
 }
 
-ActivityManagerService::ActivityManagerService() {
-    mInner = new ActivityManagerInner();
+ActivityManagerService::ActivityManagerService(uv_loop_t* looper) {
+    mInner = new ActivityManagerInner(looper);
 }
 
 ActivityManagerService::~ActivityManagerService() {

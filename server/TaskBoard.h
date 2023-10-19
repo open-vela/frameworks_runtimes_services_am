@@ -17,19 +17,18 @@
 #pragma once
 
 #include <binder/IBinder.h>
-#include <utils/Looper.h>
 
 #include <climits>
 #include <list>
 #include <memory>
 
+#include "app/UvLoop.h"
+
 namespace os {
 namespace am {
 
-using android::Looper;
-using android::Message;
-using android::MessageHandler;
-using android::sp;
+using os::app::UvLoop;
+using os::app::UvTimer;
 
 struct Label {
     int mId;
@@ -53,12 +52,27 @@ public:
     }
 };
 
-class TaskMsgHandler : public MessageHandler {
+class TaskMsgHandler {
 public:
-    TaskMsgHandler(const std::shared_ptr<Task>& task) : mTask(task), mIsDone(false) {}
-    void handleMessage(const Message& message) {
-        mIsDone = true;
-        mTask->timeout();
+    TaskMsgHandler(const std::shared_ptr<Task>& task)
+          : mTask(task), mIsDone(false), mTimer(nullptr) {}
+
+    void startTimer(UvLoop& loop, uint32_t msTimeout) {
+        mTimer = new UvTimer();
+        mTimer->init(loop, [this](void*) {
+            if (!mIsDone) {
+                mIsDone = true;
+                mTask->timeout();
+            }
+        });
+        mTimer->start(msTimeout);
+    }
+    void stopTimer() {
+        if (mTimer) {
+            mTimer->stop();
+            delete mTimer;
+            mTimer = nullptr;
+        }
     }
     Task* getTask() const {
         return mTask.get();
@@ -74,17 +88,19 @@ public:
 private:
     std::shared_ptr<Task> mTask;
     bool mIsDone;
+    UvTimer* mTimer;
 };
 
 class TaskBoard {
 public:
     TaskBoard();
+    void attachLoop(const std::shared_ptr<UvLoop>& looper);
     void commitTask(const std::shared_ptr<Task>& task, uint32_t msLimitedTime = UINT_MAX);
     void eventTrigger(const Label& e);
 
 private:
-    std::list<sp<TaskMsgHandler>> mTasklist;
-    sp<Looper> mLooper;
+    std::list<std::shared_ptr<TaskMsgHandler>> mTasklist;
+    std::shared_ptr<UvLoop> mLooper;
 };
 
 /**************************** label signature ******************************/

@@ -32,6 +32,8 @@ UvLoop::UvLoop(bool useDefault)
     mMsgHandler.attachLoop(this->get());
 }
 
+UvLoop::UvLoop(uv_loop_t* loop) : mIsDefaultLoop(true), mLooper(loop, [](uv_loop_t*) {}) {}
+
 uv_loop_t* UvLoop::get() const {
     return mLooper.get();
 }

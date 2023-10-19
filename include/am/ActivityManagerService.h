@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <uv.h>
+
 #include <optional>
 #include <string>
 
@@ -38,7 +40,7 @@ class ActivityManagerInner;
 
 class ActivityManagerService : public os::am::BnActivityManager {
 public:
-    ActivityManagerService();
+    ActivityManagerService(uv_loop_t* looper);
     ~ActivityManagerService();
 
     /***binder api***/

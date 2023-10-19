@@ -19,12 +19,16 @@
 namespace os {
 namespace am {
 
-TaskBoard::TaskBoard() : mLooper(Looper::getForThread()) {}
+TaskBoard::TaskBoard() {}
+
+void TaskBoard::attachLoop(const std::shared_ptr<UvLoop>& looper) {
+    mLooper = looper;
+}
 
 void TaskBoard::commitTask(const std::shared_ptr<Task>& task, uint32_t msLimitedTime) {
-    const auto taskHandler = sp<TaskMsgHandler>::make(task);
+    const auto taskHandler = std::make_shared<TaskMsgHandler>(task);
     if (msLimitedTime < UINT_MAX) {
-        mLooper->sendMessageDelayed(milliseconds_to_nanoseconds(msLimitedTime), taskHandler, Message());
+        taskHandler->startTimer(*(mLooper.get()), msLimitedTime);
     }
     mTasklist.emplace_back(taskHandler);
 }
@@ -33,6 +37,7 @@ void TaskBoard::eventTrigger(const Label& e) {
     for (auto iter = mTasklist.begin(); iter != mTasklist.end();) {
         if ((*iter)->isDone()) {
             /** This situation is handled by timeout. need delete it*/
+            (*iter)->stopTimer();
             auto tmp = iter;
             ++iter;
             mTasklist.erase(tmp);
@@ -41,8 +46,7 @@ void TaskBoard::eventTrigger(const Label& e) {
         if (*((*iter)->getTask()) == e) {
             (*iter)->doing(e);
             // execute finish,
-            // remove it from looper
-            mLooper->removeMessages(*iter);
+            (*iter)->stopTimer();
             // remove it from list
             mTasklist.erase(iter);
             break;
