@@ -95,10 +95,14 @@ void TaskStackManager::turnToActivity(const ActivityStackHandler& targetStack,
         currentTopActivity->setStatus(ActivityRecord::PAUSED);
         ActivityLifecycleTransition(currentTopActivity, ActivityRecord::RESUMED);
     } else {
+        currentTopActivity->pause();
         if (startFlag & Intent::FLAG_ACTIVITY_CLEAR_TOP) {
             while (auto tmpActivity = targetStack->getTopActivity()) {
                 if (tmpActivity == activity) {
                     break;
+                }
+                if (targetStack == getActiveTask()) {
+                    currentTopActivity->stop();
                 }
                 ActivityLifecycleTransition(tmpActivity, ActivityRecord::DESTROYED);
                 targetStack->popActivity();
@@ -107,8 +111,11 @@ void TaskStackManager::turnToActivity(const ActivityStackHandler& targetStack,
         activity->setIntent(intent);
         ActivityLifecycleTransition(activity, ActivityRecord::RESUMED);
 
-        const auto task = std::make_shared<ActivityWaitResume>(activity, currentTopActivity, this);
-        mPendTask.commitTask(task, REQUEST_TIMEOUT_MS);
+        if (targetStack != getActiveTask()) {
+            const auto task =
+                    std::make_shared<ActivityWaitResume>(activity, currentTopActivity, this);
+            mPendTask.commitTask(task, REQUEST_TIMEOUT_MS);
+        }
 
         pushTaskToFront(targetStack);
     }
