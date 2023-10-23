@@ -106,7 +106,7 @@ int ActivityManagerInner::attachApplication(const sp<IApplicationThread>& app) {
     AM_PROFILER_BEGIN();
     const int callerPid = android::IPCThreadState::self()->getCallingPid();
     const auto appRecord = mAppInfo.findAppInfo(callerPid);
-    ALOGD("attachApplication. pid:%d appRecord:[%p]", callerPid, appRecord.get());
+    ALOGI("attachApplication. pid:%d appRecord:[%p]", callerPid, appRecord.get());
     if (appRecord) {
         ALOGE("the application:%s had be attached", appRecord->mPackageName.c_str());
         AM_PROFILER_END();
@@ -265,7 +265,7 @@ bool ActivityManagerInner::finishActivity(const sp<IBinder>& token, int32_t resu
         AM_PROFILER_END();
         return false;
     }
-    ALOGD("finishActivity called by %s", activity->getName().c_str());
+    ALOGI("finishActivity called by %s", activity->getName().c_str());
 
     /** when last pasued, then set result to next */
     const auto callActivity = mTaskManager.getActivity(activity->getCaller());
@@ -282,7 +282,7 @@ bool ActivityManagerInner::finishActivity(const sp<IBinder>& token, int32_t resu
 
 void ActivityManagerInner::reportActivityStatus(const sp<IBinder>& token, int32_t status) {
     AM_PROFILER_BEGIN();
-    ALOGD("reportActivityStatus called by %s [%s]",
+    ALOGI("reportActivityStatus called by %s [%s]",
           mTaskManager.getActivity(token)->getName().c_str(), ActivityRecord::statusToStr(status));
 
     const ActivityLifeCycleTask::Event event((ActivityRecord::Status)status, token);
@@ -315,8 +315,7 @@ int ActivityManagerInner::startService(const Intent& intent) {
         AM_PROFILER_END();
         return android::BAD_VALUE;
     }
-
-    ALOGD("start service:%s/%s", packageName.c_str(), serviceName.c_str());
+    ALOGI("start service:%s/%s", packageName.c_str(), serviceName.c_str());
 
     auto service = mServices.findService(packageName, serviceName);
     if (service) {
@@ -367,7 +366,7 @@ int ActivityManagerInner::stopService(const Intent& intent) {
         getPackageAndComponentName(intent.mTarget, packageName, serviceName);
     }
 
-    ALOGD("stop service:%s/%s", packageName.c_str(), serviceName.c_str());
+    ALOGI("stop service:%s/%s", packageName.c_str(), serviceName.c_str());
 
     auto service = mServices.findService(packageName, serviceName);
     if (!service) {
@@ -394,7 +393,7 @@ int ActivityManagerInner::bindService(const sp<IBinder>& caller, const Intent& i
         getPackageAndComponentName(intent.mTarget, packageName, serviceName);
     }
 
-    ALOGD("bind service:%s/%s connection[%p]", packageName.c_str(), serviceName.c_str(),
+    ALOGI("bind service:%s/%s connection[%p]", packageName.c_str(), serviceName.c_str(),
           conn.get());
 
     auto service = mServices.findService(packageName, serviceName);
@@ -436,7 +435,7 @@ int ActivityManagerInner::bindService(const sp<IBinder>& caller, const Intent& i
 
 void ActivityManagerInner::unbindService(const sp<IServiceConnection>& conn) {
     AM_PROFILER_BEGIN();
-    ALOGD("unbindService connection[%p]", conn.get());
+    ALOGI("unbindService connection[%p]", conn.get());
     mServices.unbindConnection(conn);
     AM_PROFILER_END();
     return;
@@ -445,6 +444,7 @@ void ActivityManagerInner::unbindService(const sp<IServiceConnection>& conn) {
 void ActivityManagerInner::publishService(const sp<IBinder>& token,
                                           const sp<IBinder>& serviceBinder) {
     AM_PROFILER_BEGIN();
+    ALOGI("publishService service[%p]", token.get());
     auto service = mServices.getService(token);
     if (service) {
         service->mServiceBinder = serviceBinder;
@@ -463,7 +463,7 @@ int ActivityManagerInner::stopServiceByToken(const sp<IBinder>& token) {
         AM_PROFILER_END();
         return android::DEAD_OBJECT;
     }
-    ALOGD("stopServiceByToken. %s/%s", service->getPackageName()->c_str(),
+    ALOGI("stopServiceByToken. %s/%s", service->getPackageName()->c_str(),
           service->mServiceName.c_str());
     stopServiceReal(service);
     AM_PROFILER_END();
@@ -471,7 +471,7 @@ int ActivityManagerInner::stopServiceByToken(const sp<IBinder>& token) {
 }
 
 void ActivityManagerInner::stopServiceReal(ServiceHandler& service) {
-    ALOGI("stopService %s/%s", service->getPackageName()->c_str(), service->mServiceName.c_str());
+    ALOGD("stopService %s/%s", service->getPackageName()->c_str(), service->mServiceName.c_str());
     if (service->mStatus < ServiceRecord::DESTROYING) {
         service->stop();
     }
@@ -485,7 +485,7 @@ void ActivityManagerInner::reportServiceStatus(const sp<IBinder>& token, int32_t
         AM_PROFILER_END();
         return;
     }
-    ALOGD("reportServiceStatus %s/%s status:%s->%s", service->getPackageName()->c_str(),
+    ALOGI("reportServiceStatus %s/%s status:%s->%s", service->getPackageName()->c_str(),
           service->mServiceName.c_str(), ServiceRecord::statusToStr(service->mStatus),
           ServiceRecord::statusToStr(status));
 
@@ -518,7 +518,7 @@ void ActivityManagerInner::reportServiceStatus(const sp<IBinder>& token, int32_t
 }
 
 int32_t ActivityManagerInner::sendBroadcast(const Intent& intent) {
-    ALOGD("sendBroadcast:%s", intent.mAction.c_str());
+    ALOGI("sendBroadcast:%s", intent.mAction.c_str());
     auto receivers = mReceivers.find(intent.mAction);
     if (receivers != mReceivers.end()) {
         for (auto& receiver : receivers->second) {
@@ -530,7 +530,7 @@ int32_t ActivityManagerInner::sendBroadcast(const Intent& intent) {
 
 int32_t ActivityManagerInner::registerReceiver(const std::string& action,
                                                const sp<IBroadcastReceiver>& receiver) {
-    ALOGD("registerReceiver:%s", action.c_str());
+    ALOGI("registerReceiver:%s", action.c_str());
     auto receivers = mReceivers.find(action);
     if (receivers != mReceivers.end()) {
         receivers->second.emplace_back(receiver);
@@ -545,7 +545,7 @@ int32_t ActivityManagerInner::registerReceiver(const std::string& action,
 }
 
 void ActivityManagerInner::unregisterReceiver(const sp<IBroadcastReceiver>& receiver) {
-    ALOGD("unregisterReceiver");
+    ALOGI("unregisterReceiver");
     for (auto& pair : mReceivers) {
         for (auto it = pair.second.begin(); it != pair.second.end(); ++it) {
             if (android::IInterface::asBinder(*it) == android::IInterface::asBinder(receiver)) {
