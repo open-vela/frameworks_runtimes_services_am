@@ -43,6 +43,7 @@ public:
     };
 
     void reportActivityStatus(const int32_t status);
+    int32_t getStatus();
     void onActivityResult(const int requestCode, const int resultCode, const Intent& resultData);
 
     int onCreate(const Intent& intent);

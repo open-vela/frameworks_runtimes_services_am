@@ -20,6 +20,7 @@
 #include <unistd.h>
 #include <utils/Log.h>
 
+#include "ActivityClientRecord.h"
 #include "ServiceClientRecord.h"
 #include "app/ActivityManager.h"
 
@@ -111,6 +112,22 @@ void Application::deleteService(const sp<IBinder>& token) {
             mExistServices.pop_back();
         }
     }
+}
+
+void Application::clearActivityAndService() {
+    for (auto it : mExistActivities) {
+        if ((it.second)->getStatus() < ActivityClientRecord::DESTROYING) {
+            it.second->onDestroy();
+        }
+    }
+    mExistServices.clear();
+
+    for (auto it : mExistServices) {
+        if (it->getStatus() < ServiceClientRecord::DESTROYING) {
+            it->onDestroy();
+        }
+    }
+    mExistServices.clear();
 }
 
 } // namespace app

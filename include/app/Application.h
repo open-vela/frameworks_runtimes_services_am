@@ -87,6 +87,8 @@ private:
     std::shared_ptr<ServiceClientRecord> findService(const sp<IBinder>& token);
     void deleteService(const sp<IBinder>& token);
 
+    void clearActivityAndService();
+
 private:
     map<sp<IBinder>, std::shared_ptr<ActivityClientRecord>> mExistActivities;
     vector<std::shared_ptr<ServiceClientRecord>> mExistServices;

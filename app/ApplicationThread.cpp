@@ -243,6 +243,7 @@ Status ApplicationThreadStub::setForegroundApplication(bool isForeground) {
 Status ApplicationThreadStub::terminateApplication() {
     ALOGW("terminateApplication package:%s", mApp->getPackageName().c_str());
     mApp->getMainLoop()->postTask([this] {
+        mApp->clearActivityAndService();
         mApp->onDestroy();
         mApp->getMainLoop()->stop();
     });
