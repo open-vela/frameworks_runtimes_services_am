@@ -32,6 +32,10 @@ void ActivityClientRecord::reportActivityStatus(const int32_t status) {
     mActivity->getActivityManager().reportActivityStatus(mActivity->getToken(), status);
 }
 
+int32_t ActivityClientRecord::getStatus() {
+    return mStatus;
+}
+
 void ActivityClientRecord::onActivityResult(const int requestCode, const int resultCode,
                                             const Intent& resultData) {
     mActivity->onActivityResult(requestCode, resultCode, resultData);
