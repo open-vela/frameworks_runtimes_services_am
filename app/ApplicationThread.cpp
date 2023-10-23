@@ -132,7 +132,7 @@ int ApplicationThread::mainRun(int argc, char** argv) {
     }
 
     run();
-    ALOGI("Application[%s]:%s has been stop!!!", argv[0], argv[1]);
+    ALOGI("Application[%s]:%s has been stopped!!!", argv[0], argv[1]);
     return 0;
 }
 
@@ -241,7 +241,7 @@ Status ApplicationThreadStub::setForegroundApplication(bool isForeground) {
 }
 
 Status ApplicationThreadStub::terminateApplication() {
-    ALOGD("terminateApplication package:%s", mApp->getPackageName().c_str());
+    ALOGW("terminateApplication package:%s", mApp->getPackageName().c_str());
     mApp->getMainLoop()->postTask([this] {
         mApp->onDestroy();
         mApp->getMainLoop()->stop();
