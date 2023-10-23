@@ -52,6 +52,7 @@ public:
 
     void reportServiceStatus(const int32_t status);
     const sp<IBinder>& getToken();
+    int32_t getStatus();
 
 private:
     string mServiceName;

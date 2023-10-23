@@ -36,6 +36,10 @@ const sp<IBinder>& ServiceClientRecord::getToken() {
     return mService->getToken();
 }
 
+int32_t ServiceClientRecord::getStatus() {
+    return mStatus;
+}
+
 void ServiceClientRecord::onStart(const Intent& intent) {
     if (mStatus == CREATING) {
         ALOGD("Service onCreate: %s[%p]", mServiceName.c_str(), mService->getToken().get());
