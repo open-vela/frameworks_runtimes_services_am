@@ -86,6 +86,13 @@ int AmCommand::startActivity() {
     return mAm.startActivity(token, intent, -1);
 }
 
+int AmCommand::stopActivity() {
+    Intent intent;
+    makeIntent(intent);
+    /** It's a little trick to use flag for resultcode */
+    return mAm.stopActivity(intent, intent.mFlag);
+}
+
 int AmCommand::startService() {
     Intent intent;
     makeIntent(intent);
@@ -117,6 +124,9 @@ int AmCommand::run(int argc, char *argv[]) {
     if ("start" == subCommand) {
         return startActivity();
     }
+    if ("stop" == subCommand) {
+        return stopActivity();
+    }
     if ("startservice" == subCommand) {
         return startService();
     }
@@ -132,7 +142,8 @@ int AmCommand::run(int argc, char *argv[]) {
 
 int AmCommand::showUsage() {
     printf("usage: am [subcommand] [options]\n\n");
-    printf(" start <INTENT >\n");
+    printf(" start <INTENT>\t start Activity\n");
+    printf(" stop  <INTENT>\t stop  Activity\n");
     printf(" startservice <INTENT>\n");
     printf(" stopservice  <INTENT>\n");
     printf(" dump  :show all Activity task\n");
