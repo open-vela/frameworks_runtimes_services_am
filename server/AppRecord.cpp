@@ -86,6 +86,10 @@ void AppRecord::checkActiveStatus() const {
     }
 }
 
+void AppRecord::stopApplication() const {
+    mAppThread->terminateApplication();
+}
+
 const shared_ptr<AppRecord> AppInfoList::findAppInfo(const int pid) {
     const int size = mAppList.size();
     for (int i = 0; i < size; ++i) {

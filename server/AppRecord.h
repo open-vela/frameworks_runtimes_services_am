@@ -51,6 +51,7 @@ struct AppRecord {
     ServiceHandler checkService(const std::string& serviceName);
 
     void checkActiveStatus() const;
+    void stopApplication() const;
     void setForeground(const bool isForeground);
 
     void addActivity(const std::shared_ptr<ActivityRecord>& activity);

@@ -55,6 +55,7 @@ public:
 
     int attachApplication(const sp<IApplicationThread>& app);
     int startActivity(const sp<IBinder>& token, const Intent& intent, int32_t requestCode);
+    int stopActivity(const Intent& intent, int32_t resultCode);
     bool finishActivity(const sp<IBinder>& token, int32_t resultCode,
                         const std::optional<Intent>& resultData);
     void reportActivityStatus(const sp<IBinder>& token, int32_t status);
@@ -254,6 +255,46 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
 
     AM_PROFILER_END();
     return android::OK;
+}
+
+int ActivityManagerInner::stopActivity(const Intent& intent, int32_t resultCode) {
+    AM_PROFILER_BEGIN();
+    ALOGI("stopActivity, target:%s", intent.mTarget.c_str());
+    int ret = android::OK;
+
+    if (intent.mTarget.empty()) {
+        ALOGW("stopActivity: The target is null");
+        ret = android::BAD_VALUE;
+    } else {
+        string packageName;
+        string activityName;
+        getPackageAndComponentName(intent.mTarget, packageName, activityName);
+
+        ActivityHandler activity;
+        auto appinfo = mAppInfo.findAppInfo(packageName);
+        if (appinfo) {
+            if (activityName.empty()) {
+                appinfo->stopApplication();
+            } else {
+                activity = appinfo->checkActivity(intent.mTarget);
+                if (activity) {
+                    const auto callActivity = mTaskManager.getActivity(activity->getCaller());
+                    if (activity->getRequestCode() != ActivityManager::NO_REQUEST && callActivity) {
+                        callActivity->onResult(activity->getRequestCode(), resultCode, intent);
+                    }
+                    mTaskManager.finishActivity(activity);
+                }
+            }
+        }
+
+        if (!activity) {
+            ALOGW("The Activity:%s is non-existent", intent.mTarget.c_str());
+            ret = android::BAD_VALUE;
+        }
+    }
+
+    AM_PROFILER_END();
+    return ret;
 }
 
 bool ActivityManagerInner::finishActivity(const sp<IBinder>& token, int32_t resultCode,
@@ -698,6 +739,12 @@ Status ActivityManagerService::attachApplication(const sp<IApplicationThread>& a
 Status ActivityManagerService::startActivity(const sp<IBinder>& token, const Intent& intent,
                                              int32_t requestCode, int32_t* ret) {
     *ret = mInner->startActivity(token, intent, requestCode);
+    return Status::ok();
+}
+
+Status ActivityManagerService::stopActivity(const Intent& intent, int32_t resultCode,
+                                            int32_t* ret) {
+    *ret = mInner->stopActivity(intent, resultCode);
     return Status::ok();
 }
 

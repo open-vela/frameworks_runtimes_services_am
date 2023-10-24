@@ -35,6 +35,13 @@ interface IActivityManager {
     int startActivity(in IBinder token, in Intent intent, int requestCode);
 
     /**
+     * @brief Stop Activity by Intent, Usually used for debugging.
+     * @param intent: Target activity and data
+     * @param requestCode: Request code for target activity.
+     */
+    int stopActivity(in Intent intent, int resultCode);
+
+    /**
      * @brief Activity finish self and send result.
      * @param token: the Activity will be finish.
      * @param resultCode: Description of the result state.
