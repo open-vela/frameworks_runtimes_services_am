@@ -587,19 +587,31 @@ void ActivityManagerInner::systemReady() {
 
 void ActivityManagerInner::procAppTerminated(const std::shared_ptr<AppRecord>& appRecord) {
     /** All activity needs to be destroyed from the stack */
-    for (auto& it : appRecord->mExistActivity) {
+    std::vector<std::weak_ptr<ActivityRecord>> needDeleteActivity;
+    needDeleteActivity.swap(appRecord->mExistActivity);
+    /** First mark all Destroy Activity. */
+    for (auto& it : needDeleteActivity) {
         if (auto activityRecord = it.lock()) {
             activityRecord->abnormalExit();
+        }
+    }
+    /** Remove from task stack */
+    for (auto& it : needDeleteActivity) {
+        if (auto activityRecord = it.lock()) {
             mTaskManager.deleteActivity(activityRecord);
         }
     }
+    needDeleteActivity.clear();
 
-    for (auto& it : appRecord->mExistService) {
+    std::vector<std::weak_ptr<ServiceRecord>> needDeleteService;
+    needDeleteService.swap(appRecord->mExistService);
+    for (auto& it : needDeleteService) {
         if (auto serviceRecord = it.lock()) {
             serviceRecord->abnormalExit();
             mServices.deleteService(serviceRecord->mToken);
         }
     }
+    needDeleteService.clear();
 
     auto topActivity = mTaskManager.getActiveTask()->getTopActivity();
     mTaskManager.turnToActivity(topActivity->getTask(), topActivity, Intent(), 0);
