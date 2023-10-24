@@ -37,6 +37,7 @@ private:
     int makeIntent(Intent& intent);
 
     int startActivity();
+    int stopActivity();
     int startService();
     int stopService();
     int dump();
