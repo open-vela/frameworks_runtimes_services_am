@@ -48,6 +48,7 @@ public:
 
     Status startActivity(const sp<IBinder>& token, const Intent& intent, int32_t code,
                          int32_t* ret) override;
+    Status stopActivity(const Intent& intent, int32_t resultCode, int32_t* ret) override;
     Status finishActivity(const sp<IBinder>& token, int32_t resultCode,
                           const std::optional<Intent>& resultData, bool* ret) override;
     Status reportActivityStatus(const sp<IBinder>& token, int32_t status) override;
