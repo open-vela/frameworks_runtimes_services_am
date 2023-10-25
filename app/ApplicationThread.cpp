@@ -123,7 +123,7 @@ int ApplicationThread::mainRun(int argc, char** argv) {
 
     android::sp<ApplicationThreadStub> appThread(new ApplicationThreadStub);
     mApp->setPackageName(argv[1]);
-    mApp->onCreate();
+    mApp->onCreate(); /** Application create here */
     appThread->bind(mApp);
 
     ActivityManager am;
@@ -132,6 +132,9 @@ int ApplicationThread::mainRun(int argc, char** argv) {
     }
 
     run();
+
+    close();
+    mApp->onDestroy(); /** Application destroy here */
     ALOGI("Application[%s]:%s has been stopped!!!", argv[0], argv[1]);
     return 0;
 }
@@ -244,7 +247,6 @@ Status ApplicationThreadStub::terminateApplication() {
     ALOGW("terminateApplication package:%s", mApp->getPackageName().c_str());
     mApp->getMainLoop()->postTask([this] {
         mApp->clearActivityAndService();
-        mApp->onDestroy();
         mApp->getMainLoop()->stop();
     });
     return Status::ok();
