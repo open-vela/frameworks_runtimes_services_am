@@ -59,6 +59,7 @@ int ActivityClientRecord::onStart(const Intent& intent) {
         mActivity->setIntent(intent);
         ALOGD("Activity onNewIntent: %s[%p]", mActivityName.c_str(), mActivity->getToken().get());
         mActivity->onNewIntent(intent);
+        mActivity->onRestart();
     }
 
     mActivity->performStart();
