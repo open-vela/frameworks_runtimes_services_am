@@ -169,6 +169,7 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
     for (const auto& it : packageInfo.activitiesInfo) {
         if (it.name == activityName) {
             launchMode = ActivityRecord::launchModeToInt(it.launchMode);
+            taskAffinity = it.taskAffinity;
         }
     }
     /** Entry Activity taskAffinity can only be packagename */
