@@ -142,7 +142,7 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
     string activityName;
     string taskAffinity;
     ActivityRecord::LaunchMode launchMode;
-    getPackageAndComponentName(intent.mTarget, packageName, activityName);
+    getPackageAndComponentName(activityTarget, packageName, activityName);
 
     PackageInfo packageInfo;
     if (mPm.getPackageInfo(packageName, &packageInfo)) {
@@ -284,13 +284,11 @@ int ActivityManagerInner::stopActivity(const Intent& intent, int32_t resultCode)
                         callActivity->onResult(activity->getRequestCode(), resultCode, intent);
                     }
                     mTaskManager.finishActivity(activity);
+                } else {
+                    ALOGW("The Activity:%s does not exist!", intent.mTarget.c_str());
+                    ret = android::BAD_VALUE;
                 }
             }
-        }
-
-        if (!activity) {
-            ALOGW("The Activity:%s is non-existent", intent.mTarget.c_str());
-            ret = android::BAD_VALUE;
         }
     }
 
