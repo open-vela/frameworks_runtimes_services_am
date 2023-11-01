@@ -61,6 +61,14 @@ int AmCommand::makeIntent(Intent &intent) {
             const auto key = String16(nextArg().data());
             const auto value = std::stoi(string(nextArg().data()));
             bundle.putInt(key, value);
+        } else if (param == "--eu") {
+            const auto key = String16(nextArg().data());
+            const auto value = std::stof(string(nextArg().data()));
+            bundle.putDouble(key, value);
+        } else if (param == "--ez") {
+            const auto key = String16(nextArg().data());
+            const bool value = (nextArg() == "true");
+            bundle.putBoolean(key, value);
         } else if (param == "-e" || param == "--es") {
             const auto key = String16(nextArg().data());
             const auto value = String16(nextArg().data());
@@ -151,8 +159,10 @@ int AmCommand::showUsage() {
     printf("\t-t \t<TARGET> : '-t' is unnecessary when TARGET as the first param\n");
     printf("\t-a \t<ACTION>\n");
     printf("\t-d \t<DATA>\n");
-    printf("\t-e|--es \t<EXTRA_KEY> <EXTRA_STRING_VALUE>: eg. -es name XiaoMing\n");
-    printf("\t--ei \t<EXTRA_KEY> <EXTRA_INT_VALUE>  : eg. -ei age 24\n");
+    printf("\t-e|--es \t<EXTRA_KEY> <EXTRA_STRING_VALUE>: eg. --es name XiaoMing\n");
+    printf("\t--ei \t<EXTRA_KEY> <EXTRA_INT_VALUE>  : eg. --ei age 24\n");
+    printf("\t--eu \t<EXTRA_KEY> <EXTRA_DOUBLE_VALUE>  : eg. --eu height 183.5\n");
+    printf("\t--ez \t<EXTRA_KEY> <EXTRA_BOOLEAN_VALUE>  : eg. --ez student true\n");
     printf("\n");
     return 0;
 }
