@@ -22,17 +22,26 @@
 
 #include "ActivityClientRecord.h"
 #include "ServiceClientRecord.h"
+#include "WindowManager.h"
 #include "app/ActivityManager.h"
 
 namespace os {
 namespace app {
 
+using ::os::wm::WindowManager;
+
 Application::Application() {
     mUid = getuid();
     mPid = getpid();
+    mWindowManager = NULL;
 }
 
-Application::~Application() {}
+Application::~Application() {
+    if (mWindowManager) {
+        delete mWindowManager;
+        mWindowManager = NULL;
+    }
+}
 
 string Application::getPackageName() const {
     return mPackageName;
@@ -128,6 +137,13 @@ void Application::clearActivityAndService() {
         }
     }
     mExistServices.clear();
+}
+
+WindowManager* Application::getWindowManager() {
+    if (mWindowManager == NULL) {
+        mWindowManager = new WindowManager();
+    }
+    return mWindowManager;
 }
 
 } // namespace app
