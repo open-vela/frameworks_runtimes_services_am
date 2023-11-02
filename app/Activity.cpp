@@ -35,22 +35,22 @@ void Activity::finish() {
 int Activity::attach(std::shared_ptr<Context> context) {
     attachBaseContext(context);
 
-    mWindow = ::os::wm::WindowManager::getInstance()->newWindow(context.get());
+    mWindow = getWindowManager()->newWindow(context.get());
     if (!mWindow) {
         ALOGE("Activity: new window failed!");
         return -1;
     }
-    mWindowManager = (::os::wm::WindowManager*)mWindow->getWindowManager();
     return 0;
 }
 
 bool Activity::performCreate() {
-    if (mWindowManager) {
-        if (mWindowManager->attachIWindow(mWindow) == 0) {
+    auto wm = getWindowManager();
+    if (wm) {
+        if (wm->attachIWindow(mWindow) == 0) {
             onCreate();
             return true;
         } else {
-            mWindowManager->removeWindow(mWindow);
+            wm->removeWindow(mWindow);
             mWindow.reset();
         }
     }
@@ -78,8 +78,9 @@ bool Activity::performStop() {
 }
 
 bool Activity::performDestroy() {
-    if (mWindowManager && mWindow) {
-        mWindowManager->removeWindow(mWindow);
+    auto wm = getWindowManager();
+    if (wm && mWindow) {
+        wm->removeWindow(mWindow);
         mWindow.reset();
     }
     onDestroy();

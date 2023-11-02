@@ -24,6 +24,11 @@
 #include "app/UvLoop.h"
 
 namespace os {
+
+namespace wm {
+class WindowManager;
+}
+
 namespace app {
 
 class Application;
@@ -39,6 +44,7 @@ public:
     virtual UvLoop* getCurrentLoop() const = 0;
     virtual const sp<IBinder>& getToken() const = 0;
     virtual ActivityManager& getActivityManager() = 0;
+    virtual ::os::wm::WindowManager* getWindowManager() = 0;
 
     virtual void startActivity(const Intent& intent) = 0;
     virtual void startActivityForResult(const Intent& intent, int32_t requestCode) = 0;
@@ -69,6 +75,7 @@ public:
     UvLoop* getCurrentLoop() const;
     const sp<IBinder>& getToken() const;
     ActivityManager& getActivityManager();
+    ::os::wm::WindowManager* getWindowManager();
 
     void startActivity(const Intent& intent);
     void startActivityForResult(const Intent& intent, int32_t requestCode);

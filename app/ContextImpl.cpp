@@ -59,6 +59,10 @@ ActivityManager& ContextImpl::getActivityManager() {
     return mAm;
 }
 
+::os::wm::WindowManager* ContextImpl::getWindowManager() {
+    return const_cast<Application*>(mApp)->getWindowManager();
+}
+
 void ContextImpl::startActivity(const Intent& intent) {
     mAm.startActivity(mToken, intent, ActivityManager::NO_REQUEST);
 }

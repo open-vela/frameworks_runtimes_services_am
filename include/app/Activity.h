@@ -69,7 +69,6 @@ private:
     int mResultCode;
     std::shared_ptr<Intent> mResultData;
     std::shared_ptr<::os::wm::BaseWindow> mWindow;
-    ::os::wm::WindowManager* mWindowManager;
 };
 
 } // namespace app

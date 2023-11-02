@@ -27,6 +27,11 @@
 #include "os/app/IApplicationThread.h"
 
 namespace os {
+
+namespace wm {
+class WindowManager;
+}
+
 namespace app {
 
 using android::IBinder;
@@ -73,6 +78,8 @@ public:
     void registerActivity(const string& name, const CreateActivityFunc& createFunc);
     void registerService(const string& name, const CreateServiceFunc& createFunc);
 
+    ::os::wm::WindowManager* getWindowManager();
+
 private:
     friend class ApplicationThreadStub;
     std::shared_ptr<Activity> createActivity(const string& name);
@@ -98,6 +105,7 @@ private:
     int mUid;
     int mPid;
     UvLoop* mMainLoop;
+    ::os::wm::WindowManager* mWindowManager;
 };
 
 } // namespace app

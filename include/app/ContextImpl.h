@@ -35,6 +35,7 @@ public:
     UvLoop* getCurrentLoop() const override;
     const sp<IBinder>& getToken() const override;
     ActivityManager& getActivityManager() override;
+    ::os::wm::WindowManager* getWindowManager() override;
 
     static std::shared_ptr<Context> createActivityContext(const Application* app,
                                                           const sp<IBinder>& token, UvLoop* loop);

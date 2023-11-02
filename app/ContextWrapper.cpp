@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include "app/Application.h"
 #include "app/Context.h"
 
 namespace os {
@@ -52,6 +53,10 @@ const android::sp<android::IBinder>& ContextWrapper::getToken() const {
 
 ActivityManager& ContextWrapper::getActivityManager() {
     return mBase->getActivityManager();
+}
+
+::os::wm::WindowManager* ContextWrapper::getWindowManager() {
+    return mBase->getWindowManager();
 }
 
 void ContextWrapper::startActivity(const Intent& intent) {
