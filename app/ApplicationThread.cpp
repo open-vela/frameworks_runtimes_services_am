@@ -251,7 +251,8 @@ int ApplicationThreadStub::onLaunchActivity(const std::string& activityName,
     int ret = 0;
     std::shared_ptr<Activity> activity = mApp->createActivity(activityName);
     if (activity != nullptr) {
-        auto context = ContextImpl::createActivityContext(mApp, token, mApp->getMainLoop());
+        auto context =
+                ContextImpl::createActivityContext(mApp, activityName, token, mApp->getMainLoop());
         activity->attach(context);
         auto activityRecord = std::make_shared<ActivityClientRecord>(activityName, activity);
         if (activityRecord->onCreate(intent) == 0) {
@@ -341,7 +342,8 @@ int ApplicationThreadStub::onStartService(const string& serviceName, const sp<IB
             AM_PROFILER_END();
             return -1;
         }
-        const auto context = ContextImpl::createServiceContext(mApp, token, mApp->getMainLoop());
+        const auto context =
+                ContextImpl::createServiceContext(mApp, serviceName, token, mApp->getMainLoop());
         service->attachBaseContext(context);
         serviceRecord = std::make_shared<ServiceClientRecord>(serviceName, service);
         mApp->addService(serviceRecord);
@@ -373,7 +375,8 @@ void ApplicationThreadStub::onBindService(const string& serviceName, const sp<IB
             AM_PROFILER_END();
             return;
         }
-        const auto context = ContextImpl::createServiceContext(mApp, token, mApp->getMainLoop());
+        const auto context =
+                ContextImpl::createServiceContext(mApp, serviceName, token, mApp->getMainLoop());
         service->attachBaseContext(context);
         serviceRecord = std::make_shared<ServiceClientRecord>(serviceName, service);
         mApp->addService(serviceRecord);
