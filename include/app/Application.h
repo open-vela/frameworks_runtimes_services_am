@@ -63,7 +63,7 @@ public:
     virtual void onBackground() = 0;
     virtual void onDestroy() = 0;
 
-    string getPackageName() const;
+    const string& getPackageName() const;
     void setPackageName(const string& name);
     int getUid() {
         return mUid;
