@@ -27,7 +27,7 @@
 namespace os {
 namespace am {
 
-const int DELAYED_KILLING_TIMEOUT = 2000;
+const int DELAYED_KILLING_TIMEOUT = 12000;
 const float MIN_MEM_THRESH = 0.066; // Used to calculate the minimum memory available to the system
 
 #ifdef CONFIG_AM_LMK_CFG
@@ -119,7 +119,6 @@ bool LowMemoryManager::init(const std::shared_ptr<os::app::UvLoop>& looper) {
         mTimer.start(2000, 2000); // 2 seconds per cycle
     }
 #endif
-
     return true;
 } // namespace am
 
@@ -203,7 +202,8 @@ void LowMemoryManager::executeLMK(const int freememory, const int maxblock) {
         // Check if the process is finished after a delay time.
         mLooper->postDelayTask(
                 [this, pid](void*) {
-                    if (mPidOomScore.find(pid) != mPidOomScore.end()) {
+                    // kill -0, check if process is running
+                    if (kill(pid, 0) == 0) {
                         ALOGW("warning, kill the app:%d by signal!!!!", pid);
                         kill(pid, SIGTERM);
                     }

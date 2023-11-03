@@ -102,12 +102,30 @@ ApplicationThread::ApplicationThread(Application* app) : mApp(app) {
 
 ApplicationThread::~ApplicationThread() {}
 
+void ApplicationThread::stop() {
+    ALOGD("ApplicationThread::stop");
+    mApp->clearActivityAndService();
+    // delay a while for receive msg from Server and other task.
+    postDelayTask([this](void*) { UvLoop::stop(); }, 100);
+}
+
+static void signalHandler(uv_signal_t* handle, int signum) {
+    ALOGW("warning: receive signal:%d", signum);
+    ApplicationThread* appThread = static_cast<ApplicationThread*>(handle->data);
+    appThread->stop();
+}
+
 int ApplicationThread::mainRun(int argc, char** argv) {
     if (argc < 2) {
         ALOGE("illegally launch Application!!!");
         return -1;
     }
     ALOGI("start Application:%s execfile:%s", argv[1], argv[0]);
+
+    uv_signal_t sigterm;
+    uv_signal_init(get(), &sigterm);
+    sigterm.data = this;
+    uv_signal_start(&sigterm, signalHandler, SIGTERM);
 
     int binderFd;
     android::IPCThreadState::self()->setupPolling(&binderFd);
@@ -133,6 +151,7 @@ int ApplicationThread::mainRun(int argc, char** argv) {
 
     run();
     pollBinder.close();
+    uv_close((uv_handle_t*)&sigterm, NULL);
     // run twice to clear uv handler
     run(UV_RUN_NOWAIT);
     run(UV_RUN_NOWAIT);
@@ -153,6 +172,7 @@ int ApplicationThread::mainRun(int argc, char** argv) {
         }
     }
     ALOGW("Application[%s]:%s has been stopped!!!", argv[0], argv[1]);
+
     return 0;
 }
 
