@@ -35,6 +35,7 @@ public:
     ApplicationThread(Application* app);
     ~ApplicationThread();
     int mainRun(int argc, char** argv);
+    void stop();
 
 private:
     Application* mApp;

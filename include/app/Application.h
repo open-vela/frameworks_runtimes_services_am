@@ -83,6 +83,7 @@ public:
     ::os::wm::WindowManager* getWindowManager();
 
 private:
+    friend class ApplicationThread;
     friend class ApplicationThreadStub;
     std::shared_ptr<Activity> createActivity(const string& name);
     std::shared_ptr<Service> createService(const string& name);
