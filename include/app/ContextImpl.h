@@ -27,10 +27,12 @@ namespace app {
 
 class ContextImpl : public Context {
 public:
-    ContextImpl(const Application* app, const sp<IBinder>& token, UvLoop* loop);
+    ContextImpl(const Application* app, const string& componentName, const sp<IBinder>& token,
+                UvLoop* loop);
 
     const Application* getApplication() const override;
-    string getPackageName() override;
+    const string& getPackageName() const override;
+    const string& getComponentName() const override;
     UvLoop* getMainLoop() const override;
     UvLoop* getCurrentLoop() const override;
     const sp<IBinder>& getToken() const override;
@@ -38,8 +40,10 @@ public:
     ::os::wm::WindowManager* getWindowManager() override;
 
     static std::shared_ptr<Context> createActivityContext(const Application* app,
+                                                          const string& componentName,
                                                           const sp<IBinder>& token, UvLoop* loop);
     static std::shared_ptr<Context> createServiceContext(const Application* app,
+                                                         const string& componentName,
                                                          const sp<IBinder>& token, UvLoop* loop);
 
     void startActivity(const Intent& intent) override;
@@ -61,6 +65,7 @@ public:
 
 public:
     const Application* mApp;
+    const string mComponentName;
     const sp<IBinder> mToken;
     UvLoop* mLoop;
 

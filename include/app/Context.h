@@ -39,7 +39,8 @@ public:
     virtual ~Context() = default;
 
     virtual const Application* getApplication() const = 0;
-    virtual string getPackageName() = 0;
+    virtual const string& getPackageName() const = 0;
+    virtual const string& getComponentName() const = 0;
     virtual UvLoop* getMainLoop() const = 0;
     virtual UvLoop* getCurrentLoop() const = 0;
     virtual const sp<IBinder>& getToken() const = 0;
@@ -70,7 +71,9 @@ public:
     void attachBaseContext(std::shared_ptr<Context> base);
 
     const Application* getApplication() const;
-    std::string getPackageName();
+    const string& getPackageName() const override;
+    const string& getComponentName() const override;
+
     UvLoop* getMainLoop() const;
     UvLoop* getCurrentLoop() const;
     const sp<IBinder>& getToken() const;

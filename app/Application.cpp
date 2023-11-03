@@ -43,7 +43,7 @@ Application::~Application() {
     }
 }
 
-string Application::getPackageName() const {
+const string& Application::getPackageName() const {
     return mPackageName;
 }
 

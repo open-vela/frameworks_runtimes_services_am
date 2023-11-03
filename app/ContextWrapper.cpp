@@ -35,8 +35,12 @@ const Application* ContextWrapper::getApplication() const {
     return mBase->getApplication();
 }
 
-std::string ContextWrapper::getPackageName() {
+const std::string& ContextWrapper::getPackageName() const {
     return mBase->getPackageName();
+}
+
+const std::string& ContextWrapper::getComponentName() const {
+    return mBase->getComponentName();
 }
 
 UvLoop* ContextWrapper::getMainLoop() const {
