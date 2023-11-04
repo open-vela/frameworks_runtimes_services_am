@@ -43,6 +43,10 @@ ActivityHandler ActivityStack::getTopActivity() {
     return mStack.empty() ? nullptr : mStack.back();
 }
 
+ActivityHandler ActivityStack::getRootActivity() {
+    return mStack.empty() ? nullptr : mStack.front();
+}
+
 ActivityHandler ActivityStack::findActivity(const string& name) {
     for (const auto& it : mStack) {
         if (it->getName() == name) {

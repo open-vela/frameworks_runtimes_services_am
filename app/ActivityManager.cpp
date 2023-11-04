@@ -105,6 +105,20 @@ bool ActivityManager::finishActivity(const sp<IBinder>& token, int32_t resultCod
     return ret;
 }
 
+bool ActivityManager::moveActivityTaskToBackground(const sp<IBinder>& token, bool nonRoot) {
+    AM_PROFILER_BEGIN();
+    sp<IActivityManager> service = getService();
+    bool ret = false;
+    if (service != nullptr) {
+        Status status = service->moveActivityTaskToBackground(token, nonRoot, &ret);
+        if (!status.isOk()) {
+            ALOGE("moveActivityTaskToBackground error:%s", status.toString8().c_str());
+        }
+    }
+    AM_PROFILER_END();
+    return ret;
+}
+
 void ActivityManager::reportActivityStatus(const sp<IBinder>& token, int32_t activityStatus) {
     AM_PROFILER_BEGIN();
     sp<IActivityManager> service = getService();

@@ -49,7 +49,7 @@ public:
 
     void setResult(const int resultCode, const std::shared_ptr<Intent>& resultData);
     void finish();
-
+    bool moveToBackground(bool nonRoot = true);
     std::shared_ptr<::os::wm::BaseWindow> getWindow() {
         return mWindow;
     }

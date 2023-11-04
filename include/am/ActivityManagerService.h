@@ -51,6 +51,8 @@ public:
     Status stopActivity(const Intent& intent, int32_t resultCode, int32_t* ret) override;
     Status finishActivity(const sp<IBinder>& token, int32_t resultCode,
                           const std::optional<Intent>& resultData, bool* ret) override;
+    Status moveActivityTaskToBackground(const sp<IBinder>& token, bool nonRoot, bool* ret) override;
+
     Status reportActivityStatus(const sp<IBinder>& token, int32_t status) override;
 
     Status startService(const Intent& intent, int32_t* ret) override;
