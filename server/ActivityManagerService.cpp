@@ -58,6 +58,8 @@ public:
     int stopActivity(const Intent& intent, int32_t resultCode);
     bool finishActivity(const sp<IBinder>& token, int32_t resultCode,
                         const std::optional<Intent>& resultData);
+    bool moveActivityTaskToBackground(const sp<IBinder>& token, bool nonRoot);
+
     void reportActivityStatus(const sp<IBinder>& token, int32_t status);
     int startService(const Intent& intent);
     int stopService(const Intent& intent);
@@ -318,6 +320,25 @@ bool ActivityManagerInner::finishActivity(const sp<IBinder>& token, int32_t resu
 
     AM_PROFILER_END();
     return true;
+}
+
+bool ActivityManagerInner::moveActivityTaskToBackground(const sp<IBinder>& token, bool nonRoot) {
+    AM_PROFILER_BEGIN();
+    bool ret = false;
+    auto activity = mTaskManager.getActivity(token);
+    if (activity) {
+        ALOGI("moveActivityTaskToBackground, activity:%s nonRoot:%s", activity->getName().c_str(),
+              nonRoot ? "true" : "false");
+        auto activityTask = activity->getTask();
+        if (activityTask && (nonRoot || activityTask->getRootActivity() == activity)) {
+            ret = mTaskManager.moveTaskToBackground(activityTask);
+        }
+    } else {
+        ALOGE("moveActivityTaskToBackground: The token is invalid");
+    }
+
+    AM_PROFILER_END();
+    return ret;
 }
 
 void ActivityManagerInner::reportActivityStatus(const sp<IBinder>& token, int32_t status) {
@@ -750,6 +771,12 @@ Status ActivityManagerService::stopActivity(const Intent& intent, int32_t result
 Status ActivityManagerService::finishActivity(const sp<IBinder>& token, int32_t resultCode,
                                               const std::optional<Intent>& resultData, bool* ret) {
     *ret = mInner->finishActivity(token, resultCode, resultData);
+    return Status::ok();
+}
+
+Status ActivityManagerService::moveActivityTaskToBackground(const sp<IBinder>& token, bool nonRoot,
+                                                            bool* ret) {
+    *ret = mInner->moveActivityTaskToBackground(token, nonRoot);
     return Status::ok();
 }
 

@@ -50,6 +50,14 @@ interface IActivityManager {
     boolean finishActivity(in IBinder token, int resultCode, in @nullable Intent resultData);
 
     /**
+     * @brief Attempts to move a task backwards
+     * @param token: the activity we wish to move
+     * @param nonRoot: If false then this only works if the activity is the root
+     *                of a task; if true it will work for any activity in a task
+     */
+    boolean moveActivityTaskToBackground(in IBinder token, boolean nonRoot);
+
+    /**
      * @param token: Identify of the Activity.
      * @param status: ON_CREATED/ON_STARTED/ON_RESUMED/ON_PAUSED/ON_STOPED/ON_DESTORYED
      */
