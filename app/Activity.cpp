@@ -32,6 +32,10 @@ void Activity::finish() {
     getActivityManager().finishActivity(getToken(), mResultCode, mResultData);
 }
 
+bool Activity::moveToBackground(bool nonRoot) {
+    return getActivityManager().moveActivityTaskToBackground(getToken(), nonRoot);
+}
+
 int Activity::attach(std::shared_ptr<Context> context) {
     attachBaseContext(context);
 

@@ -65,6 +65,9 @@ public:
 
     bool finishActivity(const sp<IBinder>& token, int32_t resultCode,
                         const std::shared_ptr<Intent>& resultData);
+
+    bool moveActivityTaskToBackground(const sp<IBinder>& token, bool nonRoot);
+
     void reportActivityStatus(const sp<IBinder>& token, int32_t status);
 
     int32_t startService(const Intent& intent);

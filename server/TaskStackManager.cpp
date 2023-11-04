@@ -59,6 +59,42 @@ void TaskStackManager::switchTaskToActive(const ActivityStackHandler& targetStac
     }
 }
 
+/** Move the Task to the background with the activity's order within the task is unchanged */
+bool TaskStackManager::moveTaskToBackground(const ActivityStackHandler& targetStack) {
+    ALOGI("moveTaskToBack taskTag:%s", targetStack->getTaskTag().c_str());
+    bool isForeground = false;
+    if (targetStack == getActiveTask()) {
+        isForeground = true;
+        auto topActivity = targetStack->getTopActivity();
+        ActivityLifecycleTransition(topActivity, ActivityRecord::PAUSED);
+        mAllTasks.pop_front();
+        auto nextActivity = getActiveTask()->getTopActivity();
+        ActivityLifecycleTransition(nextActivity, ActivityRecord::RESUMED);
+
+        auto task = std::make_shared<ActivityWaitResume>(nextActivity, topActivity, this);
+        mPendTask.commitTask(task, REQUEST_TIMEOUT_MS);
+    }
+
+    for (auto iter = mAllTasks.begin(); iter != mAllTasks.end();) {
+        if (*iter == targetStack) {
+            isForeground = true;
+            auto tmp = iter;
+            ++iter;
+            mAllTasks.erase(tmp);
+        } else {
+            if (*iter == mHomeTask) {
+                if (isForeground) {
+                    mAllTasks.insert(++iter, targetStack);
+                }
+                return true;
+            }
+            ++iter;
+        }
+    }
+
+    return false;
+}
+
 void TaskStackManager::pushNewActivity(const ActivityStackHandler& targetStack,
                                        const ActivityHandler& activity, int startFlag) {
     ALOGI("pushNewActivity %s flag-cleartask:%d", activity->getName().c_str(),

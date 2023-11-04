@@ -40,6 +40,7 @@ public:
     void pushActivity(const ActivityHandler& activity);
     void popActivity();
     ActivityHandler getTopActivity();
+    ActivityHandler getRootActivity();
     ActivityHandler findActivity(const std::string& activityName);
     ActivityHandler findActivity(const sp<IBinder>& token);
     void setForeground(const bool isForeground);

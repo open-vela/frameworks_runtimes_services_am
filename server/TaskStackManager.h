@@ -37,6 +37,8 @@ public:
 
     /** Launch the app without Activity name, the intent set to the top Activity. */
     void switchTaskToActive(const ActivityStackHandler& task, const Intent& intent);
+    /** Move the Task to the background with the activity's order within the task is unchanged */
+    bool moveTaskToBackground(const ActivityStackHandler& task);
     /** must be create new Activity */
     void pushNewActivity(const ActivityStackHandler& task, const ActivityHandler& activity,
                          int startFlag);
