@@ -129,6 +129,7 @@ int ApplicationThread::mainRun(int argc, char** argv) {
     ActivityManager am;
     if (0 != am.attachApplication(appThread)) {
         ALOGE("ApplicationThread attach failure");
+        return -3;
     }
 
     run();
@@ -144,9 +145,7 @@ Status ApplicationThreadStub::scheduleLaunchActivity(const std::string& activity
                                                      const Intent& intent) {
     ALOGD("scheduleLaunchActivity package:%s activity:%s token[%p]", mApp->getPackageName().c_str(),
           activityName.c_str(), token.get());
-    mApp->getMainLoop()->postTask([this, activityName, token, intent] {
-        this->onLaunchActivity(activityName, token, intent);
-    });
+    onLaunchActivity(activityName, token, intent);
     return Status::ok();
 }
 
@@ -154,7 +153,7 @@ Status ApplicationThreadStub::scheduleStartActivity(const sp<IBinder>& token,
                                                     const Intent& intent) {
     ALOGD("scheduleStartActivity package:%s token[%p]", mApp->getPackageName().c_str(),
           token.get());
-    mApp->getMainLoop()->postTask([this, token, intent] { this->onStartActivity(token, intent); });
+    onStartActivity(token, intent);
     return Status::ok();
 }
 
@@ -162,27 +161,27 @@ Status ApplicationThreadStub::scheduleResumeActivity(const sp<IBinder>& token,
                                                      const Intent& intent) {
     ALOGD("scheduleResumeActivity package:%s token[%p]", mApp->getPackageName().c_str(),
           token.get());
-    mApp->getMainLoop()->postTask([this, token, intent] { this->onResumeActivity(token, intent); });
+    onResumeActivity(token, intent);
     return Status::ok();
 }
 
 Status ApplicationThreadStub::schedulePauseActivity(const sp<IBinder>& token) {
     ALOGD("schedulePauseActivity package:%s token[%p]", mApp->getPackageName().c_str(),
           token.get());
-    mApp->getMainLoop()->postTask([this, token] { this->onPauseActivity(token); });
+    onPauseActivity(token);
     return Status::ok();
 }
 
 Status ApplicationThreadStub::scheduleStopActivity(const sp<IBinder>& token) {
     ALOGD("scheduleStopActivity package:%s token[%p]", mApp->getPackageName().c_str(), token.get());
-    mApp->getMainLoop()->postTask([this, token] { this->onStopActivity(token); });
+    onStopActivity(token);
     return Status::ok();
 }
 
 Status ApplicationThreadStub::scheduleDestroyActivity(const sp<IBinder>& token) {
     ALOGD("scheduleDestroyActivity package:%s token[%p]", mApp->getPackageName().c_str(),
           token.get());
-    mApp->getMainLoop()->postTask([this, token] { this->onDestroyActivity(token); });
+    onDestroyActivity(token);
     return Status::ok();
 }
 
@@ -190,15 +189,13 @@ Status ApplicationThreadStub::scheduleBindService(const string& serviceName,
                                                   const sp<IBinder>& token, const Intent& intent,
                                                   const sp<IServiceConnection>& conn) {
     ALOGD("scheduleBindService token[%p]", token.get());
-    mApp->getMainLoop()->postTask([this, serviceName, token, intent, conn] {
-        this->onBindService(serviceName, token, intent, conn);
-    });
+    onBindService(serviceName, token, intent, conn);
     return Status::ok();
 }
 
 Status ApplicationThreadStub::scheduleUnbindService(const sp<IBinder>& token) {
     ALOGD("scheduleUnbindService token[%p]", token.get());
-    mApp->getMainLoop()->postTask([this, token] { this->onUnbindService(token); });
+    onUnbindService(token);
     return Status::ok();
 }
 
@@ -219,15 +216,13 @@ Status ApplicationThreadStub::scheduleStartService(const string& serviceName,
                                                    const sp<IBinder>& token, const Intent& intent) {
     ALOGD("scheduleStartService package:%s service:%s token[%p]", mApp->getPackageName().c_str(),
           serviceName.c_str(), token.get());
-    mApp->getMainLoop()->postTask([this, serviceName, token, intent] {
-        this->onStartService(serviceName, token, intent);
-    });
+    onStartService(serviceName, token, intent);
     return Status::ok();
 }
 
 Status ApplicationThreadStub::scheduleStopService(const sp<IBinder>& token) {
     ALOGD("scheduleStopService package:%s token[%p]", mApp->getPackageName().c_str(), token.get());
-    mApp->getMainLoop()->postTask([this, token] { this->onStopService(token); });
+    onStopService(token);
     return Status::ok();
 }
 
@@ -245,10 +240,8 @@ Status ApplicationThreadStub::setForegroundApplication(bool isForeground) {
 
 Status ApplicationThreadStub::terminateApplication() {
     ALOGW("terminateApplication package:%s", mApp->getPackageName().c_str());
-    mApp->getMainLoop()->postTask([this] {
-        mApp->clearActivityAndService();
-        mApp->getMainLoop()->stop();
-    });
+    mApp->clearActivityAndService();
+    mApp->getMainLoop()->stop();
     return Status::ok();
 }
 
