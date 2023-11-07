@@ -71,6 +71,10 @@ int32_t ContextWrapper::startActivityForResult(const Intent& intent, int32_t req
     return mBase->startActivityForResult(intent, requestCode);
 }
 
+int32_t ContextWrapper::stopActivity(const Intent& intent) {
+    return mBase->stopActivity(intent);
+}
+
 int32_t ContextWrapper::startService(const Intent& intent) {
     return mBase->startService(intent);
 }
