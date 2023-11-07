@@ -78,6 +78,10 @@ int32_t ContextImpl::startActivityForResult(const Intent& intent, int32_t reques
     return mAm.startActivity(mToken, intent, requestCode);
 }
 
+int32_t ContextImpl::stopActivity(const Intent& intent) {
+    return mAm.stopActivity(intent, ActivityManager::NO_REQUEST);
+}
+
 int32_t ContextImpl::startService(const Intent& intent) {
     return mAm.startService(intent);
 }
