@@ -63,11 +63,11 @@ ActivityManager& ContextWrapper::getActivityManager() {
     return mBase->getWindowManager();
 }
 
-void ContextWrapper::startActivity(const Intent& intent) {
+int32_t ContextWrapper::startActivity(const Intent& intent) {
     return mBase->startActivity(intent);
 }
 
-void ContextWrapper::startActivityForResult(const Intent& intent, int32_t requestCode) {
+int32_t ContextWrapper::startActivityForResult(const Intent& intent, int32_t requestCode) {
     return mBase->startActivityForResult(intent, requestCode);
 }
 

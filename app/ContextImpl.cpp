@@ -70,12 +70,12 @@ ActivityManager& ContextImpl::getActivityManager() {
     return const_cast<Application*>(mApp)->getWindowManager();
 }
 
-void ContextImpl::startActivity(const Intent& intent) {
-    mAm.startActivity(mToken, intent, ActivityManager::NO_REQUEST);
+int32_t ContextImpl::startActivity(const Intent& intent) {
+    return mAm.startActivity(mToken, intent, ActivityManager::NO_REQUEST);
 }
 
-void ContextImpl::startActivityForResult(const Intent& intent, int32_t requestCode) {
-    mAm.startActivity(mToken, intent, requestCode);
+int32_t ContextImpl::startActivityForResult(const Intent& intent, int32_t requestCode) {
+    return mAm.startActivity(mToken, intent, requestCode);
 }
 
 int32_t ContextImpl::startService(const Intent& intent) {

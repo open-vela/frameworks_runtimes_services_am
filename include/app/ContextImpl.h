@@ -46,8 +46,8 @@ public:
                                                          const string& componentName,
                                                          const sp<IBinder>& token, UvLoop* loop);
 
-    void startActivity(const Intent& intent) override;
-    void startActivityForResult(const Intent& intent, int32_t requestCode) override;
+    int32_t startActivity(const Intent& intent) override;
+    int32_t startActivityForResult(const Intent& intent, int32_t requestCode) override;
 
     int32_t startService(const Intent& intent) override;
     int32_t stopService(const Intent& intent) override;
