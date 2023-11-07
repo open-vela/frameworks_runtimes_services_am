@@ -49,6 +49,7 @@ public:
 
     virtual int32_t startActivity(const Intent& intent) = 0;
     virtual int32_t startActivityForResult(const Intent& intent, int32_t requestCode) = 0;
+    virtual int32_t stopActivity(const Intent& intent) = 0;
 
     virtual int32_t startService(const Intent& intent) = 0;
     virtual int32_t stopService(const Intent& intent) = 0;
@@ -80,8 +81,9 @@ public:
     ActivityManager& getActivityManager();
     ::os::wm::WindowManager* getWindowManager();
 
-    int32_t startActivity(const Intent& intent);
-    int32_t startActivityForResult(const Intent& intent, int32_t requestCode);
+    int32_t startActivity(const Intent& intent) override;
+    int32_t startActivityForResult(const Intent& intent, int32_t requestCode) override;
+    int32_t stopActivity(const Intent& intent) override;
 
     int32_t startService(const Intent& intent) override;
     int32_t stopService(const Intent& intent) override;
