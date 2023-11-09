@@ -80,24 +80,49 @@ private:
     sp<IMessageChannel> mService;
 };
 
-class MessageService : public BnMessageChannel, public Service {
+class MessageServiceInterface {
 public:
     virtual std::string receiveMessageAndReply(const string& request) = 0;
     virtual void receiveMessage(const std::string& request,
                                 const std::shared_ptr<ReplySender>& reply) = 0;
+};
 
-private:
+class BnMessageService : public BnMessageChannel {
+public:
+    BnMessageService(MessageServiceInterface* service) : mService(service) {}
     Status sendMessageAndReply(const std::string& request, std::string* reply) override {
-        *reply = receiveMessageAndReply(request);
+        *reply = mService->receiveMessageAndReply(request);
         return Status::ok();
     }
 
     Status sendMessage(const std::string& request, int32_t seqNo,
                        const sp<IReply>& reply) override {
         auto replyHandler = std::make_shared<ReplySender>(seqNo, reply);
-        receiveMessage(request, replyHandler);
+        mService->receiveMessage(request, replyHandler);
         return Status::ok();
     }
+
+public:
+    MessageServiceInterface* mService;
+};
+
+class MessageService : public Service, public MessageServiceInterface {
+public:
+    MessageService() {
+        mBinderService = sp<BnMessageService>::make(this);
+    };
+
+    virtual void onBindExt(const Intent& intent) = 0;
+
+private:
+    // we need to return the bindService, and notify the user of bind.
+    sp<IBinder> onBind(const Intent& intent) override {
+        onBindExt(intent);
+        return mBinderService;
+    }
+
+private:
+    sp<BnMessageService> mBinderService;
 };
 
 } // namespace app
