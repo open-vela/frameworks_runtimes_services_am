@@ -115,10 +115,11 @@ std::shared_ptr<ServiceClientRecord> Application::findService(const sp<IBinder>&
 }
 
 void Application::deleteService(const sp<IBinder>& token) {
-    for (auto it : mExistServices) {
+    for (auto& it : mExistServices) {
         if (it->getToken() == token) {
             it = mExistServices.back();
             mExistServices.pop_back();
+            break;
         }
     }
 }
