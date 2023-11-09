@@ -67,6 +67,7 @@ void ServiceRecord::bind(const sp<IBinder>& caller, const sp<IServiceConnection>
 
 void ServiceRecord::unbind(const sp<IServiceConnection>& conn) {
     if (mStartFlag & F_BINDED) {
+        conn->onServiceDisconnected(mServiceBinder);
         const int size = mConnectRecord.size();
         for (int i = 0; i < size; ++i) {
             if (android::IInterface::asBinder(mConnectRecord[i]) ==
@@ -117,6 +118,10 @@ const char* ServiceRecord::statusToStr(const int status) {
             return "starting";
         case ServiceRecord::STARTED:
             return "started";
+        case ServiceRecord::BINDED:
+            return "binded";
+        case ServiceRecord::UNBINDED:
+            return "unbinded";
         case ServiceRecord::DESTROYING:
             return "destroying";
         case ServiceRecord::DESTROYED:
@@ -152,10 +157,11 @@ void ServiceList::addService(const ServiceHandler& service) {
 }
 
 void ServiceList::deleteService(const sp<IBinder>& token) {
-    for (auto it : mServiceList) {
+    for (auto& it : mServiceList) {
         if (it->mToken == token) {
             it = mServiceList.back();
             mServiceList.pop_back();
+            break;
         }
     }
 }

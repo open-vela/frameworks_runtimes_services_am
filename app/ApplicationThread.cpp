@@ -358,6 +358,7 @@ int ApplicationThreadStub::onStopService(const sp<IBinder>& token) {
     auto serviceRecord = mApp->findService(token);
     if (serviceRecord) {
         serviceRecord->onDestroy();
+        mApp->deleteService(token);
     }
     AM_PROFILER_END();
     return 0;
