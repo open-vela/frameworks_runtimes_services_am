@@ -47,7 +47,16 @@ using namespace os::pm;
 using android::IBinder;
 using android::sp;
 
-void getPackageAndComponentName(const string& target, string& packageName, string& componentName);
+/** Different applications have different operating environments **/
+static const string APP_TYPE_QUICK = "QUICKAPP";
+static const string APP_TYPE_NATIVE = "NATIVE";
+
+// quickapp service runs in a separate process, vservice
+static const string VSERVICE_EXEC_NAME = "vservice";
+/******************************************************************/
+
+static void getPackageAndComponentName(const string& target, string& packageName,
+                                       string& componentName);
 
 class ActivityManagerInner {
 public:
@@ -87,6 +96,7 @@ public:
 private:
     void stopServiceReal(ServiceHandler& service);
     int startHomeActivity();
+    int getRuntimeEnvironment(const string& packagename, string& newpackage, string& newexecfile);
 
 private:
     std::shared_ptr<UvLoop> mLooper;
@@ -378,25 +388,31 @@ int ActivityManagerInner::startService(const Intent& intent) {
     }
     ALOGI("start service:%s/%s", packageName.c_str(), serviceName.c_str());
 
-    auto service = mServices.findService(packageName, serviceName);
+    string servicePackageName;
+    string execfile;
+    if (getRuntimeEnvironment(packageName, servicePackageName, execfile) != 0) {
+        AM_PROFILER_END();
+        return android::BAD_VALUE;
+    }
+
+    ServiceHandler service = mServices.findService(servicePackageName, serviceName);
     if (service) {
         service->start(intent);
     } else {
-        const auto appRecord = mAppInfo.findAppInfo(packageName);
+        std::shared_ptr<AppRecord> appRecord;
+        appRecord = mAppInfo.findAppInfo(packageName);
         if (appRecord) {
             const sp<IBinder> token(new android::BBinder());
             service = std::make_shared<ServiceRecord>(serviceName, token, appRecord);
             mServices.addService(service);
             service->start(intent);
         } else {
-            PackageInfo targetApp;
-            mPm.getPackageInfo(packageName, &targetApp);
-            const int pid = AppSpawn::appSpawn(targetApp.execfile.c_str(), {packageName});
+            const int pid = AppSpawn::appSpawn(execfile.c_str(), {packageName});
             if (pid > 0) {
-                const auto task = [this, serviceName, packageName,
+                const auto task = [this, serviceName, servicePackageName,
                                    intent](const AppAttachTask::Event* e) {
-                    auto app = std::make_shared<AppRecord>(e->mAppHandler, packageName, e->mPid,
-                                                           e->mUid);
+                    auto app = std::make_shared<AppRecord>(e->mAppHandler, servicePackageName,
+                                                           e->mPid, e->mUid);
                     this->mAppInfo.addAppInfo(app);
                     const sp<IBinder> token(new android::BBinder());
                     auto serviceRecord = std::make_shared<ServiceRecord>(serviceName, token, app);
@@ -405,7 +421,7 @@ int ActivityManagerInner::startService(const Intent& intent) {
                 };
                 mPendTask.commitTask(std::make_shared<AppAttachTask>(pid, task));
             } else {
-                ALOGE("appSpawn App:%s error", targetApp.execfile.c_str());
+                ALOGE("appSpawn App:%s error", execfile.c_str());
                 AM_PROFILER_END();
                 return android::BAD_VALUE;
             }
@@ -429,7 +445,14 @@ int ActivityManagerInner::stopService(const Intent& intent) {
 
     ALOGI("stop service:%s/%s", packageName.c_str(), serviceName.c_str());
 
-    auto service = mServices.findService(packageName, serviceName);
+    string servicePackageName;
+    string execfile;
+    if (getRuntimeEnvironment(packageName, servicePackageName, execfile) != 0) {
+        AM_PROFILER_END();
+        return android::BAD_VALUE;
+    }
+
+    ServiceHandler service = mServices.findService(servicePackageName, serviceName);
     if (!service) {
         ALOGW("the Service:%s is not running", serviceName.c_str());
         AM_PROFILER_END();
@@ -457,23 +480,28 @@ int ActivityManagerInner::bindService(const sp<IBinder>& caller, const Intent& i
     ALOGI("bind service:%s/%s connection[%p]", packageName.c_str(), serviceName.c_str(),
           conn.get());
 
-    auto service = mServices.findService(packageName, serviceName);
+    string servicePackageName;
+    string execfile;
+    if (getRuntimeEnvironment(packageName, servicePackageName, execfile) != 0) {
+        AM_PROFILER_END();
+        return android::BAD_VALUE;
+    }
+
+    ServiceHandler service = mServices.findService(servicePackageName, serviceName);
     if (!service) {
-        const auto appRecord = mAppInfo.findAppInfo(packageName);
+        const auto appRecord = mAppInfo.findAppInfo(servicePackageName);
         if (appRecord) {
             const sp<IBinder> token(new android::BBinder());
             service = std::make_shared<ServiceRecord>(serviceName, token, appRecord);
             mServices.addService(service);
             service->bind(caller, conn, intent);
         } else {
-            PackageInfo targetApp;
-            mPm.getPackageInfo(packageName, &targetApp);
-            const int pid = AppSpawn::appSpawn(targetApp.execfile.c_str(), {packageName});
+            const int pid = AppSpawn::appSpawn(execfile.c_str(), {packageName});
             if (pid > 0) {
-                const auto task = [this, serviceName, packageName, caller, conn,
+                const auto task = [this, serviceName, servicePackageName, caller, conn,
                                    intent](const AppAttachTask::Event* e) {
-                    auto app = std::make_shared<AppRecord>(e->mAppHandler, packageName, e->mPid,
-                                                           e->mUid);
+                    auto app = std::make_shared<AppRecord>(e->mAppHandler, servicePackageName,
+                                                           e->mPid, e->mUid);
                     this->mAppInfo.addAppInfo(app);
                     const sp<IBinder> token(new android::BBinder());
                     auto serviceRecord = std::make_shared<ServiceRecord>(serviceName, token, app);
@@ -482,7 +510,7 @@ int ActivityManagerInner::bindService(const sp<IBinder>& caller, const Intent& i
                 };
                 mPendTask.commitTask(std::make_shared<AppAttachTask>(pid, task));
             } else {
-                ALOGE("appSpawn App:%s error", targetApp.execfile.c_str());
+                ALOGE("appSpawn App:%s error", execfile.c_str());
                 AM_PROFILER_END();
                 return android::BAD_VALUE;
             }
@@ -734,6 +762,24 @@ int ActivityManagerInner::startHomeActivity() {
     }
 
     return android::OK;
+}
+
+int ActivityManagerInner::getRuntimeEnvironment(const string& packagename, string& newpackage,
+                                                string& newexecfile) {
+    PackageInfo packageInfo;
+    if (mPm.getPackageInfo(packagename, &packageInfo) != 0) {
+        ALOGE("error packagename:%s", packagename.c_str());
+        return -1;
+    }
+    if (packageInfo.appType == APP_TYPE_QUICK) {
+        // bad demand for quick service...
+        newpackage = VSERVICE_EXEC_NAME + ':' + packageInfo.packageName;
+        newexecfile = VSERVICE_EXEC_NAME;
+    } else {
+        newpackage = packageInfo.packageName;
+        newexecfile = packageInfo.execfile;
+    }
+    return 0;
 }
 
 void getPackageAndComponentName(const string& target, string& packageName, string& componentName) {
