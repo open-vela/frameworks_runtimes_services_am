@@ -28,7 +28,7 @@ void TaskBoard::attachLoop(const std::shared_ptr<UvLoop>& looper) {
 void TaskBoard::commitTask(const std::shared_ptr<Task>& task, uint32_t msLimitedTime) {
     const auto taskHandler = std::make_shared<TaskMsgHandler>(task);
     if (msLimitedTime < UINT_MAX) {
-        taskHandler->startTimer(*(mLooper.get()), msLimitedTime);
+        taskHandler->startTimer(mLooper->get(), msLimitedTime);
     }
     mTasklist.emplace_back(taskHandler);
 }

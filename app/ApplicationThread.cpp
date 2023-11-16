@@ -99,9 +99,7 @@ ApplicationThread::ApplicationThread(Application* app) : mApp(app) {
     mApp->setMainLoop(this);
 }
 
-ApplicationThread::~ApplicationThread() {
-    stop();
-}
+ApplicationThread::~ApplicationThread() {}
 
 int ApplicationThread::mainRun(int argc, char** argv) {
     if (argc < 2) {
@@ -116,7 +114,7 @@ int ApplicationThread::mainRun(int argc, char** argv) {
         ALOGE("failed to open binder device:%d", errno);
         return -2;
     }
-    UvPoll pollBinder(*this, binderFd);
+    UvPoll pollBinder(get(), binderFd);
     pollBinder.start(UV_READABLE, [](int fd, int status, int events, void* data) {
         android::IPCThreadState::self()->handlePolledCommands();
     });
@@ -139,10 +137,11 @@ int ApplicationThread::mainRun(int argc, char** argv) {
     appThread->getWeakRefs()->decWeak(appThread.get());
 
     run();
+    pollBinder.close();
+    mApp->onDestroy(); /** Application destroy here */
 
     close();
-    mApp->onDestroy(); /** Application destroy here */
-    ALOGI("Application[%s]:%s has been stopped!!!", argv[0], argv[1]);
+    ALOGW("Application[%s]:%s has been stopped!!!", argv[0], argv[1]);
     return 0;
 }
 
