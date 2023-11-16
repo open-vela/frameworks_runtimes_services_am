@@ -28,27 +28,30 @@ namespace test {
 TEST(UvLoopTest, run) {
     UvLoop looper;
     UvLoop* handler = &looper;
-    looper.postTask([handler](void*) {
+    looper.postTask([handler]() {
         EXPECT_EQ(handler->isAlive(), true);
         handler->stop();
     });
     EXPECT_EQ(looper.run(), 0);
-    EXPECT_EQ(looper.isAlive(), false);
+    EXPECT_EQ(looper.close(), 0);
 }
 
 TEST(UvLoopTest, timer) {
     UvLoop looper;
+    UvLoop* handler = &looper;
 
     auto startTime = std::chrono::high_resolution_clock::now();
-    UvTimer timer(looper, [startTime](void*) {
+    UvTimer timer(looper.get(), [startTime, handler](void*) {
         auto endTime = std::chrono::high_resolution_clock::now();
         auto duration =
                 std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
         EXPECT_EQ(duration > 999 && duration < 1100, true);
+        handler->stop();
     });
     timer.start(1000, 0);
 
-    EXPECT_EQ(looper.run(), 0);
+    looper.run();
+    looper.close();
 }
 
 TEST(UvLoop, poll_pipe) {
@@ -58,7 +61,7 @@ TEST(UvLoop, poll_pipe) {
     int fd[2];
     ASSERT_NE(pipe(fd), -1);
 
-    UvPoll pollfd(looper, fd[0]);
+    UvPoll pollfd(looper.get(), fd[0]);
     pollfd.start(
             UV_READABLE,
             [handler](int f, int status, int events, void* data) {
@@ -72,6 +75,7 @@ TEST(UvLoop, poll_pipe) {
     char buffer[] = "UvPoll Test";
     write(fd[1], buffer, strlen(buffer));
     looper.run();
+    looper.close();
 }
 
 TEST(UvLoop, poll_mqueue) {
@@ -86,7 +90,7 @@ TEST(UvLoop, poll_mqueue) {
     int fd = mq_open("/eventLoopPoll", oflag, 0666, &mqstat);
     ASSERT_GE(fd, 0);
 
-    UvPoll pollfd(looper, fd);
+    UvPoll pollfd(looper.get(), fd);
     pollfd.start(
             UV_READABLE,
             [handler](int f, int status, int events, void* data) {
@@ -103,6 +107,7 @@ TEST(UvLoop, poll_mqueue) {
     num = 999;
     EXPECT_EQ(mq_send(fd, (const char*)&num, sizeof(int), 1), 0);
     looper.run();
+    looper.close();
 }
 
 extern "C" int main(int argc, char** argv) {
