@@ -131,6 +131,12 @@ int ApplicationThread::mainRun(int argc, char** argv) {
         ALOGE("ApplicationThread attach failure");
         return -3;
     }
+    /**
+     * sp<ApplicationThreadStub> will incStrong when writeStrongBinder to other process,
+     * The next two lines is decStrong Ref count to avoid memory leak.
+     * */
+    appThread->decStrong(appThread.get());
+    appThread->getWeakRefs()->decWeak(appThread.get());
 
     run();
 
