@@ -38,13 +38,8 @@ uv_loop_t* UvLoop::get() const {
     return mLooper.get();
 }
 
-int UvLoop::postTask(const UV_CALLBACK& cb, void* data) {
-    auto task = new UvAsync(*this, cb);
-    return task->sendOnce(data);
-}
-
 int UvLoop::postDelayTask(const UV_CALLBACK& cb, uint64_t timeout, void* data) {
-    auto task = new UvTimer(*this, [cb, data](void* timer) {
+    auto task = new UvTimer(get(), [cb, data](void* timer) {
         auto uvTimer = reinterpret_cast<UvTimer*>(timer);
         cb(data);
         uvTimer->stop();
@@ -53,8 +48,8 @@ int UvLoop::postDelayTask(const UV_CALLBACK& cb, uint64_t timeout, void* data) {
     return task->start(timeout, 0, this);
 }
 
-int UvLoop::run() {
-    return uv_run(mLooper.get(), UV_RUN_DEFAULT);
+int UvLoop::run(uv_run_mode mode) {
+    return uv_run(mLooper.get(), mode);
 }
 
 bool UvLoop::isAlive() {
@@ -62,11 +57,20 @@ bool UvLoop::isAlive() {
 }
 
 int UvLoop::close() {
-    return uv_loop_close(mLooper.get());
+    const int ret = uv_loop_close(mLooper.get());
+    if (ret) {
+        ALOGE("Uvloop close error: loop is busy");
+    } else {
+        ALOGI("Uvloop close");
+    }
+    return ret;
 }
 
 void UvLoop::stop() {
+    mMsgHandler.close();
     uv_stop(mLooper.get());
+    uv_walk(
+            mLooper.get(), [](uv_handle_t* handle, void* arg) { uvCloseHandle(handle); }, NULL);
 }
 
 } // namespace app

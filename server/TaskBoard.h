@@ -57,7 +57,7 @@ public:
     TaskMsgHandler(const std::shared_ptr<Task>& task)
           : mTask(task), mIsDone(false), mTimer(nullptr) {}
 
-    void startTimer(UvLoop& loop, uint32_t msTimeout) {
+    void startTimer(uv_loop_t* loop, uint32_t msTimeout) {
         mTimer = new UvTimer();
         mTimer->init(loop, [this](void*) {
             if (!mIsDone) {
