@@ -136,6 +136,13 @@ int ActivityManagerInner::attachApplication(const sp<IApplicationThread>& app) {
 int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent& intent,
                                         int32_t requestCode) {
     AM_PROFILER_BEGIN();
+
+    if (mTaskManager.getActiveTask()->getTopActivity()->getStatus() != ActivityRecord::RESUMED) {
+        ALOGE("The top Activity status is not ready, Please wait a moment before requesting again");
+        AM_PROFILER_END();
+        return android::INVALID_OPERATION;
+    }
+
     string activityTarget;
     if (!intent.mTarget.empty()) {
         activityTarget = intent.mTarget;
