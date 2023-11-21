@@ -73,11 +73,17 @@ int AppRecord::deleteService(const std::shared_ptr<ServiceRecord>& service) {
     return 0;
 }
 
-void AppRecord::setForeground(const bool isForeground) {
-    if (isForeground != mIsForeground) {
-        mAppThread->setForegroundApplication(isForeground);
-        mIsForeground = isForeground;
+void AppRecord::setForeground(const bool isForegroundActivity) {
+    if (isForegroundActivity) {
+        if (++mForegroundActivityCnt == 1) {
+            mAppThread->setForegroundApplication(true);
+        }
+    } else {
+        if (--mForegroundActivityCnt == 0) {
+            mAppThread->setForegroundApplication(false);
+        }
     }
+    ALOGD("%s ForegroundActivityCnt:%d", mPackageName.c_str(), mForegroundActivityCnt);
 }
 
 bool AppRecord::checkActiveStatus() const {
