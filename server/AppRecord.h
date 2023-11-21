@@ -40,7 +40,7 @@ struct AppRecord {
     int mPid;
     int mUid;
     AppInfoList* mAppList;
-    bool mIsForeground;
+    int mForegroundActivityCnt;
     std::vector<std::weak_ptr<ActivityRecord>> mExistActivity;
     std::vector<std::weak_ptr<ServiceRecord>> mExistService;
     bool mIsAlive;
@@ -52,7 +52,7 @@ struct AppRecord {
             mPid(pid),
             mUid(uid),
             mAppList(applist),
-            mIsForeground(false),
+            mForegroundActivityCnt(0),
             mIsAlive(true) {}
 
     ActivityHandler checkActivity(const std::string& activityName);
@@ -60,7 +60,7 @@ struct AppRecord {
 
     bool checkActiveStatus() const;
     void stopApplication();
-    void setForeground(const bool isForeground);
+    void setForeground(const bool isForegroundActivity);
 
     void addActivity(const std::shared_ptr<ActivityRecord>& activity);
     int deleteActivity(const std::shared_ptr<ActivityRecord>& activity);
