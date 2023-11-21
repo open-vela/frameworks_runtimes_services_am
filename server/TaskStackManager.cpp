@@ -62,9 +62,9 @@ void TaskStackManager::switchTaskToActive(const ActivityStackHandler& targetStac
 /** Move the Task to the background with the activity's order within the task is unchanged */
 bool TaskStackManager::moveTaskToBackground(const ActivityStackHandler& targetStack) {
     ALOGI("moveTaskToBack taskTag:%s", targetStack->getTaskTag().c_str());
-    bool isForeground = false;
+    bool isBeforeHomeTask = false;
     if (targetStack == getActiveTask()) {
-        isForeground = true;
+        isBeforeHomeTask = true;
         auto topActivity = targetStack->getTopActivity();
         ActivityLifecycleTransition(topActivity, ActivityRecord::PAUSED);
         mAllTasks.pop_front();
@@ -73,17 +73,20 @@ bool TaskStackManager::moveTaskToBackground(const ActivityStackHandler& targetSt
 
         auto task = std::make_shared<ActivityWaitResume>(nextActivity, topActivity, this);
         mPendTask.commitTask(task, REQUEST_TIMEOUT_MS);
+
+        targetStack->setForeground(false);
+        mAllTasks.front()->setForeground(true);
     }
 
     for (auto iter = mAllTasks.begin(); iter != mAllTasks.end();) {
         if (*iter == targetStack) {
-            isForeground = true;
+            isBeforeHomeTask = true;
             auto tmp = iter;
             ++iter;
             mAllTasks.erase(tmp);
         } else {
             if (*iter == mHomeTask) {
-                if (isForeground) {
+                if (isBeforeHomeTask) {
                     mAllTasks.insert(++iter, targetStack);
                 }
                 return true;
@@ -106,9 +109,15 @@ void TaskStackManager::pushNewActivity(const ActivityStackHandler& targetStack,
         while (auto tmpActivity = targetStack->getTopActivity()) {
             ActivityLifecycleTransition(tmpActivity, ActivityRecord::DESTROYED);
             targetStack->popActivity();
+            if (targetStack == getActiveTask()) {
+                tmpActivity->getAppRecord()->setForeground(false);
+            }
         }
     }
     targetStack->pushActivity(activity);
+    if (targetStack == getActiveTask()) {
+        activity->getAppRecord()->setForeground(true);
+    }
     mActivityMap.emplace(activity->getToken(), activity);
     activity->create();
     ActivityLifecycleTransition(activity, ActivityRecord::RESUMED);
@@ -137,11 +146,11 @@ void TaskStackManager::turnToActivity(const ActivityStackHandler& targetStack,
                 if (tmpActivity == activity) {
                     break;
                 }
-                if (targetStack == getActiveTask()) {
-                    currentTopActivity->stop();
-                }
                 ActivityLifecycleTransition(tmpActivity, ActivityRecord::DESTROYED);
                 targetStack->popActivity();
+                if (targetStack == getActiveTask()) {
+                    tmpActivity->getAppRecord()->setForeground(false);
+                }
             }
         }
         activity->setIntent(intent);
@@ -167,6 +176,9 @@ void TaskStackManager::finishActivity(const ActivityHandler& activity) {
             }
             ActivityLifecycleTransition(tmpActivity, ActivityRecord::DESTROYED);
             activityTask->popActivity();
+            if (activityTask == getActiveTask()) {
+                tmpActivity->getAppRecord()->setForeground(false);
+            }
         }
     }
 
@@ -174,10 +186,12 @@ void TaskStackManager::finishActivity(const ActivityHandler& activity) {
     activityTask->popActivity();
 
     if (activityTask == getActiveTask()) {
+        activity->getAppRecord()->setForeground(false);
         auto nextActivity = activityTask->getTopActivity();
         if (!nextActivity) {
             mAllTasks.pop_front();
             nextActivity = getActiveTask()->getTopActivity();
+            getActiveTask()->setForeground(true);
         }
         ActivityLifecycleTransition(nextActivity, ActivityRecord::RESUMED);
     }
@@ -262,7 +276,7 @@ void TaskStackManager::deleteActivity(const ActivityHandler& activity) {
     mActivityMap.erase(activity->getToken());
 }
 
-ActivityStackHandler TaskStackManager::getActiveTask() {
+inline ActivityStackHandler TaskStackManager::getActiveTask() {
     return mAllTasks.front();
 }
 
@@ -286,17 +300,10 @@ void TaskStackManager::deleteTask(const ActivityStackHandler& task) {
 
 void TaskStackManager::pushTaskToFront(const ActivityStackHandler& activityStack) {
     if (activityStack != mAllTasks.front()) {
+        mAllTasks.front()->setForeground(false);
         mAllTasks.remove(activityStack);
         mAllTasks.push_front(activityStack);
-    }
-
-    /** TaskStack switching, modifies foreground and background applications */
-    if (activityStack != mHomeTask) {
         activityStack->setForeground(true);
-    } else {
-        for (auto iter = ++mAllTasks.begin(); iter != mAllTasks.end(); ++iter) {
-            (*iter)->setForeground(false);
-        }
     }
 }
 
