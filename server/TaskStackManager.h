@@ -108,7 +108,9 @@ public:
         } else {
             mManager->deleteActivity(mActivity);
             if (const auto appRecord = mActivity->getAppRecord()) {
-                appRecord->checkActiveStatus();
+                if (!appRecord->checkActiveStatus()) {
+                    appRecord->stopApplication();
+                }
             }
         }
     }
