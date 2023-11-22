@@ -80,14 +80,16 @@ void AppRecord::setForeground(const bool isForeground) {
     }
 }
 
-void AppRecord::checkActiveStatus() const {
+bool AppRecord::checkActiveStatus() const {
     if (mExistActivity.empty() && mExistService.empty()) {
-        stopApplication();
+        return false;
     }
+    return true;
 }
 
 void AppRecord::stopApplication() const {
     mAppThread->terminateApplication();
+    mAppList->deleteAppInfo(mPid);
 }
 
 const shared_ptr<AppRecord> AppInfoList::findAppInfo(const int pid) {

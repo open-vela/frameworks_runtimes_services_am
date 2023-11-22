@@ -32,26 +32,31 @@ namespace am {
 using android::sp;
 using os::app::IApplicationThread;
 
+class AppInfoList;
+
 struct AppRecord {
     sp<IApplicationThread> mAppThread;
     std::string mPackageName;
     int mPid;
     int mUid;
+    AppInfoList* mAppList;
     bool mIsForeground;
     std::vector<std::weak_ptr<ActivityRecord>> mExistActivity;
     std::vector<std::weak_ptr<ServiceRecord>> mExistService;
 
-    AppRecord(sp<IApplicationThread> app, std::string packageName, int pid, int uid)
+    AppRecord(sp<IApplicationThread> app, std::string packageName, int pid, int uid,
+              AppInfoList* applist)
           : mAppThread(app),
             mPackageName(packageName),
             mPid(pid),
             mUid(uid),
+            mAppList(applist),
             mIsForeground(false) {}
 
     ActivityHandler checkActivity(const std::string& activityName);
     ServiceHandler checkService(const std::string& serviceName);
 
-    void checkActiveStatus() const;
+    bool checkActiveStatus() const;
     void stopApplication() const;
     void setForeground(const bool isForeground);
 
