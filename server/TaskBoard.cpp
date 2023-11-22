@@ -48,8 +48,12 @@ void TaskBoard::eventTrigger(const Label& e) {
             // execute finish,
             (*iter)->stopTimer();
             // remove it from list
-            mTasklist.erase(iter);
-            break;
+            iter = mTasklist.erase(iter);
+            if (e.mType == LabelType::MULTI_TRIGGER) {
+                continue;
+            } else {
+                break;
+            }
         }
         ++iter;
     }

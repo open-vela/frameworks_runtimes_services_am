@@ -30,9 +30,15 @@ namespace am {
 using os::app::UvLoop;
 using os::app::UvTimer;
 
+enum LabelType {
+    ONCE_TRIGGER,
+    MULTI_TRIGGER,
+};
+
 struct Label {
-    int mId;
-    Label(const int Id) : mId(Id){};
+    const int mId;
+    const int mType;
+    Label(const int id, int type = ONCE_TRIGGER) : mId(id), mType(type){};
     virtual bool operator==(const Label& e) const {
         return mId == e.mId;
     }
