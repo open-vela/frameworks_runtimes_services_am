@@ -18,6 +18,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "ActivityRecord.h"
@@ -68,18 +69,23 @@ public:
     void deleteAppInfo(const int pid);
     void deleteAppInfo(const std::string& packageName);
 
+    void addAppWaitingAttach(const std::string& packageName, int pid);
+    int getAttachingAppPid(const std::string& packageName);
+    bool getAttachingAppName(int pid, std::string& packageName);
+
 private:
     std::vector<std::shared_ptr<AppRecord>> mAppList;
+    // app had spawn but does't attach
+    std::vector<std::pair<std::string, int>> mAppWaitingAttach;
 };
 
 class AppAttachTask : public Task {
 public:
     struct Event : Label {
-        int mPid;
-        int mUid;
-        sp<IApplicationThread> mAppHandler;
-        Event(const int pid, const int uid, sp<IApplicationThread> app)
-              : Label(APP_ATTACH), mPid(pid), mUid(uid), mAppHandler(app) {}
+        const int mPid;
+        const std::shared_ptr<AppRecord> mAppRecord;
+        Event(int pid, const std::shared_ptr<AppRecord>& app)
+              : Label(APP_ATTACH, LabelType::MULTI_TRIGGER), mPid(pid), mAppRecord(app) {}
     };
 
     using TaskFunc = std::function<void(const Event*)>;
