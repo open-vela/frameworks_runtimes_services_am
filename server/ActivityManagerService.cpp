@@ -132,7 +132,7 @@ int ActivityManagerInner::attachApplication(const sp<IApplicationThread>& app) {
 
     string packageName;
     if (mAppInfo.getAttachingAppName(callerPid, packageName)) {
-        appRecord = std::make_shared<AppRecord>(app, packageName, callerPid, callerUid);
+        appRecord = std::make_shared<AppRecord>(app, packageName, callerPid, callerUid, &mAppInfo);
         mAppInfo.addAppInfo(appRecord);
         const AppAttachTask::Event event(callerPid, appRecord);
         mPendTask.eventTrigger(event);
@@ -300,7 +300,6 @@ int ActivityManagerInner::stopActivity(const Intent& intent, int32_t resultCode)
         if (appinfo) {
             if (activityName.empty()) {
                 appinfo->stopApplication();
-                mAppInfo.deleteAppInfo(appinfo->mPid);
             } else {
                 activity = appinfo->checkActivity(intent.mTarget);
                 if (activity) {
@@ -595,7 +594,9 @@ void ActivityManagerInner::reportServiceStatus(const sp<IBinder>& token, int32_t
         case ServiceRecord::DESTROYED: {
             mServices.deleteService(token);
             if (auto appRecord = service->mApp.lock()) {
-                appRecord->checkActiveStatus();
+                if (!appRecord->checkActiveStatus()) {
+                    appRecord->stopApplication();
+                }
             }
             break;
         }
