@@ -96,6 +96,9 @@ private:
     void stopServiceReal(ServiceHandler& service);
     int startHomeActivity();
     int getRuntimeEnvironment(const string& packagename, string& newpackage, string& newexecfile);
+    int submitAppStartupTask(const string& packageName, const string& prcocessName,
+                             const string& execfile, AppAttachTask::TaskFunc&& task,
+                             bool isSupportMultiTask);
 
 private:
     std::shared_ptr<UvLoop> mLooper;
@@ -117,7 +120,7 @@ ActivityManagerInner::ActivityManagerInner(uv_loop_t* looper) : mTaskManager(mPe
 int ActivityManagerInner::attachApplication(const sp<IApplicationThread>& app) {
     AM_PROFILER_BEGIN();
     const int callerPid = android::IPCThreadState::self()->getCallingPid();
-    const auto appRecord = mAppInfo.findAppInfo(callerPid);
+    auto appRecord = mAppInfo.findAppInfo(callerPid);
     ALOGI("attachApplication. pid:%d appRecord:[%p]", callerPid, appRecord.get());
     if (appRecord) {
         ALOGE("the application:%s had be attached", appRecord->mPackageName.c_str());
@@ -126,8 +129,17 @@ int ActivityManagerInner::attachApplication(const sp<IApplicationThread>& app) {
     }
 
     const int callerUid = android::IPCThreadState::self()->getCallingUid();
-    const AppAttachTask::Event event(callerPid, callerUid, app);
-    mPendTask.eventTrigger(event);
+
+    string packageName;
+    if (mAppInfo.getAttachingAppName(callerPid, packageName)) {
+        appRecord = std::make_shared<AppRecord>(app, packageName, callerPid, callerUid);
+        mAppInfo.addAppInfo(appRecord);
+        const AppAttachTask::Event event(callerPid, appRecord);
+        mPendTask.eventTrigger(event);
+    } else {
+        ALOGE("the application:%d attaching is illegally", callerPid);
+    }
+
     AM_PROFILER_END();
     return android::OK;
 }
@@ -249,22 +261,16 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
             newActivity->setAppThread(appInfo);
             mTaskManager.pushNewActivity(targetTask, newActivity, startFlag);
         } else {
-            const int pid = AppSpawn::appSpawn(packageInfo.execfile.c_str(), {packageName});
-            if (pid < 0) {
-                ALOGE("packagename:%s bin:%s startup failure", packageName.c_str(),
-                      packageInfo.execfile.c_str());
+            const auto task = [this, targetTask, newActivity,
+                               startFlag](const AppAttachTask::Event* e) {
+                newActivity->setAppThread(e->mAppRecord);
+                mTaskManager.pushNewActivity(targetTask, newActivity, startFlag);
+            };
+            if (submitAppStartupTask(packageName, packageName, packageInfo.execfile,
+                                     std::move(task), false) != 0) {
+                ALOGW("submitAppStartupTask failure");
                 AM_PROFILER_END();
-                return android::OK;
-            } else {
-                auto appAttachTask = [this, packageName, targetTask, newActivity,
-                                      startFlag](const AppAttachTask::Event* e) {
-                    auto appRecord = std::make_shared<AppRecord>(e->mAppHandler, packageName,
-                                                                 e->mPid, e->mUid);
-                    this->mAppInfo.addAppInfo(appRecord);
-                    newActivity->setAppThread(appRecord);
-                    mTaskManager.pushNewActivity(targetTask, newActivity, startFlag);
-                };
-                mPendTask.commitTask(std::make_shared<AppAttachTask>(pid, appAttachTask));
+                return android::INVALID_OPERATION;
             }
         }
     } else {
@@ -294,6 +300,7 @@ int ActivityManagerInner::stopActivity(const Intent& intent, int32_t resultCode)
         if (appinfo) {
             if (activityName.empty()) {
                 appinfo->stopApplication();
+                mAppInfo.deleteAppInfo(appinfo->mPid);
             } else {
                 activity = appinfo->checkActivity(intent.mTarget);
                 if (activity) {
@@ -413,23 +420,18 @@ int ActivityManagerInner::startService(const Intent& intent) {
             mServices.addService(service);
             service->start(intent);
         } else {
-            const int pid = AppSpawn::appSpawn(execfile.c_str(), {packageName});
-            if (pid > 0) {
-                const auto task = [this, serviceName, servicePackageName,
-                                   intent](const AppAttachTask::Event* e) {
-                    auto app = std::make_shared<AppRecord>(e->mAppHandler, servicePackageName,
-                                                           e->mPid, e->mUid);
-                    this->mAppInfo.addAppInfo(app);
-                    const sp<IBinder> token(new android::BBinder());
-                    auto serviceRecord = std::make_shared<ServiceRecord>(serviceName, token, app);
-                    mServices.addService(serviceRecord);
-                    serviceRecord->start(intent);
-                };
-                mPendTask.commitTask(std::make_shared<AppAttachTask>(pid, task));
-            } else {
-                ALOGE("appSpawn App:%s error", execfile.c_str());
+            const auto task = [this, serviceName, intent](const AppAttachTask::Event* e) {
+                const sp<IBinder> token(new android::BBinder());
+                auto serviceRecord =
+                        std::make_shared<ServiceRecord>(serviceName, token, e->mAppRecord);
+                mServices.addService(serviceRecord);
+                serviceRecord->start(intent);
+            };
+            if (submitAppStartupTask(packageName, servicePackageName, execfile, std::move(task),
+                                     true) != 0) {
+                ALOGW("submitAppStartupTask failure");
                 AM_PROFILER_END();
-                return android::BAD_VALUE;
+                return android::INVALID_OPERATION;
             }
         }
     }
@@ -502,23 +504,20 @@ int ActivityManagerInner::bindService(const sp<IBinder>& caller, const Intent& i
             mServices.addService(service);
             service->bind(caller, conn, intent);
         } else {
-            const int pid = AppSpawn::appSpawn(execfile.c_str(), {packageName});
-            if (pid > 0) {
-                const auto task = [this, serviceName, servicePackageName, caller, conn,
-                                   intent](const AppAttachTask::Event* e) {
-                    auto app = std::make_shared<AppRecord>(e->mAppHandler, servicePackageName,
-                                                           e->mPid, e->mUid);
-                    this->mAppInfo.addAppInfo(app);
-                    const sp<IBinder> token(new android::BBinder());
-                    auto serviceRecord = std::make_shared<ServiceRecord>(serviceName, token, app);
-                    mServices.addService(serviceRecord);
-                    serviceRecord->bind(caller, conn, intent);
-                };
-                mPendTask.commitTask(std::make_shared<AppAttachTask>(pid, task));
-            } else {
-                ALOGE("appSpawn App:%s error", execfile.c_str());
+            const auto task = [this, serviceName, caller, conn,
+                               intent](const AppAttachTask::Event* e) {
+                const sp<IBinder> token(new android::BBinder());
+                auto serviceRecord =
+                        std::make_shared<ServiceRecord>(serviceName, token, e->mAppRecord);
+                mServices.addService(serviceRecord);
+                serviceRecord->bind(caller, conn, intent);
+            };
+
+            if (submitAppStartupTask(packageName, servicePackageName, execfile, std::move(task),
+                                     true) != 0) {
+                ALOGW("submitAppStartupTask failure");
                 AM_PROFILER_END();
-                return android::BAD_VALUE;
+                return android::INVALID_OPERATION;
             }
         }
     } else {
@@ -743,24 +742,16 @@ int ActivityManagerInner::startHomeActivity() {
                                                  (int32_t)ActivityManager::NO_REQUEST,
                                                  ActivityRecord::SINGLE_TASK, homeTask, Intent(),
                                                  mWindowManager);
-        const int pid = AppSpawn::appSpawn(homeApp.execfile.c_str(), {packageName});
-        if (pid > 0) {
-            auto task = std::make_shared<
-                    AppAttachTask>(pid,
-                                   [this, packageName, homeTask,
-                                    newActivity](const AppAttachTask::Event* e) {
-                                       auto appRecord =
-                                               std::make_shared<AppRecord>(e->mAppHandler,
-                                                                           packageName, e->mPid,
-                                                                           e->mUid);
-                                       this->mAppInfo.addAppInfo(appRecord);
-                                       newActivity->setAppThread(appRecord);
-                                       this->mTaskManager.initHomeTask(homeTask, newActivity);
-                                   });
-            mPendTask.commitTask(task);
-        } else {
-            ALOGE("appSpawn Home App:%s error", homeApp.execfile.c_str());
-            return android::BAD_VALUE;
+
+        auto task = [this, homeTask, newActivity](const AppAttachTask::Event* e) {
+            newActivity->setAppThread(e->mAppRecord);
+            this->mTaskManager.initHomeTask(homeTask, newActivity);
+        };
+        if (submitAppStartupTask(packageName, packageName, homeApp.execfile.c_str(),
+                                 std::move(task), false) != 0) {
+            ALOGE("Startup home app failure!!!");
+            AM_PROFILER_END();
+            return android::INVALID_OPERATION;
         }
     } else {
         ALOGE("systemReady error: can't launch Home Activity");
@@ -785,6 +776,30 @@ int ActivityManagerInner::getRuntimeEnvironment(const string& packagename, strin
         newpackage = packageInfo.packageName;
         newexecfile = packageInfo.execfile;
     }
+    return 0;
+}
+
+int ActivityManagerInner::submitAppStartupTask(const string& packageName,
+                                               const string& prcocessName, const string& execfile,
+                                               AppAttachTask::TaskFunc&& task,
+                                               bool isSupportMultiTask) {
+    int pid = mAppInfo.getAttachingAppPid(prcocessName);
+    if (pid < 0) {
+        pid = AppSpawn::appSpawn(execfile.c_str(), {packageName});
+        if (pid > 0) {
+            mAppInfo.addAppWaitingAttach(prcocessName, pid);
+        } else {
+            ALOGE("appSpawn App:%s error", execfile.c_str());
+            return -1;
+        }
+    } else if (!isSupportMultiTask) {
+        ALOGW("the Application:%s[%d] is waitting for attach, please wait a moment before "
+              "requesting again",
+              packageName.c_str(), pid);
+        return -1;
+    }
+
+    mPendTask.commitTask(std::make_shared<AppAttachTask>(pid, task));
     return 0;
 }
 
