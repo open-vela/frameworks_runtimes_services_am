@@ -19,7 +19,6 @@
 #include "am/ActivityManagerService.h"
 
 #include <binder/IPCThreadState.h>
-#include <os/pm/PackageInfo.h>
 #include <pm/PackageManager.h>
 #include <utils/Log.h>
 
