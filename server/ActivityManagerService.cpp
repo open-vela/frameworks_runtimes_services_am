@@ -256,7 +256,7 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
         auto newActivity = std::make_shared<ActivityRecord>(packageName + "/" + activityName,
                                                             caller, requestCode, launchMode,
                                                             targetTask, intent, mWindowManager);
-        const auto appInfo = mAppInfo.findAppInfo(packageName);
+        const auto appInfo = mAppInfo.findAppInfoWithAlive(packageName);
         if (appInfo) {
             newActivity->setAppThread(appInfo);
             mTaskManager.pushNewActivity(targetTask, newActivity, startFlag);
@@ -296,7 +296,7 @@ int ActivityManagerInner::stopActivity(const Intent& intent, int32_t resultCode)
         getPackageAndComponentName(intent.mTarget, packageName, activityName);
 
         ActivityHandler activity;
-        auto appinfo = mAppInfo.findAppInfo(packageName);
+        auto appinfo = mAppInfo.findAppInfoWithAlive(packageName);
         if (appinfo) {
             if (activityName.empty()) {
                 appinfo->stopApplication();
@@ -371,9 +371,18 @@ void ActivityManagerInner::reportActivityStatus(const sp<IBinder>& token, int32_
     const ActivityLifeCycleTask::Event event((ActivityRecord::Status)status, token);
     mPendTask.eventTrigger(event);
 
+    // Only "resume" and "destroy" need special process.
     if (status == ActivityRecord::RESUMED) {
         const ActivityWaitResume::Event event2(token);
         mPendTask.eventTrigger(event2);
+    } else if (status == ActivityRecord::DESTROYED) {
+        auto activity = mTaskManager.getActivity(token);
+        mTaskManager.deleteActivity(activity);
+        if (const auto appRecord = activity->getAppRecord()) {
+            if (!appRecord->checkActiveStatus()) {
+                appRecord->stopApplication();
+            }
+        }
     }
 
     AM_PROFILER_END();
@@ -412,7 +421,7 @@ int ActivityManagerInner::startService(const Intent& intent) {
         service->start(intent);
     } else {
         std::shared_ptr<AppRecord> appRecord;
-        appRecord = mAppInfo.findAppInfo(packageName);
+        appRecord = mAppInfo.findAppInfoWithAlive(packageName);
         if (appRecord) {
             const sp<IBinder> token(new android::BBinder());
             service = std::make_shared<ServiceRecord>(serviceName, token, appRecord);
@@ -496,7 +505,7 @@ int ActivityManagerInner::bindService(const sp<IBinder>& caller, const Intent& i
 
     ServiceHandler service = mServices.findService(servicePackageName, serviceName);
     if (!service) {
-        const auto appRecord = mAppInfo.findAppInfo(servicePackageName);
+        const auto appRecord = mAppInfo.findAppInfoWithAlive(servicePackageName);
         if (appRecord) {
             const sp<IBinder> token(new android::BBinder());
             service = std::make_shared<ServiceRecord>(serviceName, token, appRecord);
@@ -707,9 +716,6 @@ void ActivityManagerInner::procAppTerminated(const std::shared_ptr<AppRecord>& a
         }
     }
     needDeleteService.clear();
-
-    auto topActivity = mTaskManager.getActiveTask()->getTopActivity();
-    mTaskManager.turnToActivity(topActivity->getTask(), topActivity, Intent(), 0);
 }
 
 void ActivityManagerInner::dump(int fd, const android::Vector<android::String16>& args) {

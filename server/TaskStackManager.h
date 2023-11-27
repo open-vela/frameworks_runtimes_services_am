@@ -105,13 +105,6 @@ public:
         mActivity->setStatus(event->status);
         if (event->status != ActivityRecord::DESTROYED) {
             mManager->ActivityLifecycleTransition(mActivity, mTurnTo);
-        } else {
-            mManager->deleteActivity(mActivity);
-            if (const auto appRecord = mActivity->getAppRecord()) {
-                if (!appRecord->checkActiveStatus()) {
-                    appRecord->stopApplication();
-                }
-            }
         }
     }
 

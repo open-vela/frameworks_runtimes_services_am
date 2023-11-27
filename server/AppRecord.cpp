@@ -87,26 +87,34 @@ bool AppRecord::checkActiveStatus() const {
     return true;
 }
 
-void AppRecord::stopApplication() const {
+void AppRecord::stopApplication() {
+    mIsAlive = false;
     mAppThread->terminateApplication();
     mAppList->deleteAppInfo(mPid);
 }
 
 const shared_ptr<AppRecord> AppInfoList::findAppInfo(const int pid) {
-    const int size = mAppList.size();
-    for (int i = 0; i < size; ++i) {
-        if (mAppList[i]->mPid == pid) {
-            return mAppList[i];
+    for (auto it : mAppList) {
+        if (it->mPid == pid) {
+            return it;
         }
     }
     return nullptr;
 }
 
-const shared_ptr<AppRecord> AppInfoList::findAppInfo(const string& packageName) {
-    const int size = mAppList.size();
-    for (int i = 0; i < size; ++i) {
-        if (mAppList[i]->mPackageName == packageName) {
-            return mAppList[i];
+const shared_ptr<AppRecord> AppInfoList::findAppInfoWithAlive(const int pid) {
+    for (auto it : mAppList) {
+        if (it->mPid == pid && it->mIsAlive) {
+            return it;
+        }
+    }
+    return nullptr;
+}
+
+const shared_ptr<AppRecord> AppInfoList::findAppInfoWithAlive(const string& packageName) {
+    for (auto it : mAppList) {
+        if (it->mPackageName == packageName && it->mIsAlive) {
+            return it;
         }
     }
     return nullptr;
