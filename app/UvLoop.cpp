@@ -59,7 +59,7 @@ bool UvLoop::isAlive() {
 int UvLoop::close() {
     const int ret = uv_loop_close(mLooper.get());
     if (ret) {
-        ALOGE("Uvloop close error: loop is busy");
+        ALOGW("Uvloop close error: loop is busy");
     } else {
         ALOGI("Uvloop close");
     }
@@ -69,8 +69,6 @@ int UvLoop::close() {
 void UvLoop::stop() {
     mMsgHandler.close();
     uv_stop(mLooper.get());
-    uv_walk(
-            mLooper.get(), [](uv_handle_t* handle, void* arg) { uvCloseHandle(handle); }, NULL);
 }
 
 } // namespace app
