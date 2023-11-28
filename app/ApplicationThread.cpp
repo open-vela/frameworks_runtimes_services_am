@@ -139,8 +139,16 @@ int ApplicationThread::mainRun(int argc, char** argv) {
     run();
     pollBinder.close();
     mApp->onDestroy(); /** Application destroy here */
+    run(UV_RUN_NOWAIT);
 
-    close();
+    int tryCloseCnt = 5;
+    while (isAlive() && --tryCloseCnt) {
+        run(UV_RUN_NOWAIT);
+        ALOGI("uv loop run once, perform unfinished tasks");
+    }
+    if (close() != 0) {
+        ALOGE("uv loop can't close properly, there's a memory leak!!!");
+    }
     ALOGW("Application[%s]:%s has been stopped!!!", argv[0], argv[1]);
     return 0;
 }

@@ -33,6 +33,10 @@ TEST(UvLoopTest, run) {
         handler->stop();
     });
     EXPECT_EQ(looper.run(), 0);
+    while (looper.isAlive()) {
+        looper.run(UV_RUN_NOWAIT);
+    }
+    EXPECT_EQ(looper.isAlive(), false);
     EXPECT_EQ(looper.close(), 0);
 }
 
@@ -49,9 +53,13 @@ TEST(UvLoopTest, timer) {
         handler->stop();
     });
     timer.start(1000, 0);
-
     looper.run();
-    looper.close();
+    timer.close();
+    while (looper.isAlive()) {
+        looper.run(UV_RUN_NOWAIT);
+    }
+    EXPECT_EQ(looper.isAlive(), false);
+    EXPECT_EQ(looper.close(), 0);
 }
 
 TEST(UvLoop, poll_pipe) {
@@ -75,7 +83,12 @@ TEST(UvLoop, poll_pipe) {
     char buffer[] = "UvPoll Test";
     write(fd[1], buffer, strlen(buffer));
     looper.run();
-    looper.close();
+    pollfd.close();
+    while (looper.isAlive()) {
+        looper.run(UV_RUN_NOWAIT);
+    }
+    EXPECT_EQ(looper.isAlive(), false);
+    EXPECT_EQ(looper.close(), 0);
 }
 
 TEST(UvLoop, poll_mqueue) {
@@ -107,6 +120,7 @@ TEST(UvLoop, poll_mqueue) {
     num = 999;
     EXPECT_EQ(mq_send(fd, (const char*)&num, sizeof(int), 1), 0);
     looper.run();
+    pollfd.close();
     looper.close();
 }
 
