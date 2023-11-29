@@ -45,7 +45,7 @@ int UvLoop::postDelayTask(const UV_CALLBACK& cb, uint64_t timeout, void* data) {
         uvTimer->stop();
         delete uvTimer;
     });
-    return task->start(timeout, 0, this);
+    return task->start(timeout, 0, task);
 }
 
 int UvLoop::run(uv_run_mode mode) {
