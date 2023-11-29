@@ -77,10 +77,12 @@ void AppRecord::setForeground(const bool isForegroundActivity) {
     if (isForegroundActivity) {
         if (++mForegroundActivityCnt == 1) {
             mAppThread->setForegroundApplication(true);
+            mPriorityPolicy->pushForeground(mPid);
         }
     } else {
         if (--mForegroundActivityCnt == 0) {
             mAppThread->setForegroundApplication(false);
+            mPriorityPolicy->intoBackground(mPid);
         }
     }
     ALOGD("%s ForegroundActivityCnt:%d", mPackageName.c_str(), mForegroundActivityCnt);
@@ -97,6 +99,7 @@ void AppRecord::stopApplication() {
     mIsAlive = false;
     mAppThread->terminateApplication();
     mAppList->deleteAppInfo(mPid);
+    mPriorityPolicy->remove(mPid);
 }
 
 const shared_ptr<AppRecord> AppInfoList::findAppInfo(const int pid) {

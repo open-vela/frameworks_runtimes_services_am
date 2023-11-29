@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "ActivityRecord.h"
+#include "ProcessPriorityPolicy.h"
 #include "ServiceRecord.h"
 #include "TaskBoard.h"
 #include "os/app/IApplicationThread.h"
@@ -40,18 +41,20 @@ struct AppRecord {
     int mPid;
     int mUid;
     AppInfoList* mAppList;
+    ProcessPriorityPolicy* mPriorityPolicy;
     int mForegroundActivityCnt;
     std::vector<std::weak_ptr<ActivityRecord>> mExistActivity;
     std::vector<std::weak_ptr<ServiceRecord>> mExistService;
     bool mIsAlive;
 
     AppRecord(sp<IApplicationThread> app, std::string packageName, int pid, int uid,
-              AppInfoList* applist)
+              AppInfoList* applist, ProcessPriorityPolicy* policy)
           : mAppThread(app),
             mPackageName(packageName),
             mPid(pid),
             mUid(uid),
             mAppList(applist),
+            mPriorityPolicy(policy),
             mForegroundActivityCnt(0),
             mIsAlive(true) {}
 
