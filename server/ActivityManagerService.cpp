@@ -31,6 +31,8 @@
 #include "AppRecord.h"
 #include "AppSpawn.h"
 #include "IntentAction.h"
+#include "LowMemoryManager.h"
+#include "ProcessPriorityPolicy.h"
 #include "TaskBoard.h"
 #include "TaskStackManager.h"
 #include "app/ActivityManager.h"
@@ -110,11 +112,21 @@ private:
     PackageManager mPm;
     sp<::os::wm::IWindowManager> mWindowManager;
     map<string, list<sp<IBroadcastReceiver>>> mReceivers; /** Broadcast */
+    LowMemoryManager mLmk;
+    ProcessPriorityPolicy mPriorityPolicy;
 };
 
-ActivityManagerInner::ActivityManagerInner(uv_loop_t* looper) : mTaskManager(mPendTask) {
+ActivityManagerInner::ActivityManagerInner(uv_loop_t* looper)
+      : mTaskManager(mPendTask), mPriorityPolicy(&mLmk) {
     mLooper = std::make_shared<UvLoop>(looper);
     mPendTask.attachLoop(mLooper);
+    mLmk.init(mLooper);
+    mLmk.setLMKExecutor([this](pid_t pid) {
+        if (auto apprecord = mAppInfo.findAppInfo(pid)) {
+            ALOGW("LMK stop application:%s", apprecord->mPackageName.c_str());
+            apprecord->stopApplication();
+        }
+    });
 }
 
 int ActivityManagerInner::attachApplication(const sp<IApplicationThread>& app) {
@@ -132,7 +144,8 @@ int ActivityManagerInner::attachApplication(const sp<IApplicationThread>& app) {
 
     string packageName;
     if (mAppInfo.getAttachingAppName(callerPid, packageName)) {
-        appRecord = std::make_shared<AppRecord>(app, packageName, callerPid, callerUid, &mAppInfo);
+        appRecord = std::make_shared<AppRecord>(app, packageName, callerPid, callerUid, &mAppInfo,
+                                                &mPriorityPolicy);
         mAppInfo.addAppInfo(appRecord);
         const AppAttachTask::Event event(callerPid, appRecord);
         mPendTask.eventTrigger(event);
@@ -263,6 +276,7 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
         } else {
             const auto task = [this, targetTask, newActivity,
                                startFlag](const AppAttachTask::Event* e) {
+                mPriorityPolicy.add(e->mPid, true);
                 newActivity->setAppThread(e->mAppRecord);
                 mTaskManager.pushNewActivity(targetTask, newActivity, startFlag);
             };
@@ -377,6 +391,7 @@ void ActivityManagerInner::reportActivityStatus(const sp<IBinder>& token, int32_
         mPendTask.eventTrigger(event2);
     } else if (status == ActivityRecord::DESTROYED) {
         auto activity = mTaskManager.getActivity(token);
+        activity->setStatus(ActivityRecord::DESTROYED);
         mTaskManager.deleteActivity(activity);
         if (const auto appRecord = activity->getAppRecord()) {
             if (!appRecord->checkActiveStatus()) {
@@ -432,6 +447,7 @@ int ActivityManagerInner::startService(const Intent& intent) {
                 const sp<IBinder> token(new android::BBinder());
                 auto serviceRecord =
                         std::make_shared<ServiceRecord>(serviceName, token, e->mAppRecord);
+                mPriorityPolicy.add(e->mPid, false);
                 mServices.addService(serviceRecord);
                 serviceRecord->start(intent);
             };
@@ -517,6 +533,7 @@ int ActivityManagerInner::bindService(const sp<IBinder>& caller, const Intent& i
                 const sp<IBinder> token(new android::BBinder());
                 auto serviceRecord =
                         std::make_shared<ServiceRecord>(serviceName, token, e->mAppRecord);
+                mPriorityPolicy.add(e->mPid, false);
                 mServices.addService(serviceRecord);
                 serviceRecord->bind(caller, conn, intent);
             };
@@ -669,6 +686,7 @@ void ActivityManagerInner::systemReady() {
         if (app) {
             procAppTerminated(app);
             mAppInfo.deleteAppInfo(pid);
+            mPriorityPolicy.remove(pid);
         }
     });
 
@@ -720,7 +738,7 @@ void ActivityManagerInner::procAppTerminated(const std::shared_ptr<AppRecord>& a
 
 void ActivityManagerInner::dump(int fd, const android::Vector<android::String16>& args) {
     std::ostringstream os;
-    os << mTaskManager;
+    os << mTaskManager << mPriorityPolicy;
     write(fd, os.str().c_str(), os.str().size());
 }
 
@@ -751,6 +769,7 @@ int ActivityManagerInner::startHomeActivity() {
                                                  mWindowManager);
 
         auto task = [this, homeTask, newActivity](const AppAttachTask::Event* e) {
+            mPriorityPolicy.add(e->mPid, true);
             newActivity->setAppThread(e->mAppRecord);
             this->mTaskManager.initHomeTask(homeTask, newActivity);
         };

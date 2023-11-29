@@ -27,6 +27,10 @@ config AM_COMMAND
 	tristate "Enable am command tools"
 	default n
 
+config AM_LMK_CFG
+	string "LMK configure file"
+	default "/etc/lmk.cfg"
+
 config AM_TEST
 	tristate "Enable am framework test"
 	default n
