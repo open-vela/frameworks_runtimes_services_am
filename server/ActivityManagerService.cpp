@@ -146,6 +146,7 @@ int ActivityManagerInner::attachApplication(const sp<IApplicationThread>& app) {
     if (mAppInfo.getAttachingAppName(callerPid, packageName)) {
         appRecord = std::make_shared<AppRecord>(app, packageName, callerPid, callerUid, &mAppInfo,
                                                 &mPriorityPolicy);
+        mAppInfo.deleteAppWaitingAttach(callerPid);
         mAppInfo.addAppInfo(appRecord);
         const AppAttachTask::Event event(callerPid, appRecord);
         mPendTask.eventTrigger(event);
@@ -687,6 +688,12 @@ void ActivityManagerInner::systemReady() {
             procAppTerminated(app);
             mAppInfo.deleteAppInfo(pid);
             mPriorityPolicy.remove(pid);
+        } else {
+            string packagename;
+            if (mAppInfo.getAttachingAppName(pid, packagename)) {
+                ALOGE("App:%s abnormal exit without attachApplication", packagename.c_str());
+                mAppInfo.deleteAppWaitingAttach(pid);
+            }
         }
     });
 

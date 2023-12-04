@@ -82,6 +82,7 @@ public:
     void deleteAppInfo(const std::string& packageName);
 
     void addAppWaitingAttach(const std::string& packageName, int pid);
+    void deleteAppWaitingAttach(const int pid);
     int getAttachingAppPid(const std::string& packageName);
     bool getAttachingAppName(int pid, std::string& packageName);
 
