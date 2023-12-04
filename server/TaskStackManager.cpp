@@ -276,7 +276,7 @@ void TaskStackManager::deleteActivity(const ActivityHandler& activity) {
     mActivityMap.erase(activity->getToken());
 }
 
-inline ActivityStackHandler TaskStackManager::getActiveTask() {
+ActivityStackHandler TaskStackManager::getActiveTask() {
     return mAllTasks.front();
 }
 
