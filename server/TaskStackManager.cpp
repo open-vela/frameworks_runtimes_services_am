@@ -169,6 +169,11 @@ void TaskStackManager::turnToActivity(const ActivityStackHandler& targetStack,
 void TaskStackManager::finishActivity(const ActivityHandler& activity) {
     ALOGI("finishActivity %s token:[%p] ", activity->getName().c_str(), activity->getToken().get());
     auto activityTask = activity->getTask();
+    if (!activityTask) {
+        ALOGW("the TaskStack that Activity:%s belonged to had been removed",
+              activity->getName().c_str());
+        return;
+    }
     if (activity != activityTask->getTopActivity()) {
         while (auto tmpActivity = activityTask->getTopActivity()) {
             if (tmpActivity == activity) {
