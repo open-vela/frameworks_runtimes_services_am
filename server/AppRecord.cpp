@@ -130,16 +130,6 @@ const shared_ptr<AppRecord> AppInfoList::findAppInfoWithAlive(const string& pack
 }
 
 bool AppInfoList::addAppInfo(const shared_ptr<AppRecord>& appInfo) {
-    // add appInfo, so delete it from waiting attach app vector;
-    const int size = mAppWaitingAttach.size();
-    for (int i = 0; i < size; ++i) {
-        if (mAppWaitingAttach[i].second == appInfo->mPid) {
-            mAppWaitingAttach[i] = mAppWaitingAttach[size - 1];
-            mAppWaitingAttach.pop_back();
-            break;
-        }
-    }
-
     if (nullptr == findAppInfo(appInfo->mPid).get()) {
         mAppList.emplace_back(appInfo);
         return true;
@@ -171,6 +161,17 @@ void AppInfoList::deleteAppInfo(const string& packageName) {
 
 void AppInfoList::addAppWaitingAttach(const std::string& packageName, int pid) {
     mAppWaitingAttach.emplace_back(packageName, pid);
+}
+
+void AppInfoList::deleteAppWaitingAttach(const int pid) {
+    const int size = mAppWaitingAttach.size();
+    for (int i = 0; i < size; ++i) {
+        if (mAppWaitingAttach[i].second == pid) {
+            mAppWaitingAttach[i] = mAppWaitingAttach[size - 1];
+            mAppWaitingAttach.pop_back();
+            break;
+        }
+    }
 }
 
 int AppInfoList::getAttachingAppPid(const std::string& packageName) {
