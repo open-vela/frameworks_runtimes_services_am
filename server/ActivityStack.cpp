@@ -67,7 +67,9 @@ ActivityHandler ActivityStack::findActivity(const sp<IBinder>& token) {
 
 void ActivityStack::setForeground(const bool isForeground) {
     for (const auto& it : mStack) {
-        it->getAppRecord()->setForeground(isForeground);
+        if (auto app = it->getAppRecord()) {
+            app->setForeground(isForeground);
+        }
     }
 }
 
