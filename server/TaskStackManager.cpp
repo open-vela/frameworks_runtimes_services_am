@@ -44,8 +44,9 @@ void TaskStackManager::initHomeTask(const ActivityStackHandler& taskStack,
 void TaskStackManager::switchTaskToActive(const ActivityStackHandler& targetStack,
                                           const Intent& intent) {
     ALOGI("switchTaskToActive taskTag:%s", targetStack->getTaskTag().c_str());
-    if (targetStack != getActiveTask()) {
-        auto currentTopActivity = getActiveTask()->getTopActivity();
+    const auto activeTask = getActiveTask();
+    if (targetStack != activeTask) {
+        auto currentTopActivity = activeTask->getTopActivity();
         ActivityLifecycleTransition(currentTopActivity, ActivityRecord::PAUSED);
 
         auto activity = targetStack->getTopActivity();
@@ -63,19 +64,30 @@ void TaskStackManager::switchTaskToActive(const ActivityStackHandler& targetStac
 bool TaskStackManager::moveTaskToBackground(const ActivityStackHandler& targetStack) {
     ALOGI("moveTaskToBack taskTag:%s", targetStack->getTaskTag().c_str());
     bool isBeforeHomeTask = false;
-    if (targetStack == getActiveTask()) {
+    auto activeTask = getActiveTask();
+    if (targetStack == mHomeTask) {
+        ALOGW("default home application can't move to background");
+        return false;
+    }
+
+    if (targetStack == activeTask) {
         isBeforeHomeTask = true;
         auto topActivity = targetStack->getTopActivity();
-        ActivityLifecycleTransition(topActivity, ActivityRecord::PAUSED);
         mAllTasks.pop_front();
-        auto nextActivity = getActiveTask()->getTopActivity();
-        ActivityLifecycleTransition(nextActivity, ActivityRecord::RESUMED);
+        activeTask = getActiveTask();
+        auto nextActivity = activeTask->getTopActivity();
+        if (nextActivity) {
+            ActivityLifecycleTransition(topActivity, ActivityRecord::PAUSED);
+            ActivityLifecycleTransition(nextActivity, ActivityRecord::RESUMED);
 
-        auto task = std::make_shared<ActivityWaitResume>(nextActivity, topActivity, this);
-        mPendTask.commitTask(task, REQUEST_TIMEOUT_MS);
+            auto task = std::make_shared<ActivityWaitResume>(nextActivity, topActivity, this);
+            mPendTask.commitTask(task, REQUEST_TIMEOUT_MS);
+        } else {
+            ActivityLifecycleTransition(topActivity, ActivityRecord::STOPPED);
+        }
 
         targetStack->setForeground(false);
-        mAllTasks.front()->setForeground(true);
+        activeTask->setForeground(true);
     }
 
     for (auto iter = mAllTasks.begin(); iter != mAllTasks.end();) {
@@ -102,28 +114,36 @@ void TaskStackManager::pushNewActivity(const ActivityStackHandler& targetStack,
                                        const ActivityHandler& activity, int startFlag) {
     ALOGI("pushNewActivity %s flag-cleartask:%d", activity->getName().c_str(),
           startFlag & Intent::FLAG_ACTIVITY_CLEAR_TASK);
-    auto currentTopActivity = getActiveTask()->getTopActivity();
-    currentTopActivity->pause();
+    ActivityHandler lastTopActivity;
+    const auto activeTask = getActiveTask();
+    if (activeTask) {
+        lastTopActivity = activeTask->getTopActivity();
+        lastTopActivity->pause();
+    } else {
+        mHomeTask = targetStack;
+    }
 
     if (startFlag & Intent::FLAG_ACTIVITY_CLEAR_TASK) {
         while (auto tmpActivity = targetStack->getTopActivity()) {
             ActivityLifecycleTransition(tmpActivity, ActivityRecord::DESTROYED);
             targetStack->popActivity();
-            if (targetStack == getActiveTask()) {
+            if (targetStack == activeTask) {
                 tmpActivity->getAppRecord()->setForeground(false);
             }
         }
     }
     targetStack->pushActivity(activity);
-    if (targetStack == getActiveTask()) {
+    if (targetStack == activeTask) {
         activity->getAppRecord()->setForeground(true);
     }
     mActivityMap.emplace(activity->getToken(), activity);
     activity->create();
     ActivityLifecycleTransition(activity, ActivityRecord::RESUMED);
 
-    const auto task = std::make_shared<ActivityWaitResume>(activity, currentTopActivity, this);
-    mPendTask.commitTask(task, REQUEST_TIMEOUT_MS);
+    if (lastTopActivity) {
+        const auto task = std::make_shared<ActivityWaitResume>(activity, lastTopActivity, this);
+        mPendTask.commitTask(task, REQUEST_TIMEOUT_MS);
+    }
 
     pushTaskToFront(targetStack);
 }
@@ -133,14 +153,20 @@ void TaskStackManager::turnToActivity(const ActivityStackHandler& targetStack,
                                       int startFlag) {
     ALOGI("turnToActivity %s flag-cleartop:%d", activity->getName().c_str(),
           startFlag & Intent::FLAG_ACTIVITY_CLEAR_TOP);
-    auto currentTopActivity = getActiveTask()->getTopActivity();
-    if (currentTopActivity == activity) {
-        currentTopActivity->setIntent(intent);
+    ActivityHandler lastTopActivity;
+    const auto activeTask = getActiveTask();
+    if (activeTask) {
+        lastTopActivity = activeTask->getTopActivity();
+    }
+    if (lastTopActivity == activity) {
+        activity->setIntent(intent);
         /** set pause is a tip, let resume(fake pause)->restart->resume */
-        currentTopActivity->setStatus(ActivityRecord::PAUSED);
-        ActivityLifecycleTransition(currentTopActivity, ActivityRecord::RESUMED);
+        activity->setStatus(ActivityRecord::PAUSED);
+        ActivityLifecycleTransition(activity, ActivityRecord::RESUMED);
     } else {
-        currentTopActivity->pause();
+        if (lastTopActivity) {
+            lastTopActivity->pause();
+        }
         if (startFlag & Intent::FLAG_ACTIVITY_CLEAR_TOP) {
             while (auto tmpActivity = targetStack->getTopActivity()) {
                 if (tmpActivity == activity) {
@@ -148,7 +174,7 @@ void TaskStackManager::turnToActivity(const ActivityStackHandler& targetStack,
                 }
                 ActivityLifecycleTransition(tmpActivity, ActivityRecord::DESTROYED);
                 targetStack->popActivity();
-                if (targetStack == getActiveTask()) {
+                if (targetStack == activeTask) {
                     tmpActivity->getAppRecord()->setForeground(false);
                 }
             }
@@ -156,9 +182,8 @@ void TaskStackManager::turnToActivity(const ActivityStackHandler& targetStack,
         activity->setIntent(intent);
         ActivityLifecycleTransition(activity, ActivityRecord::RESUMED);
 
-        if (targetStack != getActiveTask()) {
-            const auto task =
-                    std::make_shared<ActivityWaitResume>(activity, currentTopActivity, this);
+        if (targetStack != activeTask && lastTopActivity) {
+            const auto task = std::make_shared<ActivityWaitResume>(activity, lastTopActivity, this);
             mPendTask.commitTask(task, REQUEST_TIMEOUT_MS);
         }
 
@@ -169,6 +194,7 @@ void TaskStackManager::turnToActivity(const ActivityStackHandler& targetStack,
 void TaskStackManager::finishActivity(const ActivityHandler& activity) {
     ALOGI("finishActivity %s token:[%p] ", activity->getName().c_str(), activity->getToken().get());
     auto activityTask = activity->getTask();
+    auto activeTask = getActiveTask();
     if (!activityTask) {
         ALOGW("the TaskStack that Activity:%s belonged to had been removed",
               activity->getName().c_str());
@@ -181,7 +207,7 @@ void TaskStackManager::finishActivity(const ActivityHandler& activity) {
             }
             ActivityLifecycleTransition(tmpActivity, ActivityRecord::DESTROYED);
             activityTask->popActivity();
-            if (activityTask == getActiveTask()) {
+            if (activityTask == activeTask) {
                 tmpActivity->getAppRecord()->setForeground(false);
             }
         }
@@ -190,15 +216,24 @@ void TaskStackManager::finishActivity(const ActivityHandler& activity) {
     ActivityLifecycleTransition(activity, ActivityRecord::DESTROYED);
     activityTask->popActivity();
 
-    if (activityTask == getActiveTask()) {
+    if (activityTask == activeTask) {
         activity->getAppRecord()->setForeground(false);
         auto nextActivity = activityTask->getTopActivity();
         if (!nextActivity) {
             mAllTasks.pop_front();
-            nextActivity = getActiveTask()->getTopActivity();
-            getActiveTask()->setForeground(true);
+            activeTask = getActiveTask();
+            if (activityTask == mHomeTask) {
+                ALOGW("Default desktop application exit!!!");
+                mHomeTask = activeTask;
+            }
+            if (activeTask) {
+                nextActivity = activeTask->getTopActivity();
+                activeTask->setForeground(true);
+            }
         }
-        ActivityLifecycleTransition(nextActivity, ActivityRecord::RESUMED);
+        if (nextActivity) {
+            ActivityLifecycleTransition(nextActivity, ActivityRecord::RESUMED);
+        }
     }
 }
 
@@ -282,7 +317,10 @@ void TaskStackManager::deleteActivity(const ActivityHandler& activity) {
 }
 
 ActivityStackHandler TaskStackManager::getActiveTask() {
-    return mAllTasks.front();
+    if (!mAllTasks.empty()) {
+        return mAllTasks.front();
+    }
+    return nullptr;
 }
 
 ActivityStackHandler TaskStackManager::findTask(const std::string& tag) {
@@ -304,8 +342,11 @@ void TaskStackManager::deleteTask(const ActivityStackHandler& task) {
 }
 
 void TaskStackManager::pushTaskToFront(const ActivityStackHandler& activityStack) {
-    if (activityStack != mAllTasks.front()) {
-        mAllTasks.front()->setForeground(false);
+    const auto activeTask = getActiveTask();
+    if (activityStack != activeTask) {
+        if (activeTask) {
+            activeTask->setForeground(false);
+        }
         mAllTasks.remove(activityStack);
         mAllTasks.push_front(activityStack);
         activityStack->setForeground(true);
