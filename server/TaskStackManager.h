@@ -48,10 +48,6 @@ public:
     /** finish a Activity, set result and resume the last */
     void finishActivity(const ActivityHandler& activity);
 
-    /** Lifecycle state management, let Activity goto status */
-    void ActivityLifecycleTransition(const ActivityHandler& activity,
-                                     ActivityRecord::Status toStatus);
-
     ActivityHandler getActivity(const sp<IBinder>& token);
     void deleteActivity(const ActivityHandler& activity);
 
@@ -69,58 +65,6 @@ private:
     TaskBoard& mPendTask;
 };
 
-class ActivityLifeCycleTask : public Task {
-public:
-    struct Event : Label {
-        sp<android::IBinder> token;
-        ActivityRecord::Status status;
-        Event(ActivityRecord::Status s, const sp<android::IBinder>& t)
-              : Label(ACTIVITY_STATUS_REPORT), token(t), status(s) {}
-    };
-
-    ActivityLifeCycleTask(const ActivityHandler& activity, TaskStackManager* taskManager,
-                          ActivityRecord::Status turnTo)
-          : Task(ACTIVITY_STATUS_REPORT),
-            mActivity(activity),
-            mManager(taskManager),
-            mTurnTo(turnTo) {}
-
-    bool operator==(const Label& e) const {
-        if (mId == e.mId) {
-            return mActivity->getToken() == static_cast<const Event*>(&e)->token;
-        }
-        return false;
-    }
-
-    void execute(const Label& e) override {
-        const auto event = static_cast<const Event*>(&e);
-        if (event->status == ActivityRecord::ERROR) {
-            ALOGE("Activity %s[%s] report error!", mActivity->getName().c_str(),
-                  mActivity->getStatusStr());
-            mActivity->abnormalExit();
-            mManager->deleteActivity(mActivity);
-            return;
-        }
-
-        mActivity->setStatus(event->status);
-        if (event->status != ActivityRecord::DESTROYED) {
-            mManager->ActivityLifecycleTransition(mActivity, mTurnTo);
-        }
-    }
-
-    void timeout() override {
-        ALOGE("wait Activity %s[%s] reporting timeout!", mActivity->getName().c_str(),
-              mActivity->getStatusStr());
-        mActivity->abnormalExit();
-        mManager->deleteActivity(mActivity);
-    }
-
-private:
-    ActivityHandler mActivity;
-    TaskStackManager* mManager;
-    ActivityRecord::Status mTurnTo;
-};
-
 class ActivityWaitResume : public Task {
 public:
     struct Event : Label {
@@ -129,14 +73,13 @@ public:
     };
 
     ActivityWaitResume(const ActivityHandler& resumeActivity,
-                       const ActivityHandler& willStopActivity, TaskStackManager* manager)
+                       const ActivityHandler& willStopActivity)
           : Task(ACTIVITY_WAIT_RESUME),
             mResumeActivity(resumeActivity),
-            mWillStopActivity(willStopActivity),
-            mManager(manager) {}
+            mWillStopActivity(willStopActivity) {}
 
     void execute(const Label& e) override {
-        mManager->ActivityLifecycleTransition(mWillStopActivity, ActivityRecord::STOPPED);
+        mWillStopActivity->lifecycleTransition(ActivityRecord::STOPPED);
     }
 
     bool operator==(const Label& e) const {
@@ -152,13 +95,12 @@ public:
         /** resume the last activity */
         ALOGI("resume %s[%s]", mWillStopActivity->getName().c_str(),
               mWillStopActivity->getStatusStr());
-        mManager->ActivityLifecycleTransition(mWillStopActivity, ActivityRecord::RESUMED);
+        mWillStopActivity->lifecycleTransition(ActivityRecord::RESUMED);
     }
 
 private:
     ActivityHandler mResumeActivity;
     ActivityHandler mWillStopActivity;
-    TaskStackManager* mManager;
 };
 
 } // namespace am
