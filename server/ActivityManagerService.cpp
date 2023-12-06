@@ -161,13 +161,6 @@ int ActivityManagerInner::attachApplication(const sp<IApplicationThread>& app) {
 int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent& intent,
                                         int32_t requestCode) {
     AM_PROFILER_BEGIN();
-    const auto activeTask = mTaskManager.getActiveTask();
-    if (activeTask && activeTask->getTopActivity()->getStatus() != ActivityRecord::RESUMED) {
-        ALOGE("The top Activity status is not ready, Please wait a moment before requesting again");
-        AM_PROFILER_END();
-        return android::INVALID_OPERATION;
-    }
-
     string activityTarget;
     if (!intent.mTarget.empty()) {
         activityTarget = intent.mTarget;
@@ -244,7 +237,7 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
             isNewTask = true;
         }
     } else {
-        targetTask = activeTask;
+        targetTask = mTaskManager.getActiveTask();
     }
 
     ActivityHandler targetActivity;
@@ -267,9 +260,10 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
     }
 
     if (!targetActivity) {
-        auto newActivity = std::make_shared<ActivityRecord>(packageName + "/" + activityName,
-                                                            caller, requestCode, launchMode,
-                                                            targetTask, intent, mWindowManager);
+        auto newActivity =
+                std::make_shared<ActivityRecord>(packageName + "/" + activityName, caller,
+                                                 requestCode, launchMode, targetTask, intent,
+                                                 mWindowManager, &mTaskManager, &mPendTask);
         const auto appInfo = mAppInfo.findAppInfoWithAlive(packageName);
         if (appInfo) {
             newActivity->setAppThread(appInfo);
@@ -773,7 +767,7 @@ int ActivityManagerInner::startHomeActivity() {
                 std::make_shared<ActivityRecord>(packageName + "/" + activityName, nullptr,
                                                  (int32_t)ActivityManager::NO_REQUEST,
                                                  ActivityRecord::SINGLE_TASK, homeTask, Intent(),
-                                                 mWindowManager);
+                                                 mWindowManager, &mTaskManager, &mPendTask);
 
         auto task = [this, homeTask, newActivity](const AppAttachTask::Event* e) {
             mPriorityPolicy.add(e->mPid, true);
