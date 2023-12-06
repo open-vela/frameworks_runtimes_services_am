@@ -337,7 +337,7 @@ void ActivityLifeCycleTask::execute(const Label& e) {
 
 void ActivityLifeCycleTask::timeout() {
     if (mActivity->getStatus() == mActivity->getTargetStatus()) {
-        ALOGW("finish transport lifecycle:%s", mActivity->getStatusStr());
+        ALOGI("finish transport lifecycle:%s", mActivity->getStatusStr());
         return;
     }
 

@@ -46,13 +46,11 @@ void TaskStackManager::switchTaskToActive(const ActivityStackHandler& targetStac
     const auto activeTask = getActiveTask();
     if (targetStack != activeTask) {
         auto currentTopActivity = activeTask->getTopActivity();
-        currentTopActivity->lifecycleTransition(ActivityRecord::PAUSED);
+        currentTopActivity->lifecycleTransition(ActivityRecord::STOPPED);
 
         auto activity = targetStack->getTopActivity();
         activity->setIntent(intent);
         activity->lifecycleTransition(ActivityRecord::RESUMED);
-        auto task = std::make_shared<ActivityWaitResume>(activity, currentTopActivity);
-        mPendTask.commitTask(task, REQUEST_TIMEOUT_MS);
 
         pushTaskToFront(targetStack);
     }
@@ -75,11 +73,8 @@ bool TaskStackManager::moveTaskToBackground(const ActivityStackHandler& targetSt
         activeTask = getActiveTask();
         auto nextActivity = activeTask->getTopActivity();
         if (nextActivity) {
-            topActivity->lifecycleTransition(ActivityRecord::PAUSED);
+            topActivity->lifecycleTransition(ActivityRecord::STOPPED);
             nextActivity->lifecycleTransition(ActivityRecord::RESUMED);
-
-            auto task = std::make_shared<ActivityWaitResume>(nextActivity, topActivity);
-            mPendTask.commitTask(task, REQUEST_TIMEOUT_MS);
         } else {
             topActivity->lifecycleTransition(ActivityRecord::STOPPED);
         }
@@ -116,7 +111,7 @@ void TaskStackManager::pushNewActivity(const ActivityStackHandler& targetStack,
     const auto activeTask = getActiveTask();
     if (activeTask) {
         lastTopActivity = activeTask->getTopActivity();
-        lastTopActivity->lifecycleTransition(ActivityRecord::PAUSED);
+        lastTopActivity->lifecycleTransition(ActivityRecord::STOPPED);
     } else {
         mHomeTask = targetStack;
     }
@@ -137,11 +132,6 @@ void TaskStackManager::pushNewActivity(const ActivityStackHandler& targetStack,
     }
     mActivityMap.emplace(activity->getToken(), activity);
     activity->lifecycleTransition(ActivityRecord::RESUMED);
-
-    if (lastTopActivity) {
-        const auto task = std::make_shared<ActivityWaitResume>(activity, lastTopActivity);
-        mPendTask.commitTask(task, REQUEST_TIMEOUT_MS);
-    }
 
     pushTaskToFront(targetStack);
 }
@@ -164,7 +154,7 @@ void TaskStackManager::turnToActivity(const ActivityStackHandler& targetStack,
 
     } else {
         if (lastTopActivity) {
-            lastTopActivity->lifecycleTransition(ActivityRecord::PAUSED);
+            lastTopActivity->lifecycleTransition(ActivityRecord::STOPPED);
         }
         if (startFlag & Intent::FLAG_ACTIVITY_CLEAR_TOP) {
             while (auto tmpActivity = targetStack->getTopActivity()) {
@@ -181,11 +171,6 @@ void TaskStackManager::turnToActivity(const ActivityStackHandler& targetStack,
         }
         activity->setIntent(intent);
         activity->lifecycleTransition(ActivityRecord::RESUMED);
-
-        if (targetStack != activeTask && lastTopActivity) {
-            const auto task = std::make_shared<ActivityWaitResume>(activity, lastTopActivity);
-            mPendTask.commitTask(task, REQUEST_TIMEOUT_MS);
-        }
 
         pushTaskToFront(targetStack);
     }

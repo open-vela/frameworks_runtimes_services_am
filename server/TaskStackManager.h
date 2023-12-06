@@ -65,43 +65,5 @@ private:
     TaskBoard& mPendTask;
 };
 
-class ActivityWaitResume : public Task {
-public:
-    struct Event : Label {
-        sp<android::IBinder> token;
-        Event(const sp<android::IBinder>& t) : Label(ACTIVITY_WAIT_RESUME), token(t) {}
-    };
-
-    ActivityWaitResume(const ActivityHandler& resumeActivity,
-                       const ActivityHandler& willStopActivity)
-          : Task(ACTIVITY_WAIT_RESUME),
-            mResumeActivity(resumeActivity),
-            mWillStopActivity(willStopActivity) {}
-
-    void execute(const Label& e) override {
-        mWillStopActivity->lifecycleTransition(ActivityRecord::STOPPED);
-    }
-
-    bool operator==(const Label& e) const {
-        if (mId == e.mId) {
-            return mResumeActivity->getToken() == static_cast<const Event*>(&e)->token;
-        }
-        return false;
-    }
-
-    void timeout() override {
-        ALOGE("WaitActivityResume %s[%s] timeout!", mResumeActivity->getName().c_str(),
-              mResumeActivity->getStatusStr());
-        /** resume the last activity */
-        ALOGI("resume %s[%s]", mWillStopActivity->getName().c_str(),
-              mWillStopActivity->getStatusStr());
-        mWillStopActivity->lifecycleTransition(ActivityRecord::RESUMED);
-    }
-
-private:
-    ActivityHandler mResumeActivity;
-    ActivityHandler mWillStopActivity;
-};
-
 } // namespace am
 } // namespace os

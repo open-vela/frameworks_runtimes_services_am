@@ -380,11 +380,8 @@ void ActivityManagerInner::reportActivityStatus(const sp<IBinder>& token, int32_
     const ActivityLifeCycleTask::Event event((ActivityRecord::Status)status, token);
     mPendTask.eventTrigger(event);
 
-    // Only "resume" and "destroy" need special process.
-    if (status == ActivityRecord::RESUMED) {
-        const ActivityWaitResume::Event event2(token);
-        mPendTask.eventTrigger(event2);
-    } else if (status == ActivityRecord::DESTROYED) {
+    // Only "destroy" need special process.
+    if (status == ActivityRecord::DESTROYED) {
         auto activity = mTaskManager.getActivity(token);
         activity->setStatus(ActivityRecord::DESTROYED);
         mTaskManager.deleteActivity(activity);
