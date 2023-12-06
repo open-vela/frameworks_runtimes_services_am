@@ -23,6 +23,7 @@
 #include <utils/Log.h>
 
 #include "AppRecord.h"
+#include "TaskStackManager.h"
 #include "app/Intent.h"
 #include "wm/LayoutParams.h"
 
@@ -35,16 +36,19 @@ using os::wm::LayoutParams;
 ActivityRecord::ActivityRecord(const std::string& name, const sp<IBinder>& caller,
                                const int32_t requestCode, const LaunchMode launchMode,
                                const ActivityStackHandler& task, const Intent& intent,
-                               sp<::os::wm::IWindowManager> wm) {
+                               sp<::os::wm::IWindowManager> wm, TaskStackManager* tsm,
+                               TaskBoard* tb) {
     mName = name;
     mToken = new android::BBinder();
     mCaller = caller;
     mRequestCode = requestCode;
-    mStatus = CREATING;
+    mStatus = INIT;
     mLaunchMode = launchMode;
     mInTask = task;
     mIntent = intent;
     mWindowService = wm;
+    mTaskManager = tsm;
+    mPendTask = tb;
 }
 
 const sp<IBinder>& ActivityRecord::getToken() const {
@@ -95,8 +99,56 @@ ActivityRecord::Status ActivityRecord::getStatus() const {
     return mStatus;
 }
 
+ActivityRecord::Status ActivityRecord::getTargetStatus() const {
+    return mTargetStatus;
+}
+
+void ActivityRecord::lifecycleTransition(const Status toStatus) {
+    enum { NONE = 0, CREATE, START, RESUME, PAUSE, STOP, DESTROY };
+    static int lifeCycleTable[7][7] = {
+            /*init*/ {NONE, CREATE, CREATE, CREATE, CREATE, CREATE, NONE},
+            /*create*/ {NONE, NONE, START, START, NONE, STOP, DESTROY},
+            /*start*/ {NONE, NONE, NONE, RESUME, PAUSE, STOP, STOP},
+            /*resume*/ {NONE, NONE, START, NONE, PAUSE, PAUSE, PAUSE},
+            /*pause*/ {NONE, NONE, START, RESUME, NONE, STOP, STOP},
+            /*stop*/ {NONE, NONE, START, START, NONE, NONE, DESTROY},
+            /*destroy*/ {NONE, NONE, NONE, NONE, NONE, NONE, NONE},
+    };
+
+    const int turnTo = lifeCycleTable[(mStatus + 1) >> 1][(toStatus + 1) >> 1];
+    switch (turnTo) {
+        case CREATE:
+            create();
+            break;
+        case START:
+            start();
+            break;
+        case RESUME:
+            resume();
+            break;
+        case PAUSE:
+            pause();
+            break;
+        case STOP:
+            stop();
+            break;
+        case DESTROY:
+            destroy();
+            break;
+        case NONE:
+            ALOGD("lifecycleTransition %s[%s] done", mName.c_str(), getStatusStr());
+            return;
+    }
+    mTargetStatus = toStatus;
+    ALOGI("lifecycleTransition %s [%s] to [%s]", mName.c_str(), getStatusStr(),
+          statusToStr(toStatus));
+    const auto task = std::make_shared<ActivityLifeCycleTask>(shared_from_this(), mTaskManager);
+    mPendTask->commitTask(task, REQUEST_TIMEOUT_MS);
+}
+
 void ActivityRecord::create() {
-    if (mStatus == CREATING) {
+    if (mStatus == INIT) {
+        mStatus = CREATING;
         mWindowService->addWindowToken(mToken, LayoutParams::TYPE_APPLICATION, 0);
         const auto appRecord = mApp.lock();
         if (appRecord && appRecord->mIsAlive) {
@@ -146,7 +198,7 @@ void ActivityRecord::pause() {
 }
 
 void ActivityRecord::stop() {
-    if (mStatus > STARTING && mStatus < STOPPING) {
+    if (mStatus > CREATING && mStatus < STOPPING) {
         mStatus = STOPPING;
         const auto appRecord = mApp.lock();
         if (appRecord && appRecord->mIsAlive) {
@@ -215,6 +267,8 @@ const char* ActivityRecord::getStatusStr() const {
 
 const char* ActivityRecord::statusToStr(const int status) {
     switch (status) {
+        case ActivityRecord::INIT:
+            return "init";
         case ActivityRecord::CREATING:
             return "creating";
         case ActivityRecord::CREATED:
@@ -252,6 +306,45 @@ std::ostream& operator<<(std::ostream& os, const ActivityRecord& record) {
     os << ActivityRecord::statusToStr(record.mStatus);
     os << "] ";
     return os;
+}
+
+ActivityLifeCycleTask::ActivityLifeCycleTask(const ActivityHandler& activity,
+                                             TaskStackManager* taskManager)
+      : Task(ACTIVITY_STATUS_REPORT), mActivity(activity), mTaskManager(taskManager) {}
+
+bool ActivityLifeCycleTask::operator==(const Label& e) const {
+    if (mId == e.mId) {
+        return mActivity->getToken() == static_cast<const Event*>(&e)->token;
+    }
+    return false;
+}
+
+void ActivityLifeCycleTask::execute(const Label& e) {
+    const auto event = static_cast<const Event*>(&e);
+    if (event->status == ActivityRecord::ERROR) {
+        ALOGE("Activity %s[%s] report error!", mActivity->getName().c_str(),
+              mActivity->getStatusStr());
+        mActivity->abnormalExit();
+        mTaskManager->deleteActivity(mActivity);
+        return;
+    }
+
+    mActivity->setStatus(event->status);
+    if (event->status != ActivityRecord::DESTROYED) {
+        mActivity->lifecycleTransition(mActivity->getTargetStatus());
+    }
+}
+
+void ActivityLifeCycleTask::timeout() {
+    if (mActivity->getStatus() == mActivity->getTargetStatus()) {
+        ALOGW("finish transport lifecycle:%s", mActivity->getStatusStr());
+        return;
+    }
+
+    ALOGE("wait Activity %s[%s] reporting timeout!", mActivity->getName().c_str(),
+          mActivity->getStatusStr());
+    mActivity->abnormalExit();
+    mTaskManager->deleteActivity(mActivity);
 }
 
 } // namespace am
