@@ -21,6 +21,7 @@
 #include <iostream>
 #include <memory>
 
+#include "TaskBoard.h"
 #include "app/Intent.h"
 #include "os/wm/BnWindowManager.h"
 
@@ -33,6 +34,7 @@ using os::app::Intent;
 
 class AppRecord;
 class ActivityStack;
+class TaskStackManager;
 
 using ActivityStackHandler = std::shared_ptr<ActivityStack>;
 
@@ -40,7 +42,8 @@ class ActivityRecord : public std::enable_shared_from_this<ActivityRecord> {
 public:
     enum Status {
         ERROR = -1,
-        CREATING = 0,
+        INIT = 0,
+        CREATING,
         CREATED,
         STARTING,
         STARTED,
@@ -58,14 +61,11 @@ public:
 
     ActivityRecord(const std::string& name, const sp<IBinder>& caller, const int32_t requestCode,
                    const LaunchMode launchMode, const ActivityStackHandler& task,
-                   const Intent& intent, sp<::os::wm::IWindowManager> wm);
+                   const Intent& intent, sp<::os::wm::IWindowManager> wm, TaskStackManager* tsm,
+                   TaskBoard* tb);
 
-    void create();
-    void start();
-    void resume();
-    void pause();
-    void stop();
-    void destroy();
+    /** Lifecycle state management, let Activity goto status */
+    void lifecycleTransition(const Status toStatus);
 
     void abnormalExit();
     void onResult(int32_t requestCode, int32_t resultCode, const Intent& resultData);
@@ -86,6 +86,7 @@ public:
 
     void setStatus(Status status);
     Status getStatus() const;
+    Status getTargetStatus() const;
 
     const std::string* getPackageName() const;
 
@@ -96,19 +97,51 @@ public:
     friend std::ostream& operator<<(std::ostream& os, const ActivityRecord& record);
 
 private:
+    void create();
+    void start();
+    void resume();
+    void pause();
+    void stop();
+    void destroy();
+
+private:
     std::string mName;
     sp<IBinder> mToken;
     sp<IBinder> mCaller;
     int32_t mRequestCode;
     Status mStatus;
+    Status mTargetStatus;
     LaunchMode mLaunchMode;
     std::weak_ptr<AppRecord> mApp;
     std::weak_ptr<ActivityStack> mInTask;
     Intent mIntent;
+
     sp<::os::wm::IWindowManager> mWindowService;
+    TaskStackManager* mTaskManager;
+    TaskBoard* mPendTask;
 };
 
 using ActivityHandler = std::shared_ptr<ActivityRecord>;
+
+class ActivityLifeCycleTask : public Task {
+public:
+    struct Event : Label {
+        sp<android::IBinder> token;
+        ActivityRecord::Status status;
+        Event(ActivityRecord::Status s, const sp<android::IBinder>& t)
+              : Label(ACTIVITY_STATUS_REPORT), token(t), status(s) {}
+    };
+
+    ActivityLifeCycleTask(const ActivityHandler& activity, TaskStackManager* taskManager);
+
+    bool operator==(const Label& e) const;
+    void execute(const Label& e) override;
+    void timeout() override;
+
+private:
+    ActivityHandler mActivity;
+    TaskStackManager* mTaskManager;
+};
 
 } // namespace am
 } // namespace os

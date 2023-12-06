@@ -28,7 +28,8 @@ public:
     /** The status is part of the ServiceRecord inside */
     enum {
         ERROR = -1,
-        CREATING = 0,
+        INIT = 0,
+        CREATING,
         CREATED,
         STARTING,
         STARTED,
