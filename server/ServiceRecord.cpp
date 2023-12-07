@@ -48,6 +48,9 @@ void ServiceRecord::stop() {
 void ServiceRecord::bind(const sp<IBinder>& caller, const sp<IServiceConnection>& conn,
                          const Intent& intent) {
     if (auto appRecord = mApp.lock()) {
+        if (mStartFlag == F_UNKNOW) {
+            appRecord->addService(shared_from_this());
+        }
         mStartFlag |= F_BINDED;
         if (mServiceBinder) {
             conn->onServiceConnected(mServiceBinder);
@@ -81,6 +84,9 @@ void ServiceRecord::unbind(const sp<IServiceConnection>& conn) {
             if (mConnectRecord.empty()) {
                 mStartFlag &= ~F_BINDED;
                 appRecord->mAppThread->scheduleUnbindService(mToken);
+            }
+            if (mStartFlag == F_UNKNOW) {
+                appRecord->deleteService(shared_from_this());
             }
         }
     }
