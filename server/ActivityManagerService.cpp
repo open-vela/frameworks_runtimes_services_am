@@ -97,7 +97,8 @@ public:
 private:
     void stopServiceReal(ServiceHandler& service);
     int startHomeActivity();
-    int getRuntimeEnvironment(const string& packagename, string& newpackage, string& newexecfile);
+    int getRuntimeEnvironment(const string& packagename, const string& servicename,
+                              string& newpackage, string& newexecfile, ProcessPriority& priority);
     int submitAppStartupTask(const string& packageName, const string& prcocessName,
                              const string& execfile, AppAttachTask::TaskFunc&& task,
                              bool isSupportMultiTask);
@@ -269,9 +270,10 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
             newActivity->setAppThread(appInfo);
             mTaskManager.pushNewActivity(targetTask, newActivity, startFlag);
         } else {
-            const auto task = [this, targetTask, newActivity,
-                               startFlag](const AppAttachTask::Event* e) {
-                mPriorityPolicy.add(e->mPid, true);
+            const ProcessPriority priority = (ProcessPriority)packageInfo.priority;
+            const auto task = [this, targetTask, newActivity, startFlag,
+                               priority](const AppAttachTask::Event* e) {
+                mPriorityPolicy.add(e->mPid, true, priority);
                 newActivity->setAppThread(e->mAppRecord);
                 mTaskManager.pushNewActivity(targetTask, newActivity, startFlag);
             };
@@ -418,7 +420,9 @@ int ActivityManagerInner::startService(const Intent& intent) {
 
     string servicePackageName;
     string execfile;
-    if (getRuntimeEnvironment(packageName, servicePackageName, execfile) != 0) {
+    ProcessPriority priority = ProcessPriority::PERSISTENT;
+    if (getRuntimeEnvironment(packageName, serviceName, servicePackageName, execfile, priority) !=
+        0) {
         AM_PROFILER_END();
         return android::BAD_VALUE;
     }
@@ -431,15 +435,20 @@ int ActivityManagerInner::startService(const Intent& intent) {
         appRecord = mAppInfo.findAppInfoWithAlive(packageName);
         if (appRecord) {
             const sp<IBinder> token(new android::BBinder());
-            service = std::make_shared<ServiceRecord>(serviceName, token, appRecord);
+            service = std::make_shared<ServiceRecord>(serviceName, token, priority, appRecord);
+            if (auto prioritynode = mPriorityPolicy.get(appRecord->mPid)) {
+                if (prioritynode->priorityLevel < priority) {
+                    prioritynode->priorityLevel = priority;
+                }
+            }
             mServices.addService(service);
             service->start(intent);
         } else {
-            const auto task = [this, serviceName, intent](const AppAttachTask::Event* e) {
+            const auto task = [this, serviceName, intent, priority](const AppAttachTask::Event* e) {
                 const sp<IBinder> token(new android::BBinder());
-                auto serviceRecord =
-                        std::make_shared<ServiceRecord>(serviceName, token, e->mAppRecord);
-                mPriorityPolicy.add(e->mPid, false);
+                auto serviceRecord = std::make_shared<ServiceRecord>(serviceName, token, priority,
+                                                                     e->mAppRecord);
+                mPriorityPolicy.add(e->mPid, false, priority);
                 mServices.addService(serviceRecord);
                 serviceRecord->start(intent);
             };
@@ -471,7 +480,9 @@ int ActivityManagerInner::stopService(const Intent& intent) {
 
     string servicePackageName;
     string execfile;
-    if (getRuntimeEnvironment(packageName, servicePackageName, execfile) != 0) {
+    ProcessPriority priority;
+    if (getRuntimeEnvironment(packageName, serviceName, servicePackageName, execfile, priority) !=
+        0) {
         AM_PROFILER_END();
         return android::BAD_VALUE;
     }
@@ -506,7 +517,9 @@ int ActivityManagerInner::bindService(const sp<IBinder>& caller, const Intent& i
 
     string servicePackageName;
     string execfile;
-    if (getRuntimeEnvironment(packageName, servicePackageName, execfile) != 0) {
+    ProcessPriority priority = ProcessPriority::PERSISTENT;
+    if (getRuntimeEnvironment(packageName, serviceName, servicePackageName, execfile, priority) !=
+        0) {
         AM_PROFILER_END();
         return android::BAD_VALUE;
     }
@@ -516,16 +529,21 @@ int ActivityManagerInner::bindService(const sp<IBinder>& caller, const Intent& i
         const auto appRecord = mAppInfo.findAppInfoWithAlive(servicePackageName);
         if (appRecord) {
             const sp<IBinder> token(new android::BBinder());
-            service = std::make_shared<ServiceRecord>(serviceName, token, appRecord);
+            service = std::make_shared<ServiceRecord>(serviceName, token, priority, appRecord);
             mServices.addService(service);
             service->bind(caller, conn, intent);
+            if (auto prioritynode = mPriorityPolicy.get(appRecord->mPid)) {
+                if (prioritynode->priorityLevel < priority) {
+                    prioritynode->priorityLevel = priority;
+                }
+            }
         } else {
-            const auto task = [this, serviceName, caller, conn,
-                               intent](const AppAttachTask::Event* e) {
+            const auto task = [this, serviceName, caller, conn, intent,
+                               priority](const AppAttachTask::Event* e) {
                 const sp<IBinder> token(new android::BBinder());
-                auto serviceRecord =
-                        std::make_shared<ServiceRecord>(serviceName, token, e->mAppRecord);
-                mPriorityPolicy.add(e->mPid, false);
+                auto serviceRecord = std::make_shared<ServiceRecord>(serviceName, token, priority,
+                                                                     e->mAppRecord);
+                mPriorityPolicy.add(e->mPid, false, priority);
                 mServices.addService(serviceRecord);
                 serviceRecord->bind(caller, conn, intent);
             };
@@ -766,8 +784,9 @@ int ActivityManagerInner::startHomeActivity() {
                                                  ActivityRecord::SINGLE_TASK, homeTask, Intent(),
                                                  mWindowManager, &mTaskManager, &mPendTask);
 
-        auto task = [this, homeTask, newActivity](const AppAttachTask::Event* e) {
-            mPriorityPolicy.add(e->mPid, true);
+        const ProcessPriority priority = (ProcessPriority)homeApp.priority;
+        auto task = [this, homeTask, newActivity, priority](const AppAttachTask::Event* e) {
+            mPriorityPolicy.add(e->mPid, true, priority);
             newActivity->setAppThread(e->mAppRecord);
             this->mTaskManager.initHomeTask(homeTask, newActivity);
         };
@@ -785,12 +804,19 @@ int ActivityManagerInner::startHomeActivity() {
     return android::OK;
 }
 
-int ActivityManagerInner::getRuntimeEnvironment(const string& packagename, string& newpackage,
-                                                string& newexecfile) {
+int ActivityManagerInner::getRuntimeEnvironment(const string& packagename,
+                                                const string& servicename, string& newpackage,
+                                                string& newexecfile, ProcessPriority& priority) {
     PackageInfo packageInfo;
     if (mPm.getPackageInfo(packagename, &packageInfo) != 0) {
         ALOGE("error packagename:%s", packagename.c_str());
         return -1;
+    }
+    for (const auto& service : packageInfo.servicesInfo) {
+        if (service.name == servicename) {
+            priority = (ProcessPriority)service.priority;
+            break;
+        }
     }
     if (packageInfo.appType == APP_TYPE_QUICK) {
         // bad demand for quick service...

@@ -45,21 +45,21 @@ static int calculateScore(PidPriorityInfo* pnode, int& levelCnt, ProcessStatus l
     }
 
     switch (pnode->priorityLevel) {
-        case PriorityLevel::PERSISTENT: {
+        case ProcessPriority::PERSISTENT: {
             score = OS_PERSISTENT_PROC_ADJ;
             break;
         }
-        case PriorityLevel::HIGH: {
+        case ProcessPriority::HIGH: {
             score = OS_HIGH_LEVEL_MIN_ADJ + ((levelCnt & HIGH_LEVLE_CNT) >> 20);
             levelCnt += (1 << 20);
             break;
         }
-        case PriorityLevel::MIDDLE: {
+        case ProcessPriority::MIDDLE: {
             score = OS_MIDDLE_LEVEL_MIN_ADJ + ((levelCnt & MIDDLE_LEVEL_CNT) >> 10);
             levelCnt += (1 << 10);
             break;
         }
-        case PriorityLevel::LOW: {
+        case ProcessPriority::LOW: {
             score = OS_LOW_LEVEL_MIN_ADJ + (levelCnt & MIDDLE_LEVEL_CNT);
             levelCnt += 1;
             break;
@@ -112,7 +112,7 @@ PidPriorityInfo* ProcessPriorityPolicy::get(pid_t pid) {
     return pnode;
 }
 
-PidPriorityInfo* ProcessPriorityPolicy::add(pid_t pid, bool isForeground, PriorityLevel level) {
+PidPriorityInfo* ProcessPriorityPolicy::add(pid_t pid, bool isForeground, ProcessPriority level) {
     PidPriorityInfo* pnode = get(pid);
     if (pnode == nullptr) {
         pnode = new PidPriorityInfo{pid, level, OS_MIDDLE_LEVEL_MIN_ADJ, clock(), nullptr, nullptr};

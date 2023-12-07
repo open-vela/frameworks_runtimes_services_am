@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <pm/PackageInfo.h>
 #include <sys/types.h>
 #include <time.h>
 
@@ -27,13 +28,6 @@
 
 namespace os {
 namespace am {
-
-enum PriorityLevel {
-    PERSISTENT,
-    HIGH,
-    MIDDLE,
-    LOW,
-};
 
 enum OomScoreAdj {
     OS_SYSTEM_ADJ = -900,
@@ -49,9 +43,11 @@ enum OomScoreAdj {
     OS_CACHE_PROCESS_ADJ = 900,
 };
 
+using os::pm::ProcessPriority;
+
 struct PidPriorityInfo {
     pid_t pid;
-    PriorityLevel priorityLevel;
+    ProcessPriority priorityLevel;
     int oomScore;
     clock_t lastWakeUptime;
 
@@ -71,7 +67,8 @@ public:
     ProcessPriorityPolicy(LowMemoryManager* lmk);
 
     PidPriorityInfo* get(pid_t pid);
-    PidPriorityInfo* add(pid_t pid, bool isForeground, PriorityLevel level = MIDDLE);
+    PidPriorityInfo* add(pid_t pid, bool isForeground,
+                         ProcessPriority level = ProcessPriority::MIDDLE);
     void remove(pid_t pid);
     void pushForeground(pid_t pid);
     void intoBackground(pid_t pid);
