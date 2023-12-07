@@ -82,12 +82,12 @@ bool Activity::performStop() {
 }
 
 bool Activity::performDestroy() {
+    onDestroy();
     auto wm = getWindowManager();
     if (wm && mWindow) {
         wm->removeWindow(mWindow);
         mWindow.reset();
     }
-    onDestroy();
     return true;
 }
 
