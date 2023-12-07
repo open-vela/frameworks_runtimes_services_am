@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <pm/PackageInfo.h>
+
 #include <string>
 #include <vector>
 
@@ -30,6 +32,7 @@ using android::IBinder;
 using android::sp;
 using os::app::Intent;
 using os::app::IServiceConnection;
+using os::pm::ProcessPriority;
 
 class AppRecord;
 
@@ -53,13 +56,14 @@ public:
         F_BINDED = 0b10,
     };
 
-    ServiceRecord(const std::string& name, const sp<IBinder>& token,
+    ServiceRecord(const std::string& name, const sp<IBinder>& token, const ProcessPriority priority,
                   const std::shared_ptr<AppRecord>& appRecord)
           : mServiceName(name),
             mToken(token),
             mServiceBinder(nullptr),
             mStatus(CREATING),
             mStartFlag(F_UNKNOW),
+            mPriority(priority),
             mApp(appRecord) {}
 
     void start(const Intent& intent);
@@ -79,6 +83,7 @@ public:
     std::vector<sp<IServiceConnection>> mConnectRecord;
     int mStatus;
     int mStartFlag; // started or binded
+    ProcessPriority mPriority;
     std::weak_ptr<AppRecord> mApp;
 };
 
