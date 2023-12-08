@@ -37,6 +37,7 @@ const std::string lmkcfg = "/etc/lmk.cfg";
 bool LowMemoryManager::init(const std::shared_ptr<os::app::UvLoop>& looper) {
     mLooper = looper;
     memset(mOomScoreThreshold, 0, sizeof(mOomScoreThreshold));
+
     std::ifstream cfg(lmkcfg);
     int cnt = 0;
     if (cfg.is_open()) {
@@ -66,12 +67,14 @@ bool LowMemoryManager::init(const std::shared_ptr<os::app::UvLoop>& looper) {
         }
     }
 
+#ifdef CONFIG_MM_BACKTRACE_DEFAULT
     // Periodicity monitoring:just for test lmk when kernel doesn't provide notifications.
     mTimer.init(mLooper->get(), [this](void*) {
         struct mallinfo info = mallinfo();
         executeLMK(info);
     });
     mTimer.start(3000, 3000); // 3 seconds per cycle
+#endif
 
     return true;
 }
