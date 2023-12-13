@@ -761,7 +761,7 @@ void ActivityManagerInner::procAppTerminated(const std::shared_ptr<AppRecord>& a
 
 void ActivityManagerInner::dump(int fd, const android::Vector<android::String16>& args) {
     std::ostringstream os;
-    os << mTaskManager << mPriorityPolicy;
+    os << mTaskManager << mServices << mPriorityPolicy;
     write(fd, os.str().c_str(), os.str().size());
 }
 

@@ -97,6 +97,8 @@ public:
     void deleteService(const sp<IBinder>& token);
     void unbindConnection(const sp<IServiceConnection>& conn);
 
+    friend std::ostream& operator<<(std::ostream& os, const ServiceList& services);
+
 private:
     std::vector<ServiceHandler> mServiceList;
 };
