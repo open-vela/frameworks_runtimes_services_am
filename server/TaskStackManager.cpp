@@ -29,17 +29,6 @@ using namespace std;
  * TaskStackManager: Manage all Activity task stack
  *****************************************************/
 
-void TaskStackManager::initHomeTask(const ActivityStackHandler& taskStack,
-                                    const ActivityHandler& activity) {
-    ALOGI("initHomeTask activity:%s", activity->getName().c_str());
-    mAllTasks.emplace_front(taskStack);
-    mHomeTask = taskStack;
-    taskStack->pushActivity(activity);
-    mActivityMap.emplace(activity->getToken(), activity);
-    activity->lifecycleTransition(ActivityRecord::RESUMED);
-    mHomeTask->setForeground(true);
-}
-
 void TaskStackManager::switchTaskToActive(const ActivityStackHandler& targetStack,
                                           const Intent& intent) {
     ALOGI("switchTaskToActive taskTag:%s", targetStack->getTaskTag().c_str());

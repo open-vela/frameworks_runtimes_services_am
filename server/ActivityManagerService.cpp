@@ -767,48 +767,15 @@ void ActivityManagerInner::dump(int fd, const android::Vector<android::String16>
 
 int ActivityManagerInner::startHomeActivity() {
     /** start the launch app */
-    string target;
-    if (mActionFilter.getFirstTargetByAction(Intent::ACTION_HOME, target)) {
-        /** find the Home App package */
-        auto pos = target.find_first_of('/');
-        const string packageName = target.substr(0, pos);
-        ALOGI("start Home Applicaion:%s", packageName.c_str());
-        PackageInfo homeApp;
-        mPm.getPackageInfo(packageName, &homeApp);
-        const string activityName =
-                pos != string::npos ? target.substr(pos + 1, string::npos) : homeApp.entry;
-        ActivityInfo entryActivity;
-        for (auto a : homeApp.activitiesInfo) {
-            if (a.name == activityName) {
-                entryActivity = a;
-            }
-        }
-        /** init Home ActivityStack task, the Home Activity will be pushed to this task */
-        const auto homeTask = std::make_shared<ActivityStack>(entryActivity.taskAffinity);
-        auto newActivity =
-                std::make_shared<ActivityRecord>(packageName + "/" + activityName, nullptr,
-                                                 (int32_t)ActivityManager::NO_REQUEST,
-                                                 ActivityRecord::SINGLE_TASK, homeTask, Intent(),
-                                                 mWindowManager, &mTaskManager, &mPendTask);
-
-        const ProcessPriority priority = (ProcessPriority)homeApp.priority;
-        auto task = [this, homeTask, newActivity, priority](const AppAttachTask::Event* e) {
-            mPriorityPolicy.add(e->mPid, true, priority);
-            newActivity->setAppThread(e->mAppRecord);
-            this->mTaskManager.initHomeTask(homeTask, newActivity);
-        };
-        if (submitAppStartupTask(packageName, packageName, homeApp.execfile.c_str(),
-                                 std::move(task), false) != 0) {
-            ALOGE("Startup home app failure!!!");
-            AM_PROFILER_END();
-            return android::INVALID_OPERATION;
-        }
-    } else {
-        ALOGE("systemReady error: can't launch Home Activity");
-        return android::NAME_NOT_FOUND;
+    Intent intent;
+    intent.setAction(Intent::ACTION_HOME);
+    sp<IBinder> faketoken;
+    if (startActivity(faketoken, intent, (int32_t)ActivityManager::NO_REQUEST) != android::OK) {
+        ALOGE("Startup home app failure!!!");
+        return -1;
     }
 
-    return android::OK;
+    return 0;
 }
 
 int ActivityManagerInner::getRuntimeEnvironment(const string& packagename,
