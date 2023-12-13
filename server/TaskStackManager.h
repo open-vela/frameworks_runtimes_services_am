@@ -33,8 +33,6 @@ class TaskStackManager {
 public:
     TaskStackManager(TaskBoard& taskBoard) : mPendTask(taskBoard) {}
 
-    void initHomeTask(const ActivityStackHandler& taskstack, const ActivityHandler& activity);
-
     /** Launch the app without Activity name, the intent set to the top Activity. */
     void switchTaskToActive(const ActivityStackHandler& task, const Intent& intent);
     /** Move the Task to the background with the activity's order within the task is unchanged */
