@@ -179,7 +179,7 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
     string packageName;
     string activityName;
     string taskAffinity;
-    ActivityRecord::LaunchMode launchMode;
+    ActivityRecord::LaunchMode launchMode = ActivityRecord::LaunchMode::SINGLE_TASK;
     getPackageAndComponentName(activityTarget, packageName, activityName);
 
     PackageInfo packageInfo;
@@ -203,13 +203,20 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
 
     /** We need to check that the Intent.flag makes sense and perhaps modify it */
     int startFlag = intent.mFlag;
-
-    for (const auto& it : packageInfo.activitiesInfo) {
-        if (it.name == activityName) {
-            launchMode = ActivityRecord::launchModeToInt(it.launchMode);
-            taskAffinity = it.taskAffinity;
+    std::vector<ActivityInfo>::iterator it = packageInfo.activitiesInfo.begin();
+    for (; it != packageInfo.activitiesInfo.end(); ++it) {
+        if (it->name == activityName) {
+            launchMode = ActivityRecord::launchModeToInt(it->launchMode);
+            taskAffinity = it->taskAffinity;
+            break;
         }
     }
+    if (it == packageInfo.activitiesInfo.end()) {
+        ALOGE("Activity:%s/%s is not registered", packageName.c_str(), activityName.c_str());
+        AM_PROFILER_END();
+        return android::BAD_VALUE;
+    }
+
     /** Entry Activity taskAffinity can only be packagename */
     if (activityName == packageInfo.entry) {
         taskAffinity = packageName;
@@ -812,12 +819,18 @@ int ActivityManagerInner::getRuntimeEnvironment(const string& packagename,
         ALOGE("error packagename:%s", packagename.c_str());
         return -1;
     }
-    for (const auto& service : packageInfo.servicesInfo) {
-        if (service.name == servicename) {
-            priority = (ProcessPriority)service.priority;
+    std::vector<ServiceInfo>::iterator it;
+    for (it = packageInfo.servicesInfo.begin(); it != packageInfo.servicesInfo.end(); ++it) {
+        if (it->name == servicename) {
+            priority = (ProcessPriority)it->priority;
             break;
         }
     }
+    if (it == packageInfo.servicesInfo.end()) {
+        ALOGE("service:%s/%s is not registered", packagename.c_str(), servicename.c_str());
+        return -1;
+    }
+
     if (packageInfo.appType == APP_TYPE_QUICK) {
         // bad demand for quick service...
         newpackage = VSERVICE_EXEC_NAME + ':' + packageInfo.packageName;
