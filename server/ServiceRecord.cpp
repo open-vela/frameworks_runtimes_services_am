@@ -179,5 +179,16 @@ void ServiceList::unbindConnection(const sp<IServiceConnection>& conn) {
     }
 }
 
+std::ostream& operator<<(std::ostream& os, const ServiceList& services) {
+    os << "\n\nServices Information:" << std::endl;
+    for (auto& it : services.mServiceList) {
+        os << "\t" << *it->getPackageName() << "/" << it->mServiceName << " |"
+           << ((it->mStartFlag & ServiceRecord::F_STARTED) ? "start|" : "")
+           << ((it->mStartFlag & ServiceRecord::F_BINDED) ? "binded|" : "") << " ["
+           << ServiceRecord::statusToStr(it->mStatus) << "]" << std::endl;
+    }
+    return os;
+}
+
 } // namespace am
 } // namespace os
