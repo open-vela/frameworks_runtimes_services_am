@@ -38,6 +38,12 @@ std::shared_ptr<Context> ContextImpl::createServiceContext(const Application* ap
     return std::make_shared<ContextImpl>(app, componentName, token, loop);
 }
 
+std::shared_ptr<Context> ContextImpl::createDialogContext(const Application* app,
+                                                          const string& componentName,
+                                                          const sp<IBinder>& token, UvLoop* loop) {
+    return std::make_shared<ContextImpl>(app, componentName, token, loop);
+}
+
 const Application* ContextImpl::getApplication() const {
     return mApp;
 }

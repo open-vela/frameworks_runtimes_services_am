@@ -45,6 +45,9 @@ public:
     static std::shared_ptr<Context> createServiceContext(const Application* app,
                                                          const string& componentName,
                                                          const sp<IBinder>& token, UvLoop* loop);
+    static std::shared_ptr<Context> createDialogContext(const Application* app,
+                                                        const string& componentName,
+                                                        const sp<IBinder>& token, UvLoop* loop);
 
     int32_t startActivity(const Intent& intent) override;
     int32_t startActivityForResult(const Intent& intent, int32_t requestCode) override;
