@@ -24,7 +24,7 @@ std::shared_ptr<Context> ContextWrapper::getContext() {
     return mBase;
 }
 
-void ContextWrapper::attachBaseContext(std::shared_ptr<Context> base) {
+void ContextWrapper::attachBaseContext(const std::shared_ptr<Context>& base) {
     if (mBase != nullptr) {
         ALOGE("Base context already set");
     }

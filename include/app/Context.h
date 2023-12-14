@@ -69,7 +69,7 @@ public:
 class ContextWrapper : public Context {
 public:
     std::shared_ptr<Context> getContext();
-    void attachBaseContext(std::shared_ptr<Context> base);
+    void attachBaseContext(const std::shared_ptr<Context>& base);
 
     const Application* getApplication() const;
     const string& getPackageName() const override;
