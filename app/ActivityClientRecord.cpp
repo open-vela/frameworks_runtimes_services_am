@@ -26,7 +26,7 @@ ActivityClientRecord::ActivityClientRecord(const string& name,
 ActivityClientRecord::~ActivityClientRecord() {}
 
 void ActivityClientRecord::reportActivityStatus(const int32_t status) {
-    ALOGD("reportActivityStatus: %s[%p] status:%d", mActivityName.c_str(),
+    ALOGD("reportActivityStatus: %s[%p] status:%" PRId32 "", mActivityName.c_str(),
           mActivity->getToken().get(), status);
     mStatus = status;
     mActivity->getActivityManager().reportActivityStatus(mActivity->getToken(), status);

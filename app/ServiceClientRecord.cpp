@@ -26,7 +26,7 @@ ServiceClientRecord::ServiceClientRecord(const string& name,
 ServiceClientRecord::~ServiceClientRecord() {}
 
 void ServiceClientRecord::reportServiceStatus(const int32_t status) {
-    ALOGD("reportServiceStatus: %s[%p] status:%d", mServiceName.c_str(), mService->getToken().get(),
+    ALOGD("reportServiceStatus: %s[%p] status:%" PRId32 "", mServiceName.c_str(), mService->getToken().get(),
           status);
     mStatus = status;
     mService->getActivityManager().reportServiceStatus(mService->getToken(), status);
