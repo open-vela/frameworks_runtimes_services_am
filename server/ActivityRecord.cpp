@@ -234,7 +234,7 @@ void ActivityRecord::abnormalExit() {
 void ActivityRecord::onResult(int32_t requestCode, int32_t resultCode, const Intent& resultData) {
     const auto appRecord = mApp.lock();
     if (appRecord && appRecord->mIsAlive) {
-        ALOGD("%s onActivityResult: %d, %d", mName.c_str(), requestCode, resultCode);
+        ALOGD("%s onActivityResult: %" PRId32 " %" PRId32 "", mName.c_str(), requestCode, resultCode);
         appRecord->mAppThread->onActivityResult(mToken, requestCode, resultCode, resultData);
     }
 }
