@@ -172,7 +172,7 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
             return android::BAD_VALUE;
         }
     }
-    ALOGI("start activity:%s intent:%s %s flag:%d", activityTarget.c_str(), intent.mAction.c_str(),
+    ALOGI("start activity:%s intent:%s %s flag:%" PRId32 "", activityTarget.c_str(), intent.mAction.c_str(),
           intent.mData.c_str(), intent.mFlag);
 
     /** get Package and Activity info for PMS */
@@ -594,8 +594,7 @@ int ActivityManagerInner::stopServiceByToken(const sp<IBinder>& token) {
     AM_PROFILER_BEGIN();
     auto service = mServices.getService(token);
     if (!service) {
-        ALOGW("unbelievable! Can't get record when service stop self:%s/%s",
-              service->getPackageName()->c_str(), service->mServiceName.c_str());
+        ALOGW("unbelievable! Can't get record when service stop self");
         AM_PROFILER_END();
         return android::DEAD_OBJECT;
     }
@@ -644,7 +643,7 @@ void ActivityManagerInner::reportServiceStatus(const sp<IBinder>& token, int32_t
             break;
         }
         default: {
-            ALOGE("unbeliveable!!! service status:%d is illegal", status);
+            ALOGE("unbeliveable!!! service status:%" PRId32 " is illegal", status);
             AM_PROFILER_END();
             return;
         }

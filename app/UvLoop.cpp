@@ -39,7 +39,7 @@ uv_loop_t* UvLoop::get() const {
 }
 
 int UvLoop::postDelayTask(const UV_CALLBACK& cb, uint64_t timeout, void* data) {
-    auto task = new UvTimer(get(), [cb, data](void* timer) {
+    auto task = new UvTimer(get(), [&cb, data](void* timer) {
         auto uvTimer = reinterpret_cast<UvTimer*>(timer);
         cb(data);
         uvTimer->stop();
