@@ -67,7 +67,7 @@ bool LowMemoryManager::init(const std::shared_ptr<os::app::UvLoop>& looper) {
         }
     }
 
-#ifdef CONFIG_MM_BACKTRACE_DEFAULT
+#ifdef CONFIG_MM_DEFAULT_MANAGER
     // Periodicity monitoring:just for test lmk when kernel doesn't provide notifications.
     mTimer.init(mLooper->get(), [this](void*) {
         struct mallinfo info = mallinfo();
