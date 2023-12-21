@@ -72,19 +72,47 @@ bool LowMemoryManager::init(const std::shared_ptr<os::app::UvLoop>& looper) {
             mOomScoreThreshold[i][0] = info.arena * memorylevel[i] / 10;
             mOomScoreThreshold[i][1] = scorethreshold[i];
         }
+        cnt = 3;
     }
 
 #ifdef CONFIG_MM_DEFAULT_MANAGER
-    // Periodicity monitoring:just for test lmk when kernel doesn't provide notifications.
-    mTimer.init(mLooper->get(), [this](void*) {
-        struct mallinfo info = mallinfo();
-        executeLMK(info);
-    });
-    mTimer.start(3000, 3000); // 3 seconds per cycle
+#ifdef CONFIG_FS_PROCFS_INCLUDE_PRESSURE
+    int fd = open("/proc/pressure/memory", O_RDWR);
+    if (fd > 0) {
+        ALOGW("lmk is reported by poll \"/proc/pressure/memory\"");
+        // write maximum oom threshold[cnt-1] and report period".
+        dprintf(fd, "%d 2000000", mOomScoreThreshold[cnt - 1][0]);
+        auto pollfd = std::make_shared<os::app::UvPoll>(mLooper->get(), fd);
+        pollfd->start(
+                UV_READABLE | UV_PRIORITIZED,
+                [this](int f, int status, int events, void* data) {
+                    char buffer[128];
+                    const int len = read(f, buffer, 128);
+                    if (len > 0) {
+                        buffer[len] = 0;
+                        int freememory;
+                        sscanf(buffer, "remaining %d ", &freememory);
+                        executeLMK(freememory);
+                    }
+                },
+                nullptr);
+        mPollPressureFds.push_back(pollfd);
+
+    } else
+#endif
+    {
+        ALOGW("lmk is reported by cycle query");
+        // Periodicity monitoring:just for test lmk when kernel doesn't provide notifications.
+        mTimer.init(mLooper->get(), [this](void*) {
+            struct mallinfo info = mallinfo();
+            executeLMK(info.fordblks);
+        });
+        mTimer.start(3000, 3000); // 3 seconds per cycle
+    }
 #endif
 
     return true;
-}
+} // namespace am
 
 int LowMemoryManager::setPidOomScore(pid_t pid, int score) {
     auto iter = mPidOomScore.find(pid);
@@ -112,9 +140,8 @@ void LowMemoryManager::setLMKExecutor(const LMKExectorCB& lmkExectorFunc) {
     mExectorCallback = lmkExectorFunc;
 }
 
-void LowMemoryManager::executeLMK(struct mallinfo& memoryInfo) {
+void LowMemoryManager::executeLMK(const int freememory) {
     ALOGD("execute low memory kill");
-    const int freememory = memoryInfo.fordblks;
     std::vector<pid_t> killPidVec;
     for (int i = 0; i < MAX_ADJUST_NUM; i++) {
         if (freememory <= mOomScoreThreshold[i][0]) {
@@ -141,7 +168,7 @@ void LowMemoryManager::executeLMK(struct mallinfo& memoryInfo) {
                         kill(pid, SIGTERM);
                     }
                 },
-                DELAYED_KILLING_TIMEOUT, NULL);
+                DELAYED_KILLING_TIMEOUT);
         mPidOomScore.erase(pid);
     }
 }
