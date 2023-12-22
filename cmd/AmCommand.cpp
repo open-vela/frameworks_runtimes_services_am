@@ -120,8 +120,13 @@ int AmCommand::stopService() {
 
 int AmCommand::dump() {
     const android::Vector<android::String16> args;
-    android::IInterface::asBinder(mAm.getService())->dump(fileno(stdout), args);
-    return 0;
+    if (auto service = mAm.getService()) {
+        android::IInterface::asBinder(service)->dump(fileno(stdout), args);
+        return 0;
+    } else {
+        printf("service is not existent, please check \"systemd\" process\n");
+        return -1;
+    }
 }
 
 int AmCommand::run(int argc, char *argv[]) {
