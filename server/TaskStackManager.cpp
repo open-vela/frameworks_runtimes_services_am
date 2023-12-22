@@ -238,9 +238,13 @@ void TaskStackManager::deleteActivity(const ActivityHandler& activity) {
             auto nextActivity = task->getTopActivity();
             if (!nextActivity) {
                 mAllTasks.pop_front();
-                nextActivity = getActiveTask()->getTopActivity();
+                if (auto activeTask = getActiveTask()) {
+                    nextActivity = getActiveTask()->getTopActivity();
+                }
             }
-            nextActivity->lifecycleTransition(ActivityRecord::RESUMED);
+            if (nextActivity) {
+                nextActivity->lifecycleTransition(ActivityRecord::RESUMED);
+            }
 
         } else if (task->getSize() == 0) {
             deleteTask(task);
