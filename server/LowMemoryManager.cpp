@@ -31,15 +31,22 @@ const int DELAYED_KILLING_TIMEOUT = 2000;
 #ifdef CONFIG_AM_LMK_CFG
 const std::string lmkcfg = CONFIG_AM_LMK_CFG;
 #else
-const std::string lmkcfg = "/etc/lmk.cfg";
+const static std::string lmkcfg = "/etc/lmk.cfg";
 #endif
+// The configuration "/data/lmk.cfg" is easy to modify for test
+const static std::string lmkcfg2 = "/data/lmk.cfg";
 
 bool LowMemoryManager::init(const std::shared_ptr<os::app::UvLoop>& looper) {
     mLooper = looper;
     memset(mOomScoreThreshold, 0, sizeof(mOomScoreThreshold));
 
-    std::ifstream cfg(lmkcfg);
+    std::ifstream cfg;
     int cnt = 0;
+    cfg.open(lmkcfg);
+    if (!cfg.is_open()) {
+        ALOGW("LowMemoryManager policy read \"%s\" file", lmkcfg2.c_str());
+        cfg.open(lmkcfg2);
+    }
     if (cfg.is_open()) {
         std::string line;
         while (std::getline(cfg, line)) {
