@@ -58,6 +58,7 @@ public:
 public:
     /****************** action definition *****************/
     static const std::string ACTION_HOME;
+    static const std::string ACTION_BOOTGUIDE;
     /******************************************************/
 }; // class Intent
 

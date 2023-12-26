@@ -19,6 +19,7 @@
 #include "am/ActivityManagerService.h"
 
 #include <binder/IPCThreadState.h>
+#include <kvdb.h>
 #include <pm/PackageManager.h>
 #include <utils/Log.h>
 
@@ -96,6 +97,7 @@ public:
 
 private:
     void stopServiceReal(ServiceHandler& service);
+    bool startBootGuide();
     int startHomeActivity();
     int getRuntimeEnvironment(const string& packagename, const string& servicename,
                               string& newpackage, string& newexecfile, ProcessPriority& priority);
@@ -172,8 +174,8 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
             return android::BAD_VALUE;
         }
     }
-    ALOGI("start activity:%s intent:%s %s flag:%" PRId32 "", activityTarget.c_str(), intent.mAction.c_str(),
-          intent.mData.c_str(), intent.mFlag);
+    ALOGI("start activity:%s intent:%s %s flag:%" PRId32 "", activityTarget.c_str(),
+          intent.mAction.c_str(), intent.mData.c_str(), intent.mFlag);
 
     /** get Package and Activity info for PMS */
     string packageName;
@@ -397,6 +399,9 @@ void ActivityManagerInner::reportActivityStatus(const sp<IBinder>& token, int32_
         if (const auto appRecord = activity->getAppRecord()) {
             if (!appRecord->checkActiveStatus()) {
                 appRecord->stopApplication();
+                if (!mTaskManager.getActiveTask()) {
+                    startHomeActivity();
+                }
             }
         }
     }
@@ -724,7 +729,9 @@ void ActivityManagerInner::systemReady() {
         }
     }
 
-    startHomeActivity();
+    if (startBootGuide() == false) {
+        startHomeActivity();
+    }
     AM_PROFILER_END();
     return;
 }
@@ -762,6 +769,23 @@ void ActivityManagerInner::dump(int fd, const android::Vector<android::String16>
     std::ostringstream os;
     os << mTaskManager << mServices << mPriorityPolicy;
     write(fd, os.str().c_str(), os.str().size());
+}
+
+bool ActivityManagerInner::startBootGuide() {
+    const char* usersetup = "persist.system.usersetup_complete";
+    int8_t defvalue = 0;
+    int iscomplete = property_get_bool(usersetup, defvalue);
+    if (!iscomplete) {
+        /** start the bootguide app */
+        Intent intent;
+        intent.setAction(Intent::ACTION_BOOTGUIDE);
+        sp<IBinder> faketoken;
+        if (startActivity(faketoken, intent, (int32_t)ActivityManager::NO_REQUEST) == android::OK) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 int ActivityManagerInner::startHomeActivity() {
