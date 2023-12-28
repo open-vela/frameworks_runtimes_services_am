@@ -46,6 +46,7 @@ Dialog::~Dialog() {
     if (wm && mDialog) {
         wm->removeWindow(mDialog);
     }
+    mDialog = nullptr;
 }
 
 LayoutParams Dialog::getLayout() {
