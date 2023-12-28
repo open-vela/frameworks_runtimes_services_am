@@ -444,7 +444,7 @@ int ActivityManagerInner::startService(const Intent& intent) {
         service->start(intent);
     } else {
         std::shared_ptr<AppRecord> appRecord;
-        appRecord = mAppInfo.findAppInfoWithAlive(packageName);
+        appRecord = mAppInfo.findAppInfoWithAlive(servicePackageName);
         if (appRecord) {
             const sp<IBinder> token(new android::BBinder());
             service = std::make_shared<ServiceRecord>(serviceName, token, priority, appRecord);
