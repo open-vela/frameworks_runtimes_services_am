@@ -96,11 +96,16 @@ public:
     }
 
 private:
+    int startActivityReal(const string& activityName, PackageInfo& packageInfo,
+                          const Intent& intent, const sp<IBinder>& caller,
+                          const int32_t requestCode);
+    int startServiceReal(const string& serviceName, PackageInfo& packageInfo, const Intent& intent,
+                         const bool isBind, const sp<IBinder>& caller,
+                         const sp<IServiceConnection>& conn);
+    int intentToSingleTarget(const Intent& intent, PackageInfo& packageInfo, string& componentName);
     void stopServiceReal(ServiceHandler& service);
     bool startBootGuide();
     int startHomeActivity();
-    int getRuntimeEnvironment(const string& packagename, const string& servicename,
-                              string& newpackage, string& newexecfile, ProcessPriority& priority);
     int submitAppStartupTask(const string& packageName, const string& prcocessName,
                              const string& execfile, AppAttachTask::TaskFunc&& task,
                              bool isSupportMultiTask);
@@ -164,36 +169,18 @@ int ActivityManagerInner::attachApplication(const sp<IApplicationThread>& app) {
 int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent& intent,
                                         int32_t requestCode) {
     AM_PROFILER_BEGIN();
-    string activityTarget;
-    if (!intent.mTarget.empty()) {
-        activityTarget = intent.mTarget;
-    } else {
-        if (!mActionFilter.getFirstTargetByAction(intent.mAction, activityTarget)) {
-            ALOGE("can't find the Activity by action:%s", intent.mAction.c_str());
-            AM_PROFILER_END();
-            return android::BAD_VALUE;
-        }
-    }
-    ALOGI("start activity:%s intent:%s %s flag:%" PRId32 "", activityTarget.c_str(),
+    ALOGI("start activity, target:%s action:%s %s flag:%" PRId32 "", intent.mTarget.c_str(),
           intent.mAction.c_str(), intent.mData.c_str(), intent.mFlag);
-
-    /** get Package and Activity info for PMS */
-    string packageName;
-    string activityName;
-    string taskAffinity;
-    ActivityRecord::LaunchMode launchMode = ActivityRecord::LaunchMode::SINGLE_TASK;
-    getPackageAndComponentName(activityTarget, packageName, activityName);
-
     PackageInfo packageInfo;
-    if (mPm.getPackageInfo(packageName, &packageInfo)) {
-        ALOGE("packagename:%s is not installed!!!", packageName.c_str());
+    string activityName;
+    if (intentToSingleTarget(intent, packageInfo, activityName) != 0) {
         AM_PROFILER_END();
         return android::BAD_VALUE;
     }
 
-    /** ready to start Activity */
+    /** check activity name */
     if (activityName.empty()) {
-        auto appTask = mTaskManager.findTask(packageName);
+        auto appTask = mTaskManager.findTask(packageInfo.packageName);
         if (appTask) {
             mTaskManager.switchTaskToActive(appTask, intent);
             AM_PROFILER_END();
@@ -203,8 +190,18 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
         }
     }
 
+    const int ret = startActivityReal(activityName, packageInfo, intent, caller, requestCode);
+    AM_PROFILER_END();
+    return ret;
+}
+
+int ActivityManagerInner::startActivityReal(const string& activityName, PackageInfo& packageInfo,
+                                            const Intent& intent, const sp<IBinder>& caller,
+                                            const int32_t requestCode) {
     /** We need to check that the Intent.flag makes sense and perhaps modify it */
+    string taskAffinity;
     int startFlag = intent.mFlag;
+    ActivityRecord::LaunchMode launchMode = ActivityRecord::LaunchMode::SINGLE_TASK;
     std::vector<ActivityInfo>::iterator it = packageInfo.activitiesInfo.begin();
     for (; it != packageInfo.activitiesInfo.end(); ++it) {
         if (it->name == activityName) {
@@ -214,14 +211,14 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
         }
     }
     if (it == packageInfo.activitiesInfo.end()) {
-        ALOGE("Activity:%s/%s is not registered", packageName.c_str(), activityName.c_str());
-        AM_PROFILER_END();
+        ALOGE("Activity:%s/%s is not registered", packageInfo.packageName.c_str(),
+              activityName.c_str());
         return android::BAD_VALUE;
     }
 
     /** Entry Activity taskAffinity can only be packagename */
     if (activityName == packageInfo.entry) {
-        taskAffinity = packageName;
+        taskAffinity = packageInfo.packageName;
         /** The entry activity must be taskTag for the taskStack, so we need it in another task
          */
         startFlag |= Intent::FLAG_ACTIVITY_NEW_TASK;
@@ -251,18 +248,19 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
     }
 
     ActivityHandler targetActivity;
+    string activityUniqueName = packageInfo.packageName + "/" + activityName;
     if (!isNewTask) {
         switch (launchMode) {
             case ActivityRecord::SINGLE_TOP:
                 startFlag |= Intent::FLAG_ACTIVITY_SINGLE_TOP;
-                if (targetTask->getTopActivity()->getName() == (packageName + "/" + activityName)) {
+                if (targetTask->getTopActivity()->getName() == activityUniqueName) {
                     targetActivity = targetTask->getTopActivity();
                 }
                 break;
             case ActivityRecord::SINGLE_TASK:
             case ActivityRecord::SINGLE_INSTANCE:
                 startFlag |= Intent::FLAG_ACTIVITY_CLEAR_TOP;
-                targetActivity = targetTask->findActivity(packageName + "/" + activityName);
+                targetActivity = targetTask->findActivity(activityUniqueName);
                 break;
             default:
                 break;
@@ -271,10 +269,10 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
 
     if (!targetActivity) {
         auto newActivity =
-                std::make_shared<ActivityRecord>(packageName + "/" + activityName, caller,
-                                                 requestCode, launchMode, targetTask, intent,
-                                                 mWindowManager, &mTaskManager, &mPendTask);
-        const auto appInfo = mAppInfo.findAppInfoWithAlive(packageName);
+                std::make_shared<ActivityRecord>(activityUniqueName, caller, requestCode,
+                                                 launchMode, targetTask, intent, mWindowManager,
+                                                 &mTaskManager, &mPendTask);
+        const auto appInfo = mAppInfo.findAppInfoWithAlive(packageInfo.packageName);
         if (appInfo) {
             newActivity->setAppThread(appInfo);
             mTaskManager.pushNewActivity(targetTask, newActivity, startFlag);
@@ -286,10 +284,9 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
                 newActivity->setAppThread(e->mAppRecord);
                 mTaskManager.pushNewActivity(targetTask, newActivity, startFlag);
             };
-            if (submitAppStartupTask(packageName, packageName, packageInfo.execfile,
-                                     std::move(task), false) != 0) {
+            if (submitAppStartupTask(packageInfo.packageName, packageInfo.packageName,
+                                     packageInfo.execfile, std::move(task), false) != 0) {
                 ALOGW("submitAppStartupTask failure");
-                AM_PROFILER_END();
                 return android::INVALID_OPERATION;
             }
         }
@@ -298,7 +295,6 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
         mTaskManager.turnToActivity(targetTask, targetActivity, intent, startFlag);
     }
 
-    AM_PROFILER_END();
     return android::OK;
 }
 
@@ -412,36 +408,58 @@ void ActivityManagerInner::reportActivityStatus(const sp<IBinder>& token, int32_
 
 int ActivityManagerInner::startService(const Intent& intent) {
     AM_PROFILER_BEGIN();
-    string packageName;
+    ALOGI("start service, target:%s action:%s data:%s flag:%" PRId32 "", intent.mTarget.c_str(),
+          intent.mAction.c_str(), intent.mData.c_str(), intent.mFlag);
+
+    PackageInfo packageInfo;
     string serviceName;
-    if (intent.mTarget.empty()) {
-        string target;
-        mActionFilter.getFirstTargetByAction(intent.mAction, target);
-        getPackageAndComponentName(target, packageName, serviceName);
-    } else {
-        getPackageAndComponentName(intent.mTarget, packageName, serviceName);
+    int ret = android::BAD_VALUE;
+    if (intentToSingleTarget(intent, packageInfo, serviceName) == 0 &&
+        startServiceReal(serviceName, packageInfo, intent, false, nullptr, nullptr) == 0) {
+        ret = android::OK;
     }
 
-    if (serviceName.empty()) {
-        ALOGW("startService: incorrect intents[%s %s], can't find target service",
-              intent.mTarget.c_str(), intent.mAction.c_str());
-        AM_PROFILER_END();
-        return android::BAD_VALUE;
-    }
-    ALOGI("start service:%s/%s", packageName.c_str(), serviceName.c_str());
+    AM_PROFILER_END();
+    return ret;
+}
 
-    string servicePackageName;
-    string execfile;
+int ActivityManagerInner::startServiceReal(const string& serviceName, PackageInfo& packageInfo,
+                                           const Intent& intent, bool isBind,
+                                           const sp<IBinder>& caller,
+                                           const sp<IServiceConnection>& conn) {
     ProcessPriority priority = ProcessPriority::PERSISTENT;
-    if (getRuntimeEnvironment(packageName, serviceName, servicePackageName, execfile, priority) !=
-        0) {
-        AM_PROFILER_END();
-        return android::BAD_VALUE;
+    std::vector<ServiceInfo>::iterator it;
+    for (it = packageInfo.servicesInfo.begin(); it != packageInfo.servicesInfo.end(); ++it) {
+        if (it->name == serviceName) {
+            priority = (ProcessPriority)it->priority;
+            break;
+        }
+    }
+    if (it == packageInfo.servicesInfo.end()) {
+        ALOGE("service:%s/%s is not registered", packageInfo.packageName.c_str(),
+              serviceName.c_str());
+        return -1;
+    }
+
+    // service maybe runs in a stand-alone process
+    string servicePackageName;
+    string serviceExecBin;
+    if (packageInfo.appType == APP_TYPE_QUICK) {
+        // bad demand for quick service...
+        servicePackageName = VSERVICE_EXEC_NAME + ':' + packageInfo.packageName;
+        serviceExecBin = VSERVICE_EXEC_NAME;
+    } else {
+        servicePackageName = packageInfo.packageName;
+        serviceExecBin = packageInfo.execfile;
     }
 
     ServiceHandler service = mServices.findService(servicePackageName, serviceName);
     if (service) {
-        service->start(intent);
+        if (!isBind) {
+            service->start(intent);
+        } else {
+            service->bind(caller, conn, intent);
+        }
     } else {
         std::shared_ptr<AppRecord> appRecord;
         appRecord = mAppInfo.findAppInfoWithAlive(servicePackageName);
@@ -454,49 +472,52 @@ int ActivityManagerInner::startService(const Intent& intent) {
                 }
             }
             mServices.addService(service);
-            service->start(intent);
+            if (!isBind) {
+                service->start(intent);
+            } else {
+                service->bind(caller, conn, intent);
+            }
         } else {
-            const auto task = [this, serviceName, intent, priority](const AppAttachTask::Event* e) {
+            const auto task = [this, serviceName, intent, priority, caller, conn,
+                               isBind](const AppAttachTask::Event* e) {
                 const sp<IBinder> token(new android::BBinder());
-                auto serviceRecord = std::make_shared<ServiceRecord>(serviceName, token, priority,
-                                                                     e->mAppRecord);
+                auto serviceHandler = std::make_shared<ServiceRecord>(serviceName, token, priority,
+                                                                      e->mAppRecord);
                 mPriorityPolicy.add(e->mPid, false, priority);
-                mServices.addService(serviceRecord);
-                serviceRecord->start(intent);
+                mServices.addService(serviceHandler);
+                if (!isBind) {
+                    serviceHandler->start(intent);
+                } else {
+                    serviceHandler->bind(caller, conn, intent);
+                }
             };
-            if (submitAppStartupTask(packageName, servicePackageName, execfile, std::move(task),
-                                     true) != 0) {
+            if (submitAppStartupTask(packageInfo.packageName, servicePackageName, serviceExecBin,
+                                     std::move(task), true) != 0) {
                 ALOGW("submitAppStartupTask failure");
-                AM_PROFILER_END();
-                return android::INVALID_OPERATION;
+                return -2;
             }
         }
     }
-    AM_PROFILER_END();
-    return android::OK;
+
+    return 0;
 }
 
 int ActivityManagerInner::stopService(const Intent& intent) {
     AM_PROFILER_BEGIN();
-    string packageName;
+    PackageInfo packageInfo;
     string serviceName;
-    if (intent.mTarget.empty()) {
-        string target;
-        mActionFilter.getFirstTargetByAction(intent.mAction, target);
-        getPackageAndComponentName(target, packageName, serviceName);
-    } else {
-        getPackageAndComponentName(intent.mTarget, packageName, serviceName);
+    if (intentToSingleTarget(intent, packageInfo, serviceName) != 0) {
+        AM_PROFILER_END();
+        return android::DEAD_OBJECT;
     }
 
-    ALOGI("stop service:%s/%s", packageName.c_str(), serviceName.c_str());
-
+    // service maybe runs in a stand-alone process
     string servicePackageName;
-    string execfile;
-    ProcessPriority priority;
-    if (getRuntimeEnvironment(packageName, serviceName, servicePackageName, execfile, priority) !=
-        0) {
-        AM_PROFILER_END();
-        return android::BAD_VALUE;
+    if (packageInfo.appType == APP_TYPE_QUICK) {
+        // bad demand for quick service...
+        servicePackageName = VSERVICE_EXEC_NAME + ':' + packageInfo.packageName;
+    } else {
+        servicePackageName = packageInfo.packageName;
     }
 
     ServiceHandler service = mServices.findService(servicePackageName, serviceName);
@@ -507,71 +528,30 @@ int ActivityManagerInner::stopService(const Intent& intent) {
     }
 
     stopServiceReal(service);
+
     AM_PROFILER_END();
-    return 0;
+    return android::OK;
 }
 
 int ActivityManagerInner::bindService(const sp<IBinder>& caller, const Intent& intent,
                                       const sp<IServiceConnection>& conn) {
     AM_PROFILER_BEGIN();
-    string packageName;
+    ALOGI("bindService, target:%s action:%s data:%s flag:%" PRId32 "", intent.mTarget.c_str(),
+          intent.mAction.c_str(), intent.mData.c_str(), intent.mFlag);
+
+    PackageInfo packageInfo;
     string serviceName;
-    if (intent.mTarget.empty()) {
-        string target;
-        mActionFilter.getFirstTargetByAction(intent.mAction, target);
-        getPackageAndComponentName(target, packageName, serviceName);
-    } else {
-        getPackageAndComponentName(intent.mTarget, packageName, serviceName);
-    }
-
-    ALOGI("bind service:%s/%s connection[%p]", packageName.c_str(), serviceName.c_str(),
-          conn.get());
-
-    string servicePackageName;
-    string execfile;
-    ProcessPriority priority = ProcessPriority::PERSISTENT;
-    if (getRuntimeEnvironment(packageName, serviceName, servicePackageName, execfile, priority) !=
-        0) {
-        AM_PROFILER_END();
-        return android::BAD_VALUE;
-    }
-
-    ServiceHandler service = mServices.findService(servicePackageName, serviceName);
-    if (!service) {
-        const auto appRecord = mAppInfo.findAppInfoWithAlive(servicePackageName);
-        if (appRecord) {
-            const sp<IBinder> token(new android::BBinder());
-            service = std::make_shared<ServiceRecord>(serviceName, token, priority, appRecord);
-            mServices.addService(service);
-            service->bind(caller, conn, intent);
-            if (auto prioritynode = mPriorityPolicy.get(appRecord->mPid)) {
-                if (prioritynode->priorityLevel < priority) {
-                    prioritynode->priorityLevel = priority;
-                }
-            }
-        } else {
-            const auto task = [this, serviceName, caller, conn, intent,
-                               priority](const AppAttachTask::Event* e) {
-                const sp<IBinder> token(new android::BBinder());
-                auto serviceRecord = std::make_shared<ServiceRecord>(serviceName, token, priority,
-                                                                     e->mAppRecord);
-                mPriorityPolicy.add(e->mPid, false, priority);
-                mServices.addService(serviceRecord);
-                serviceRecord->bind(caller, conn, intent);
-            };
-
-            if (submitAppStartupTask(packageName, servicePackageName, execfile, std::move(task),
-                                     true) != 0) {
-                ALOGW("submitAppStartupTask failure");
-                AM_PROFILER_END();
-                return android::INVALID_OPERATION;
-            }
+    int ret = android::OK;
+    if (intentToSingleTarget(intent, packageInfo, serviceName) == 0) {
+        if (startServiceReal(serviceName, packageInfo, intent, true, caller, conn) != 0) {
+            ret = android::INVALID_OPERATION;
         }
     } else {
-        service->bind(caller, conn, intent);
+        ret = android::BAD_VALUE;
     }
+
     AM_PROFILER_END();
-    return 0;
+    return ret;
 }
 
 void ActivityManagerInner::unbindService(const sp<IServiceConnection>& conn) {
@@ -698,6 +678,23 @@ void ActivityManagerInner::unregisterReceiver(const sp<IBroadcastReceiver>& rece
     }
 }
 
+int ActivityManagerInner::intentToSingleTarget(const Intent& intent, PackageInfo& packageInfo,
+                                               string& componentName) {
+    string packageName;
+    if (intent.mTarget.empty()) {
+        string target;
+        mActionFilter.getFirstTargetByAction(intent.mAction, target);
+        getPackageAndComponentName(target, packageName, componentName);
+    } else {
+        getPackageAndComponentName(intent.mTarget, packageName, componentName);
+    }
+
+    if (packageName.empty() || mPm.getPackageInfo(packageName, &packageInfo) != 0) {
+        ALOGE("can't find target by intent[%s,%s]", intent.mTarget.c_str(), intent.mAction.c_str());
+    }
+    return 0;
+}
+
 void ActivityManagerInner::systemReady() {
     AM_PROFILER_BEGIN();
     ALOGD("### systemReady ### ");
@@ -798,37 +795,6 @@ int ActivityManagerInner::startHomeActivity() {
         return -1;
     }
 
-    return 0;
-}
-
-int ActivityManagerInner::getRuntimeEnvironment(const string& packagename,
-                                                const string& servicename, string& newpackage,
-                                                string& newexecfile, ProcessPriority& priority) {
-    PackageInfo packageInfo;
-    if (mPm.getPackageInfo(packagename, &packageInfo) != 0) {
-        ALOGE("error packagename:%s", packagename.c_str());
-        return -1;
-    }
-    std::vector<ServiceInfo>::iterator it;
-    for (it = packageInfo.servicesInfo.begin(); it != packageInfo.servicesInfo.end(); ++it) {
-        if (it->name == servicename) {
-            priority = (ProcessPriority)it->priority;
-            break;
-        }
-    }
-    if (it == packageInfo.servicesInfo.end()) {
-        ALOGE("service:%s/%s is not registered", packagename.c_str(), servicename.c_str());
-        return -1;
-    }
-
-    if (packageInfo.appType == APP_TYPE_QUICK) {
-        // bad demand for quick service...
-        newpackage = VSERVICE_EXEC_NAME + ':' + packageInfo.packageName;
-        newexecfile = VSERVICE_EXEC_NAME;
-    } else {
-        newpackage = packageInfo.packageName;
-        newexecfile = packageInfo.execfile;
-    }
     return 0;
 }
 
