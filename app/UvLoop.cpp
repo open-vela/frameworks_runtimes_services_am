@@ -39,13 +39,16 @@ uv_loop_t* UvLoop::get() const {
 }
 
 int UvLoop::postDelayTask(const UV_CALLBACK& cb, uint64_t timeout, void* data) {
-    auto task = new UvTimer(get(), [&cb, data](void* timer) {
+    auto func = [](const UV_CALLBACK& callback, void* d, void* timer){
         auto uvTimer = reinterpret_cast<UvTimer*>(timer);
-        cb(data);
+        callback(d);
         uvTimer->stop();
         delete uvTimer;
-    });
-    return task->start(timeout, 0, task);
+    };
+    auto bindFunc = std::bind(func, cb, data, std::placeholders::_1);
+    auto timerTask = new UvTimer();
+    timerTask->init(get(), bindFunc);
+    return timerTask->start(timeout, 0, timerTask);
 }
 
 int UvLoop::run(uv_run_mode mode) {
