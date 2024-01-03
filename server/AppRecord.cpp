@@ -98,8 +98,6 @@ bool AppRecord::checkActiveStatus() const {
 void AppRecord::stopApplication() {
     mIsAlive = false;
     mAppThread->terminateApplication();
-    mAppList->deleteAppInfo(mPid);
-    mPriorityPolicy->remove(mPid);
 }
 
 const shared_ptr<AppRecord> AppInfoList::findAppInfo(const int pid) {
