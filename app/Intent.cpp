@@ -24,8 +24,10 @@ namespace app {
 using namespace android;
 
 /****************** action definition *****************/
-const std::string Intent::ACTION_HOME("action.system.home");
-const std::string Intent::ACTION_BOOTGUIDE("action.system.bootguide");
+const std::string Intent::ACTION_BOOT_READY("action.system.BOOT_READY");
+const std::string Intent::ACTION_BOOT_COMPLETED("action.system.BOOT_COMPLETED");
+const std::string Intent::ACTION_HOME("action.system.HOME");
+const std::string Intent::ACTION_BOOT_GUIDE("action.system.BOOT_GUIDE");
 /******************************************************/
 
 void Intent::setTarget(const std::string& target) {

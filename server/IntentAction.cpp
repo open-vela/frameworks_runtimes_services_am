@@ -16,36 +16,82 @@
 
 #include "IntentAction.h"
 
+#include <pm/PackageManager.h>
+
 namespace os {
 namespace am {
 
-void IntentAction::setIntentAction(const string& action, const string& activityName) {
-    auto iter = mActionMap.find(action);
-    if (iter != mActionMap.end()) {
-        iter->second.emplace_back(activityName);
-    } else {
-        mActionMap.emplace(action, vector<string>{activityName});
-    }
-}
+using namespace os::pm;
 
-bool IntentAction::getFirstTargetByAction(const string& action, string& outTarget) {
-    const auto iter = mActionMap.find(action);
-    if (iter != mActionMap.end()) {
-        outTarget = iter->second[0];
-        return true;
-    } else {
+bool IntentAction::getSingleTargetByAction(const string& action, string& outTarget,
+                                           const ComponentType type) {
+    PackageManager pm;
+    std::vector<PackageInfo> allPackages;
+    if (0 != pm.getAllPackageInfo(&allPackages)) {
         return false;
     }
+
+    for (auto& packageInfo : allPackages) {
+        if (type == COMP_TYPE_ACTIVITY) {
+            for (auto& activity : packageInfo.activitiesInfo) {
+                for (auto& a : activity.actions) {
+                    if (a == action) {
+                        outTarget = COMPONENT_NAME_SPLICE(packageInfo.packageName, activity.name);
+                        return true;
+                    }
+                }
+            }
+
+        } else if (type == COMP_TYPE_SERVICE) {
+            for (auto& service : packageInfo.servicesInfo) {
+                for (auto& a : service.actions) {
+                    if (a == action) {
+                        outTarget = COMPONENT_NAME_SPLICE(packageInfo.packageName, service.name);
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+
+    return false;
 }
 
-bool IntentAction::getTargetsByAction(const string& action, vector<string>& targets) {
-    auto iter = mActionMap.find(action);
-    if (iter != mActionMap.end()) {
-        targets = iter->second;
-        return true;
-    } else {
+bool IntentAction::getMultiTargetByAction(const string& action, vector<string>& targetlist,
+                                          const ComponentType type) {
+    PackageManager pm;
+    std::vector<PackageInfo> allPackages;
+    if (0 != pm.getAllPackageInfo(&allPackages)) {
         return false;
     }
+
+    string onetarget;
+    for (auto& packageInfo : allPackages) {
+        if (type == COMP_TYPE_ACTIVITY) {
+            for (auto& activity : packageInfo.activitiesInfo) {
+                for (auto& a : activity.actions) {
+                    if (a == action) {
+                        onetarget = COMPONENT_NAME_SPLICE(packageInfo.packageName, activity.name);
+                        targetlist.push_back(onetarget);
+                    }
+                }
+            }
+
+        } else if (type == COMP_TYPE_SERVICE) {
+            for (auto& service : packageInfo.servicesInfo) {
+                for (auto& a : service.actions) {
+                    if (a == action) {
+                        onetarget = COMPONENT_NAME_SPLICE(packageInfo.packageName, service.name);
+                        targetlist.push_back(onetarget);
+                    }
+                }
+            }
+        }
+    }
+    if (!targetlist.empty()) {
+        return true;
+    }
+    return false;
 }
 
 } // namespace am
