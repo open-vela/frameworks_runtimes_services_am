@@ -58,18 +58,17 @@ bool TaskStackManager::moveTaskToBackground(const ActivityStackHandler& targetSt
     if (targetStack == activeTask) {
         isBeforeHomeTask = true;
         auto topActivity = targetStack->getTopActivity();
+        topActivity->lifecycleTransition(ActivityRecord::STOPPED);
+        targetStack->setForeground(false);
         mAllTasks.pop_front();
         activeTask = getActiveTask();
-        auto nextActivity = activeTask->getTopActivity();
-        if (nextActivity) {
-            topActivity->lifecycleTransition(ActivityRecord::STOPPED);
-            nextActivity->lifecycleTransition(ActivityRecord::RESUMED);
-        } else {
-            topActivity->lifecycleTransition(ActivityRecord::STOPPED);
+        if (activeTask) {
+            auto nextActivity = activeTask->getTopActivity();
+            if (nextActivity) {
+                nextActivity->lifecycleTransition(ActivityRecord::RESUMED);
+            }
+            activeTask->setForeground(true);
         }
-
-        targetStack->setForeground(false);
-        activeTask->setForeground(true);
     }
 
     for (auto iter = mAllTasks.begin(); iter != mAllTasks.end();) {
@@ -248,6 +247,11 @@ void TaskStackManager::deleteActivity(const ActivityHandler& activity) {
 
         } else if (task->getSize() == 0) {
             deleteTask(task);
+        }
+
+        if (task == mHomeTask) {
+            ALOGE("Default desktop application exit!!!");
+            mHomeTask = getActiveTask();
         }
     }
     mActivityMap.erase(activity->getToken());
