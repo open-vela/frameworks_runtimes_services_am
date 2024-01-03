@@ -40,8 +40,10 @@ static int calculateScore(PidPriorityInfo* pnode, int& levelCnt, ProcessStatus l
         score = pnode->oomScore > OS_FOREGROUND_APP_ADJ ? OS_FOREGROUND_APP_ADJ : pnode->oomScore;
         return score;
     } else if (location == SYSTEM_HOME_PROCESS) {
-        score = pnode->oomScore > OS_SYSTEM_HOME_APP_ADJ ? OS_SYSTEM_HOME_APP_ADJ : pnode->oomScore;
-        return score;
+        if (pnode->priorityLevel < ProcessPriority::PERSISTENT) {
+            score = OS_SYSTEM_HOME_APP_ADJ;
+            return score;
+        }
     }
 
     switch (pnode->priorityLevel) {
@@ -83,20 +85,16 @@ void ProcessPriorityPolicy::analyseProcessPriority() {
     PidPriorityInfo* pnode = mHead;
     ProcessStatus processStatus = FOREGROUND_PROCESS;
     while (pnode) {
-        if (pnode->next == mBackgroundPos) {
-            const int score = calculateScore(pnode, levelcnt, SYSTEM_HOME_PROCESS);
-            if (pnode->oomScore != score) {
-                pnode->oomScore = score;
-                mLmk->setPidOomScore(pnode->pid, pnode->oomScore);
-            }
-            processStatus = BACKGROUND_PROCESS;
-        } else {
-            const int score = calculateScore(pnode, levelcnt, processStatus);
-            if (pnode->oomScore != score) {
-                pnode->oomScore = score;
-                mLmk->setPidOomScore(pnode->pid, pnode->oomScore);
-            }
+        if (pnode->next == mBackgroundPos && processStatus != FOREGROUND_PROCESS) {
+            processStatus = SYSTEM_HOME_PROCESS;
         }
+        const int score = calculateScore(pnode, levelcnt, processStatus);
+        if (pnode->oomScore != score) {
+            pnode->oomScore = score;
+            mLmk->setPidOomScore(pnode->pid, pnode->oomScore);
+        }
+        // only one foreground process
+        processStatus = BACKGROUND_PROCESS;
         pnode = pnode->next;
     }
 }
@@ -154,6 +152,10 @@ void ProcessPriorityPolicy::remove(pid_t pid) {
         }
         if (mBackgroundPos == pnode) {
             mBackgroundPos = pnode->next;
+        } else if (mBackgroundPos == pnode->next) {
+            if (pnode->next) {
+                mBackgroundPos = pnode->next->next;
+            }
         }
 
         if (pnode->last) {
