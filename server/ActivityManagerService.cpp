@@ -102,7 +102,12 @@ private:
     int startServiceReal(const string& serviceName, PackageInfo& packageInfo, const Intent& intent,
                          const bool isBind, const sp<IBinder>& caller,
                          const sp<IServiceConnection>& conn);
-    int intentToSingleTarget(const Intent& intent, PackageInfo& packageInfo, string& componentName);
+    int intentToSingleTarget(const Intent& intent, PackageInfo& packageInfo, string& componentName,
+                             const IntentAction::ComponentType type);
+    int intentToMultiTarget(const Intent& intent, vector<PackageInfo>& packageInfoList,
+                            vector<string>& componentNameList,
+                            const IntentAction::ComponentType type);
+    int broadcastIntent(const Intent& intent, const IntentAction::ComponentType type);
     void stopServiceReal(ServiceHandler& service);
     bool startBootGuide();
     int startHomeActivity();
@@ -173,7 +178,8 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
           intent.mAction.c_str(), intent.mData.c_str(), intent.mFlag);
     PackageInfo packageInfo;
     string activityName;
-    if (intentToSingleTarget(intent, packageInfo, activityName) != 0) {
+    if (intentToSingleTarget(intent, packageInfo, activityName, IntentAction::COMP_TYPE_ACTIVITY) !=
+        0) {
         AM_PROFILER_END();
         return android::BAD_VALUE;
     }
@@ -414,7 +420,8 @@ int ActivityManagerInner::startService(const Intent& intent) {
     PackageInfo packageInfo;
     string serviceName;
     int ret = android::BAD_VALUE;
-    if (intentToSingleTarget(intent, packageInfo, serviceName) == 0 &&
+    if (intentToSingleTarget(intent, packageInfo, serviceName, IntentAction::COMP_TYPE_SERVICE) ==
+                0 &&
         startServiceReal(serviceName, packageInfo, intent, false, nullptr, nullptr) == 0) {
         ret = android::OK;
     }
@@ -506,7 +513,8 @@ int ActivityManagerInner::stopService(const Intent& intent) {
     AM_PROFILER_BEGIN();
     PackageInfo packageInfo;
     string serviceName;
-    if (intentToSingleTarget(intent, packageInfo, serviceName) != 0) {
+    if (intentToSingleTarget(intent, packageInfo, serviceName, IntentAction::COMP_TYPE_SERVICE) !=
+        0) {
         AM_PROFILER_END();
         return android::DEAD_OBJECT;
     }
@@ -542,7 +550,8 @@ int ActivityManagerInner::bindService(const sp<IBinder>& caller, const Intent& i
     PackageInfo packageInfo;
     string serviceName;
     int ret = android::OK;
-    if (intentToSingleTarget(intent, packageInfo, serviceName) == 0) {
+    if (intentToSingleTarget(intent, packageInfo, serviceName, IntentAction::COMP_TYPE_SERVICE) ==
+        0) {
         if (startServiceReal(serviceName, packageInfo, intent, true, caller, conn) != 0) {
             ret = android::INVALID_OPERATION;
         }
@@ -679,11 +688,12 @@ void ActivityManagerInner::unregisterReceiver(const sp<IBroadcastReceiver>& rece
 }
 
 int ActivityManagerInner::intentToSingleTarget(const Intent& intent, PackageInfo& packageInfo,
-                                               string& componentName) {
+                                               string& componentName,
+                                               IntentAction::ComponentType type) {
     string packageName;
     if (intent.mTarget.empty()) {
         string target;
-        mActionFilter.getFirstTargetByAction(intent.mAction, target);
+        mActionFilter.getSingleTargetByAction(intent.mAction, target, type);
         getPackageAndComponentName(target, packageName, componentName);
     } else {
         getPackageAndComponentName(intent.mTarget, packageName, componentName);
@@ -691,6 +701,56 @@ int ActivityManagerInner::intentToSingleTarget(const Intent& intent, PackageInfo
 
     if (packageName.empty() || mPm.getPackageInfo(packageName, &packageInfo) != 0) {
         ALOGE("can't find target by intent[%s,%s]", intent.mTarget.c_str(), intent.mAction.c_str());
+        return -1;
+    }
+    return 0;
+}
+
+int ActivityManagerInner::intentToMultiTarget(const Intent& intent,
+                                              vector<PackageInfo>& packageInfoList,
+                                              vector<string>& componentNameList,
+                                              const IntentAction::ComponentType type) {
+    vector<string> targetlist;
+    if (intent.mTarget.empty()) {
+        string target;
+        mActionFilter.getMultiTargetByAction(intent.mAction, targetlist, type);
+    } else {
+        targetlist.push_back(intent.mTarget);
+    }
+
+    string packageName;
+    string componentName;
+    PackageInfo packageInfo;
+    componentNameList.clear();
+    packageInfoList.clear();
+    for (auto& target : targetlist) {
+        getPackageAndComponentName(target, packageName, componentName);
+        if (packageName.empty() || mPm.getPackageInfo(packageName, &packageInfo) != 0) {
+            ALOGE("can't find target by intent[%s,%s]", intent.mTarget.c_str(),
+                  intent.mAction.c_str());
+            return -1;
+        }
+        packageInfoList.push_back(packageInfo);
+        componentNameList.push_back(componentName);
+    }
+
+    return 0;
+}
+
+int ActivityManagerInner::broadcastIntent(const Intent& intent,
+                                          const IntentAction::ComponentType type) {
+    vector<PackageInfo> packageList;
+    vector<string> componentList;
+    if (intentToMultiTarget(intent, packageList, componentList, type) != 0) {
+        return -1;
+    }
+    const int size = componentList.size();
+    for (int i = 0; i < size; i++) {
+        if (type == IntentAction::COMP_TYPE_ACTIVITY) {
+            startActivityReal(componentList[i], packageList[i], intent, nullptr, -1);
+        } else if (type == IntentAction::COMP_TYPE_SERVICE) {
+            startServiceReal(componentList[i], packageList[i], intent, false, nullptr, nullptr);
+        }
     }
     return 0;
 }
@@ -714,21 +774,21 @@ void ActivityManagerInner::systemReady() {
         }
     });
 
-    vector<PackageInfo> allPackageInfo;
-    if (mPm.getAllPackageInfo(&allPackageInfo) == 0) {
-        for (auto item : allPackageInfo) {
-            for (auto activity : item.activitiesInfo) {
-                for (auto action : activity.actions) {
-                    /** make action <----> packagename/activityname */
-                    mActionFilter.setIntentAction(action, item.packageName + "/" + activity.name);
-                }
-            }
-        }
-    }
+    // After the system ready, broadcast ACTION_BOOT_READY to start Activity and Service
+    Intent intent;
+    intent.setAction(Intent::ACTION_BOOT_READY);
+    broadcastIntent(intent, IntentAction::COMP_TYPE_SERVICE);
+    broadcastIntent(intent, IntentAction::COMP_TYPE_ACTIVITY);
 
     if (startBootGuide() == false) {
         startHomeActivity();
     }
+
+    //  broadcast ACTION_BOOT_COMPLETED to start Activity and Service
+    intent.setAction(Intent::ACTION_BOOT_COMPLETED);
+    broadcastIntent(intent, IntentAction::COMP_TYPE_SERVICE);
+    broadcastIntent(intent, IntentAction::COMP_TYPE_ACTIVITY);
+
     AM_PROFILER_END();
     return;
 }
@@ -775,7 +835,7 @@ bool ActivityManagerInner::startBootGuide() {
     if (!iscomplete) {
         /** start the bootguide app */
         Intent intent;
-        intent.setAction(Intent::ACTION_BOOTGUIDE);
+        intent.setAction(Intent::ACTION_BOOT_GUIDE);
         sp<IBinder> faketoken;
         if (startActivity(faketoken, intent, (int32_t)ActivityManager::NO_REQUEST) == android::OK) {
             return true;
