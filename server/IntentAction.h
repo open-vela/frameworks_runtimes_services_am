@@ -27,14 +27,17 @@ using std::map;
 using std::string;
 using std::vector;
 
+#define COMPONENT_NAME_SPLICE(p, c) (p + '/' + c)
+
 class IntentAction {
 public:
-    void setIntentAction(const string& action, const string& target);
-    bool getFirstTargetByAction(const string& action, string& target);
-    bool getTargetsByAction(const string& action, vector<string>& targets);
-
-private:
-    map<string, vector<string> > mActionMap;
+    enum ComponentType {
+        COMP_TYPE_ACTIVITY,
+        COMP_TYPE_SERVICE,
+    };
+    bool getSingleTargetByAction(const string& action, string& target, const ComponentType type);
+    bool getMultiTargetByAction(const string& action, vector<string>& targetlist,
+                                const ComponentType type);
 };
 
 } // namespace am
