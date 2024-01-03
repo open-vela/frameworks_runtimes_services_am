@@ -28,6 +28,10 @@ const std::string Intent::ACTION_BOOT_READY("action.system.BOOT_READY");
 const std::string Intent::ACTION_BOOT_COMPLETED("action.system.BOOT_COMPLETED");
 const std::string Intent::ACTION_HOME("action.system.HOME");
 const std::string Intent::ACTION_BOOT_GUIDE("action.system.BOOT_GUIDE");
+// broadcast intent
+const std::string Intent::BROADCAST_APP_START("broadcast.system.APP_START");
+const std::string Intent::BROADCAST_APP_EXIT("broadcast.system.APP_EXIT");
+const std::string Intent::BROADCAST_TOP_ACTIVITY("broadcast.system.TOP_ACTIVITY");
 /******************************************************/
 
 void Intent::setTarget(const std::string& target) {

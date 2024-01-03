@@ -163,6 +163,12 @@ int ActivityManagerInner::attachApplication(const sp<IApplicationThread>& app) {
         mAppInfo.addAppInfo(appRecord);
         const AppAttachTask::Event event(callerPid, appRecord);
         mPendTask.eventTrigger(event);
+
+        // broadcast app start
+        Intent intent;
+        intent.setAction(Intent::BROADCAST_APP_START);
+        intent.setData(packageName);
+        sendBroadcast(intent);
     } else {
         ALOGE("the application:%d attaching is illegally", callerPid);
     }
@@ -406,6 +412,13 @@ void ActivityManagerInner::reportActivityStatus(const sp<IBinder>& token, int32_
                 }
             }
         }
+    } else if (status == ActivityRecord::RESUMED) {
+        // broadcast the Top Activity
+        auto activity = mTaskManager.getActivity(token);
+        Intent intent;
+        intent.setAction(Intent::BROADCAST_TOP_ACTIVITY);
+        intent.setData(activity->getName());
+        sendBroadcast(intent);
     }
 
     AM_PROFILER_END();
@@ -820,6 +833,12 @@ void ActivityManagerInner::procAppTerminated(const std::shared_ptr<AppRecord>& a
         }
     }
     needDeleteService.clear();
+
+    // broadcast app exit
+    Intent intent;
+    intent.setAction(Intent::BROADCAST_APP_EXIT);
+    intent.setData(appRecord->mPackageName);
+    sendBroadcast(intent);
 }
 
 void ActivityManagerInner::dump(int fd, const android::Vector<android::String16>& args) {

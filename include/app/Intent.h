@@ -61,6 +61,10 @@ public:
     static const std::string ACTION_BOOT_COMPLETED;
     static const std::string ACTION_HOME;
     static const std::string ACTION_BOOT_GUIDE;
+    // broadcast
+    static const std::string BROADCAST_APP_START;
+    static const std::string BROADCAST_APP_EXIT;
+    static const std::string BROADCAST_TOP_ACTIVITY;
     /******************************************************/
 }; // class Intent
 
