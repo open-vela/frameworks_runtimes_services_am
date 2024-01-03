@@ -62,7 +62,7 @@ static int calculateScore(PidPriorityInfo* pnode, int& levelCnt, ProcessStatus l
             break;
         }
         case ProcessPriority::LOW: {
-            score = OS_LOW_LEVEL_MIN_ADJ + (levelCnt & MIDDLE_LEVEL_CNT);
+            score = OS_LOW_LEVEL_MIN_ADJ + (levelCnt & LOW_LEVEL_CNT);
             levelCnt += 1;
             break;
         }
