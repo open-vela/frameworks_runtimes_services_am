@@ -28,39 +28,27 @@
 namespace os {
 namespace app {
 
-ChildPidExitCB AppSpawn::gChildPidExitCB;
-
-static void childHandler(int signum) {
-    pid_t pid;
-    int status;
-    while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
-        if (WIFEXITED(status)) {
-            // exit normal
-            ALOGW("child process:%d normal exit:%d", pid, WEXITSTATUS(status));
-            AppSpawn::gChildPidExitCB((int)pid);
-
-        } else if (WIFSIGNALED(status)) {
-            ALOGE("child process:%d exception exit by signal:%d", pid, WTERMSIG(status));
-            AppSpawn::gChildPidExitCB((int)pid);
-        }
-    }
-}
-
-int AppSpawn::signalInit(const ChildPidExitCB& cb) {
-    gChildPidExitCB = cb;
-    struct sigaction sig_chld;
-    sig_chld.sa_flags = SA_SIGINFO;
-    sig_chld.sa_handler = childHandler;
-    if (sigaction(SIGCHLD, &sig_chld, nullptr) < 0) {
-        ALOGE("setting SIGCHLD handler error:%s", strerror(errno));
-    }
-
-    struct sigaction sig_hup = {};
-    sig_hup.sa_handler = SIG_IGN;
-    if (sigaction(SIGHUP, &sig_hup, nullptr) < 0) {
-        ALOGE("setting SIGHUP handler:%s error", strerror(errno));
-    }
-    return 0;
+int AppSpawn::signalInit(uv_loop_t* looper, const ChildPidExitCB& cb) {
+    mChildPidExitCB = cb;
+    uv_signal_init(looper, &mSignalHandler);
+    mSignalHandler.data = this;
+    return uv_signal_start(
+            &mSignalHandler,
+            [](uv_signal_t* handle, int signum) {
+                pid_t pid;
+                int status;
+                AppSpawn* asp = (AppSpawn*)handle->data;
+                while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
+                    asp->mChildPidExitCB((int)pid);
+                    if (WIFEXITED(status)) {
+                        ALOGW("child process:%d normal exit:%d", pid, WEXITSTATUS(status));
+                    } else if (WIFSIGNALED(status)) {
+                        ALOGE("child process:%d exception exit by signal:%d", pid,
+                              WTERMSIG(status));
+                    }
+                }
+            },
+            SIGCHLD);
 }
 
 int AppSpawn::appSpawn(const char* execfile, std::initializer_list<std::string> argvlist) {

@@ -249,7 +249,7 @@ void TaskStackManager::deleteActivity(const ActivityHandler& activity) {
             deleteTask(task);
         }
 
-        if (task == mHomeTask) {
+        if (task == mHomeTask && task->getSize() == 0) {
             ALOGE("Default desktop application exit!!!");
             mHomeTask = getActiveTask();
         }

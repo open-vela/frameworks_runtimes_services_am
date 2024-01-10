@@ -127,6 +127,7 @@ private:
     map<string, list<sp<IBroadcastReceiver>>> mReceivers; /** Broadcast */
     LowMemoryManager mLmk;
     ProcessPriorityPolicy mPriorityPolicy;
+    AppSpawn mAppSpawn;
 };
 
 ActivityManagerInner::ActivityManagerInner(uv_loop_t* looper)
@@ -407,9 +408,6 @@ void ActivityManagerInner::reportActivityStatus(const sp<IBinder>& token, int32_
         if (const auto appRecord = activity->getAppRecord()) {
             if (!appRecord->checkActiveStatus()) {
                 appRecord->stopApplication();
-                if (!mTaskManager.getActiveTask()) {
-                    startHomeActivity();
-                }
             }
         }
     } else if (status == ActivityRecord::RESUMED) {
@@ -771,7 +769,7 @@ int ActivityManagerInner::broadcastIntent(const Intent& intent,
 void ActivityManagerInner::systemReady() {
     AM_PROFILER_BEGIN();
     ALOGD("### systemReady ### ");
-    AppSpawn::signalInit([this](int pid) {
+    mAppSpawn.signalInit(mLooper->get(), [this](int pid) {
         ALOGW("AppSpawn pid:%d had exit", pid);
         auto app = mAppInfo.findAppInfo(pid);
         if (app) {
@@ -784,6 +782,10 @@ void ActivityManagerInner::systemReady() {
                 ALOGE("App:%s abnormal exit without attachApplication", packagename.c_str());
                 mAppInfo.deleteAppWaitingAttach(pid);
             }
+        }
+
+        if (!mTaskManager.getActiveTask()) {
+            startHomeActivity();
         }
     });
 
@@ -883,7 +885,7 @@ int ActivityManagerInner::submitAppStartupTask(const string& packageName,
                                                bool isSupportMultiTask) {
     int pid = mAppInfo.getAttachingAppPid(prcocessName);
     if (pid < 0) {
-        pid = AppSpawn::appSpawn(execfile.c_str(), {packageName});
+        pid = mAppSpawn.appSpawn(execfile.c_str(), {packageName});
         if (pid > 0) {
             mAppInfo.addAppWaitingAttach(prcocessName, pid);
         } else {

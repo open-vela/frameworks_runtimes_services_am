@@ -74,6 +74,9 @@ int AppRecord::deleteService(const std::shared_ptr<ServiceRecord>& service) {
 }
 
 void AppRecord::setForeground(const bool isForegroundActivity) {
+    if (!mIsAlive) {
+        return;
+    }
     if (isForegroundActivity) {
         if (++mForegroundActivityCnt == 1) {
             mAppThread->setForegroundApplication(true);
@@ -96,8 +99,10 @@ bool AppRecord::checkActiveStatus() const {
 }
 
 void AppRecord::stopApplication() {
-    mIsAlive = false;
-    mAppThread->terminateApplication();
+    if (mIsAlive) {
+        mIsAlive = false;
+        mAppThread->terminateApplication();
+    }
 }
 
 const shared_ptr<AppRecord> AppInfoList::findAppInfo(const int pid) {

@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <uv.h>
+
 #include <functional>
 #include <initializer_list>
 #include <string>
@@ -27,9 +29,11 @@ using ChildPidExitCB = std::function<void(int)>;
 
 class AppSpawn {
 public:
-    static int signalInit(const ChildPidExitCB& cb);
-    static int appSpawn(const char* execfile, std::initializer_list<std::string> argvlist);
-    static ChildPidExitCB gChildPidExitCB;
+    int signalInit(uv_loop_t* looper, const ChildPidExitCB& cb);
+    int appSpawn(const char* execfile, std::initializer_list<std::string> argvlist);
+
+    uv_signal_t mSignalHandler;
+    ChildPidExitCB mChildPidExitCB;
 };
 
 } // namespace app
