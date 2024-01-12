@@ -64,13 +64,11 @@ void* Dialog::getRoot() {
 }
 
 void Dialog::show() {
-    getWindowManager()->getService()->updateWindowTokenVisibility(getToken(),
-                                                                  LayoutParams::WINDOW_VISIBLE);
+    mDialog->setVisible(true);
 }
 
 void Dialog::hide() {
-    getWindowManager()->getService()->updateWindowTokenVisibility(getToken(),
-                                                                  LayoutParams::WINDOW_INVISIBLE);
+    mDialog->setVisible(false);
 }
 
 } // namespace app
