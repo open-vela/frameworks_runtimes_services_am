@@ -39,6 +39,7 @@ public:
     void* getRoot();
     void show();
     void hide();
+    void setRect(int32_t left, int32_t top, int32_t width, int32_t height);
 
 private:
     std::shared_ptr<::os::wm::BaseWindow> mDialog;
