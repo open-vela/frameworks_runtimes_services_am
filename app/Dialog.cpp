@@ -36,9 +36,11 @@ std::shared_ptr<Dialog> Dialog::createDialog(Context* context) {
 
 Dialog::Dialog(const std::shared_ptr<Context>& context) {
     attachBaseContext(context);
-    const auto wm = getWindowManager()->getService();
-    wm->addWindowToken(getToken(), LayoutParams::TYPE_DIALOG, 0);
-    mDialog = getWindowManager()->newWindow(this);
+
+    const auto wm = getWindowManager();
+    mDialog = wm->newWindow(this);
+    mDialog->setType(LayoutParams::TYPE_DIALOG);
+    wm->attachIWindow(mDialog);
 }
 
 Dialog::~Dialog() {
@@ -54,9 +56,16 @@ LayoutParams Dialog::getLayout() {
 }
 
 void Dialog::setLayout(LayoutParams& layout) {
-    layout.mType = LayoutParams::TYPE_DIALOG;
     mDialog->setLayoutParams(layout);
-    getWindowManager()->attachIWindow(mDialog);
+}
+
+void Dialog::setRect(int32_t left, int32_t top, int32_t width, int32_t height) {
+    auto lp = mDialog->getLayoutParams();
+    lp.mX = left;
+    lp.mY = top;
+    lp.mWidth = width;
+    lp.mHeight = height;
+    mDialog->setLayoutParams(lp);
 }
 
 void* Dialog::getRoot() {
