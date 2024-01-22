@@ -27,14 +27,6 @@ CXXSRCS += $(shell find -L server app -name *.cpp)
 CXXSRCS  += $(patsubst %$(AIDLEXT),%$(CXXEXT),$(AIDLSRCS))
 endif
 
-NOEXPORTSRCS = $(ASRCS)$(CSRCS)$(CXXSRCS)$(MAINSRC)
-
-ifneq ($(NOEXPORTSRCS),)
-BIN := $(APPDIR)/staging/libframework.a
-endif
-
-EXPORT_FILES := include
-
 ifneq ($(CONFIG_AM_COMMAND),)
 PROGNAME += am
 PRIORITY  = SCHED_PRIORITY_DEFAULT
@@ -49,5 +41,19 @@ PRIORITY  = SCHED_PRIORITY_DEFAULT
 STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
 MAINSRC += test/UvLoopTest.cpp
 endif
+
+
+ASRCS := $(wildcard $(ASRCS))
+CSRCS := $(wildcard $(CSRCS))
+CXXSRCS := $(wildcard $(CXXSRCS))
+MAINSRC := $(wildcard $(MAINSRC))
+
+NOEXPORTSRCS = $(ASRCS)$(CSRCS)$(CXXSRCS)$(MAINSRC)
+
+ifneq ($(NOEXPORTSRCS),)
+BIN := $(APPDIR)/staging/libxms.a
+endif
+
+EXPORT_FILES :=
 
 include $(APPDIR)/Application.mk
