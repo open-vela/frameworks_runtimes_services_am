@@ -18,8 +18,10 @@ config SYSTEM_ACTIVITY_SERVICE
 	tristate "Enable Activity Manager Service"
 	default n
 	depends on ANDROID_BINDER
+	depends on LIBC_EXECFUNCS
 	depends on SYSTEM_SERVER
 	depends on SYSTEM_PACKAGE_SERVICE
+	depends on SYSTEM_WINDOW_SERVICE
 
 if SYSTEM_ACTIVITY_SERVICE
 
