@@ -33,6 +33,10 @@ config AM_LMK_CFG
 	string "LMK configure file"
 	default "/etc/lmk.cfg"
 
+config AMS_RUNMODE_FILE
+	string "config ams runmode file path"
+	default "/data/ams.runmode"
+
 config AM_TEST
 	tristate "Enable am framework test"
 	default n
