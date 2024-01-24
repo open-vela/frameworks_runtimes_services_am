@@ -19,7 +19,13 @@
 namespace os {
 namespace am {
 
-TaskBoard::TaskBoard() {}
+TaskBoard::TaskBoard() {
+    mIsDebug = false;
+}
+
+void TaskBoard::setDebugMode(bool isDebug) {
+    mIsDebug = isDebug;
+}
 
 void TaskBoard::attachLoop(const std::shared_ptr<UvLoop>& looper) {
     mLooper = looper;

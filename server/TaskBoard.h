@@ -100,6 +100,7 @@ private:
 class TaskBoard {
 public:
     TaskBoard();
+    void setDebugMode(bool isDebug);
     void attachLoop(const std::shared_ptr<UvLoop>& looper);
     void commitTask(const std::shared_ptr<Task>& task, uint32_t msLimitedTime = UINT_MAX);
     void eventTrigger(const Label& e);
@@ -107,6 +108,7 @@ public:
 private:
     std::list<std::shared_ptr<TaskMsgHandler>> mTasklist;
     std::shared_ptr<UvLoop> mLooper;
+    bool mIsDebug;
 };
 
 /**************************** label signature ******************************/

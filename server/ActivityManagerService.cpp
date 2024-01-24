@@ -23,6 +23,8 @@
 #include <pm/PackageManager.h>
 #include <utils/Log.h>
 
+#include <filesystem>
+#include <fstream>
 #include <list>
 #include <map>
 #include <string>
@@ -49,6 +51,12 @@ using namespace os::pm;
 using android::IBinder;
 using android::sp;
 
+#ifdef CONFIG_AMS_RUNMODE_FILE
+#define AMS_RUNMODE_FILE CONFIG_AMS_RUNMODE_FILE
+#else
+#define AMS_RUNMODE_FILE "/data/ams.runmode"
+#endif
+
 /** Different applications have different operating environments **/
 static const string APP_TYPE_QUICK = "QUICKAPP";
 static const string APP_TYPE_NATIVE = "NATIVE";
@@ -62,6 +70,11 @@ static void getPackageAndComponentName(const string& target, string& packageName
 
 class ActivityManagerInner {
 public:
+    enum RunMode {
+        NORMAL_MODE = 0,
+        SILENCE_MODE,
+        DEBUG_MODE,
+    };
     ActivityManagerInner(uv_loop_t* looper);
 
     int attachApplication(const sp<IApplicationThread>& app);
@@ -116,6 +129,7 @@ private:
                              bool isSupportMultiTask);
 
 private:
+    int mRunMode;
     std::shared_ptr<UvLoop> mLooper;
     TaskBoard mPendTask;
     ServiceList mServices;
@@ -132,6 +146,18 @@ private:
 
 ActivityManagerInner::ActivityManagerInner(uv_loop_t* looper)
       : mTaskManager(mPendTask), mPriorityPolicy(&mLmk) {
+    mRunMode = NORMAL_MODE;
+    if (std::filesystem::exists(AMS_RUNMODE_FILE)) {
+        std::ifstream file;
+        file.open(AMS_RUNMODE_FILE);
+        if (file.is_open()) {
+            string line;
+            std::getline(file, line);
+            sscanf(line.c_str(), "%d", &mRunMode);
+        }
+    }
+    mPendTask.setDebugMode(mRunMode == DEBUG_MODE);
+
     mLooper = std::make_shared<UvLoop>(looper);
     mPendTask.attachLoop(mLooper);
     mLmk.init(mLooper);
@@ -784,10 +810,16 @@ void ActivityManagerInner::systemReady() {
             }
         }
 
-        if (!mTaskManager.getActiveTask()) {
+        if (!mTaskManager.getActiveTask() && mRunMode == NORMAL_MODE) {
             startHomeActivity();
         }
     });
+
+    if (mRunMode > NORMAL_MODE) {
+        ALOGW("AMS run mode[%d], apps don't start automatically", mRunMode);
+        AM_PROFILER_END();
+        return;
+    }
 
     // After the system ready, broadcast ACTION_BOOT_READY to start Activity and Service
     Intent intent;
