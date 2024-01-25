@@ -228,6 +228,7 @@ void ActivityRecord::abnormalExit() {
         ALOGW("Activity:%s abnormal exit!", mName.c_str());
         appRecord->deleteActivity(shared_from_this());
         mWindowService->removeWindowToken(mToken, 0);
+        appRecord->stopApplication();
     }
 }
 
