@@ -420,6 +420,12 @@ bool ActivityManagerInner::moveActivityTaskToBackground(const sp<IBinder>& token
 
 void ActivityManagerInner::reportActivityStatus(const sp<IBinder>& token, int32_t status) {
     AM_PROFILER_BEGIN();
+    auto activity = mTaskManager.getActivity(token);
+    if (!activity) {
+        ALOGW("reportActivityStatus error: activity is null");
+        AM_PROFILER_END();
+        return;
+    }
     ALOGI("reportActivityStatus called by %s [%s]",
           mTaskManager.getActivity(token)->getName().c_str(), ActivityRecord::statusToStr(status));
 
@@ -428,7 +434,6 @@ void ActivityManagerInner::reportActivityStatus(const sp<IBinder>& token, int32_
 
     // Only "destroy" need special process.
     if (status == ActivityRecord::DESTROYED) {
-        auto activity = mTaskManager.getActivity(token);
         activity->setStatus(ActivityRecord::DESTROYED);
         mTaskManager.deleteActivity(activity);
         if (const auto appRecord = activity->getAppRecord()) {
@@ -438,7 +443,6 @@ void ActivityManagerInner::reportActivityStatus(const sp<IBinder>& token, int32_
         }
     } else if (status == ActivityRecord::RESUMED) {
         // broadcast the Top Activity
-        auto activity = mTaskManager.getActivity(token);
         Intent intent;
         intent.setAction(Intent::BROADCAST_TOP_ACTIVITY);
         intent.setData(activity->getName());
