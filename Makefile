@@ -17,6 +17,7 @@
 include $(APPDIR)/Make.defs
 
 CXXEXT := .cpp
+CXXFLAGS += -Wno-array-bounds
 
 ifneq ($(CONFIG_SYSTEM_ACTIVITY_SERVICE),)
 AIDLSRCS += $(shell find aidl -name *.aidl)
