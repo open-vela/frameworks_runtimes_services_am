@@ -33,6 +33,7 @@ oneway interface IApplicationThread {
     void scheduleBindService(@utf8InCpp String serviceName, in IBinder token, in Intent intent,
                              in IServiceConnection connection);
     void scheduleUnbindService(in IBinder token);
+    void scheduleReceiveIntent(in IBinder token, in Intent intent);
 
     void setForegroundApplication(boolean isForeground);
     void terminateApplication();

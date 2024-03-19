@@ -103,6 +103,12 @@ interface IActivityManager {
     void publishService(in IBinder token, in IBinder serviceBinder);
 
     /**
+     * @brief postIntent, postIntent to intent.target.
+     * @param intent
+     */
+    int postIntent(in Intent intent);
+
+    /**
      * @brief sendBroadcast
      * @param intent, intent.action the broadcast title.
      */

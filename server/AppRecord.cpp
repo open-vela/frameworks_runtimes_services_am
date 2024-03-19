@@ -91,6 +91,12 @@ void AppRecord::setForeground(const bool isForegroundActivity) {
     ALOGD("%s ForegroundActivityCnt:%d", mPackageName.c_str(), mForegroundActivityCnt);
 }
 
+void AppRecord::scheduleReceiveIntent(const sp<IBinder>& token, const Intent& intent) {
+    if (mIsAlive) {
+        mAppThread->scheduleReceiveIntent(token, intent);
+    }
+}
+
 bool AppRecord::checkActiveStatus() const {
     if (mExistActivity.empty() && mExistService.empty()) {
         return false;

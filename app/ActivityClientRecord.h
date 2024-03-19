@@ -54,6 +54,8 @@ public:
     int onStop();
     int onDestroy();
 
+    void handleReceiveIntent(const Intent& intent);
+
 private:
     const string mActivityName;
     std::shared_ptr<Activity> mActivity;

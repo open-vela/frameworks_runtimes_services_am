@@ -80,5 +80,10 @@ void ServiceClientRecord::onDestroy() {
     reportServiceStatus(DESTROYED);
 }
 
+void ServiceClientRecord::handleReceiveIntent(const Intent& intent) {
+    ALOGD("Service onReceiveIntent: %s[%p]", mServiceName.c_str(), mService->getToken().get());
+    return mService->onReceiveIntent(intent);
+}
+
 } // namespace app
 } // namespace os

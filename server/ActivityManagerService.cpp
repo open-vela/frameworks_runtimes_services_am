@@ -95,6 +95,7 @@ public:
     void unbindService(const sp<IServiceConnection>& conn);
     void publishService(const sp<IBinder>& token, const sp<IBinder>& serviceBinder);
 
+    int32_t postIntent(const Intent& intent);
     int32_t sendBroadcast(const Intent& intent);
     int32_t registerReceiver(const std::string& action, const sp<IBroadcastReceiver>& receiver);
     void unregisterReceiver(const sp<IBroadcastReceiver>& receiver);
@@ -127,6 +128,8 @@ private:
     int submitAppStartupTask(const string& packageName, const string& prcocessName,
                              const string& execfile, AppAttachTask::TaskFunc&& task,
                              bool isSupportMultiTask);
+    int findSystemTarget(const string& targetAlias, std::shared_ptr<AppRecord>& app,
+                         sp<IBinder>& token);
 
 private:
     int mRunMode;
@@ -689,6 +692,42 @@ void ActivityManagerInner::reportServiceStatus(const sp<IBinder>& token, int32_t
     AM_PROFILER_END();
 }
 
+int32_t ActivityManagerInner::postIntent(const Intent& intent) {
+    ALOGI("postIntent:%s", intent.mTarget.c_str());
+    std::shared_ptr<AppRecord> app = nullptr;
+    sp<IBinder> token = nullptr;
+
+    if (intent.mTarget.compare(0, Intent::TARGET_PREFLEX.size(), Intent::TARGET_PREFLEX) == 0) {
+        findSystemTarget(intent.mTarget, app, token);
+    } else {
+        string packageName;
+        string componentName;
+        getPackageAndComponentName(intent.mTarget, packageName, componentName);
+        app = mAppInfo.findAppInfoWithAlive(packageName);
+        if (app) {
+            if (componentName.empty()) {
+                // Not Activity or Service, the Intent will be posted to Application.
+                token = android::IInterface::asBinder(app->mAppThread);
+            } else {
+                if (const auto activity = app->checkActivity(intent.mTarget)) {
+                    token = activity->getToken();
+                } else {
+                    if (const auto service = app->checkService(intent.mTarget)) {
+                        token = service->mToken;
+                    }
+                }
+            }
+        }
+    }
+
+    if (!app || !token) {
+        ALOGW("postIntent target:%s is nonexist!!", intent.mTarget.c_str());
+        return -1;
+    }
+    app->scheduleReceiveIntent(token, intent);
+    return 0;
+}
+
 int32_t ActivityManagerInner::sendBroadcast(const Intent& intent) {
     ALOGI("sendBroadcast:%s", intent.mAction.c_str());
     auto receivers = mReceivers.find(intent.mAction);
@@ -939,6 +978,36 @@ int ActivityManagerInner::submitAppStartupTask(const string& packageName,
     return 0;
 }
 
+int ActivityManagerInner::findSystemTarget(const string& targetAlias,
+                                           std::shared_ptr<AppRecord>& app, sp<IBinder>& token) {
+    ALOGI("findSystemTarget:%s", targetAlias.c_str());
+    ActivityHandler activity = nullptr;
+    if (targetAlias == Intent::TARGET_ACTIVITY_TOPRESUME) {
+        if (const auto task = mTaskManager.getActiveTask()) {
+            activity = task->getTopActivity();
+            app = activity->getAppRecord();
+            token = activity->getToken();
+        }
+    } else if (targetAlias == Intent::TARGET_APPLICATION_FOREGROUND) {
+        if (const auto task = mTaskManager.getActiveTask()) {
+            activity = task->getRootActivity();
+            app = activity->getAppRecord();
+            token = android::IInterface::asBinder(app->mAppThread);
+        }
+    } else if (targetAlias == Intent::TARGET_APPLICATION_HOME) {
+        if (const auto task = mTaskManager.getHomeTask()) {
+            activity = task->getRootActivity();
+            app = activity->getAppRecord();
+            token = android::IInterface::asBinder(app->mAppThread);
+        }
+    }
+    if (!activity) {
+        ALOGW("can not find system target:%s", targetAlias.c_str());
+        return -1;
+    }
+    return 0;
+}
+
 void getPackageAndComponentName(const string& target, string& packageName, string& componentName) {
     const auto pos = target.find_first_of('/');
     packageName = std::move(target.substr(0, pos));
@@ -1022,6 +1091,11 @@ Status ActivityManagerService::unbindService(const sp<IServiceConnection>& conn)
 Status ActivityManagerService::publishService(const sp<IBinder>& token,
                                               const sp<IBinder>& service) {
     mInner->publishService(token, service);
+    return Status::ok();
+}
+
+Status ActivityManagerService::postIntent(const Intent& intent, int32_t* ret) {
+    *ret = mInner->postIntent(intent);
     return Status::ok();
 }
 

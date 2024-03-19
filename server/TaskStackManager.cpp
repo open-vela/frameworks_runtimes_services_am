@@ -264,6 +264,10 @@ ActivityStackHandler TaskStackManager::getActiveTask() {
     return nullptr;
 }
 
+ActivityStackHandler TaskStackManager::getHomeTask() {
+    return mHomeTask;
+}
+
 ActivityStackHandler TaskStackManager::findTask(const std::string& tag) {
     for (const auto& t : mAllTasks) {
         if (t->getTaskTag() == tag) {
