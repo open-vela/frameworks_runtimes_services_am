@@ -50,6 +50,7 @@ public:
     void deleteActivity(const ActivityHandler& activity);
 
     ActivityStackHandler getActiveTask();
+    ActivityStackHandler getHomeTask();
     ActivityStackHandler findTask(const std::string& tag);
     void deleteTask(const ActivityStackHandler& task);
     void pushTaskToFront(const ActivityStackHandler& task);

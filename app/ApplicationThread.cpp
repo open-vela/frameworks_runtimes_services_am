@@ -69,6 +69,7 @@ public:
     Status scheduleBindService(const string& serviceName, const sp<IBinder>& token,
                                const Intent& intent, const sp<IServiceConnection>& serviceBinder);
     Status scheduleUnbindService(const sp<IBinder>& token);
+    Status scheduleReceiveIntent(const sp<IBinder>& token, const Intent& intent);
 
     Status setForegroundApplication(bool isForeground);
     Status terminateApplication();
@@ -236,6 +237,21 @@ Status ApplicationThreadStub::scheduleStartService(const string& serviceName,
 Status ApplicationThreadStub::scheduleStopService(const sp<IBinder>& token) {
     ALOGD("scheduleStopService package:%s token[%p]", mApp->getPackageName().c_str(), token.get());
     onStopService(token);
+    return Status::ok();
+}
+
+Status ApplicationThreadStub::scheduleReceiveIntent(const sp<IBinder>& token,
+                                                    const Intent& intent) {
+    ALOGI("scheduleReceiveIntent token[%p] intent:%s", token.get(), intent.mTarget.c_str());
+    if (token == IInterface::asBinder(this)) {
+        mApp->onReceiveIntent(intent);
+    } else {
+        if (auto activity = mApp->findActivity(token)) {
+            activity->handleReceiveIntent(intent);
+        } else if (auto service = mApp->findService(token)) {
+            service->handleReceiveIntent(intent);
+        }
+    }
     return Status::ok();
 }
 

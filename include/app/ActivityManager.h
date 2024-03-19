@@ -79,6 +79,7 @@ public:
     void publishService(const sp<IBinder>& token, const sp<IBinder>& serviceHandler);
     int32_t stopServiceByToken(const sp<IBinder>& token);
 
+    int32_t postIntent(const Intent& intent);
     int32_t sendBroadcast(const Intent& intent);
     int32_t registerReceiver(const std::string& action, const sp<IBroadcastReceiver>& receiver);
     void unregisterReceiver(const sp<IBroadcastReceiver>& receiver);

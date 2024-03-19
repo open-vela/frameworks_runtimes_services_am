@@ -64,6 +64,7 @@ struct AppRecord {
     bool checkActiveStatus() const;
     void stopApplication();
     void setForeground(const bool isForegroundActivity);
+    void scheduleReceiveIntent(const sp<IBinder>& token, const Intent& intent);
 
     void addActivity(const std::shared_ptr<ActivityRecord>& activity);
     int deleteActivity(const std::shared_ptr<ActivityRecord>& activity);
