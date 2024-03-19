@@ -55,6 +55,8 @@ int AmCommand::makeIntent(Intent &intent) {
         } else if (param == "-a") {
             intent.setAction(nextArg().data());
             hasTarget = true;
+        } else if (param == "-f") {
+            intent.setFlag(std::stoi(string(nextArg().data())));
         } else if (param == "-d") {
             intent.setData(nextArg().data());
         } else if (param == "--ei") {
@@ -118,6 +120,12 @@ int AmCommand::stopService() {
     return mAm.stopService(intent);
 }
 
+int AmCommand::postIntent() {
+    Intent intent;
+    makeIntent(intent);
+    return mAm.postIntent(intent);
+}
+
 int AmCommand::dump() {
     const android::Vector<android::String16> args;
     if (auto service = mAm.getService()) {
@@ -151,6 +159,9 @@ int AmCommand::run(int argc, char *argv[]) {
     if ("stopservice" == subCommand) {
         return stopService();
     }
+    if ("postintent" == subCommand) {
+        return postIntent();
+    }
     if ("dump" == subCommand) {
         return dump();
     }
@@ -164,6 +175,7 @@ int AmCommand::showUsage() {
     printf(" stop  <INTENT>\t stop  Activity\n");
     printf(" startservice <INTENT>\n");
     printf(" stopservice  <INTENT>\n");
+    printf(" postintent   <INTENT>\n");
     printf(" dump  :show all Activity task\n");
     printf("\n You can make <INTENT> like:\n");
     printf("\t-t \t<TARGET> : '-t' is unnecessary when TARGET as the first param\n");
