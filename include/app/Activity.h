@@ -46,6 +46,9 @@ public:
     virtual void onNewIntent(const Intent& intent){};
     virtual void onActivityResult(const int requestCode, const int resultCode,
                                   const Intent& resultData){};
+    virtual void onBackPressed() {
+        finish();
+    }
     virtual void onReceiveIntent(const Intent& intent){};
 
     void setResult(const int resultCode, const std::shared_ptr<Intent>& resultData);

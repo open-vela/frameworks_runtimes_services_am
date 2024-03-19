@@ -101,9 +101,13 @@ int ActivityClientRecord::onDestroy() {
 }
 
 void ActivityClientRecord::handleReceiveIntent(const Intent& intent) {
-    ALOGD("Activity handleReceiveIntent: %s[%p]", mActivityName.c_str(),
-          mActivity->getToken().get());
-    return mActivity->onReceiveIntent(intent);
+    ALOGD("Activity handleReceiveIntent:%s, action:%s", mActivityName.c_str(),
+          intent.mAction.c_str());
+    if (intent.mAction == Intent::ACTION_BACK_PRESSED) {
+        mActivity->onBackPressed();
+    } else {
+        mActivity->onReceiveIntent(intent);
+    }
 }
 
 } // namespace app
