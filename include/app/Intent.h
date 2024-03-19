@@ -56,6 +56,13 @@ public:
     android::status_t writeToParcel(android::Parcel* parcel) const final;
 
 public:
+    /****************** target definition *****************/
+    static const std::string TARGET_PREFLEX;
+    static const std::string TARGET_ACTIVITY_TOPRESUME;
+    static const std::string TARGET_APPLICATION_FOREGROUND;
+    static const std::string TARGET_APPLICATION_HOME;
+    /******************************************************/
+
     /****************** action definition *****************/
     static const std::string ACTION_BOOT_READY;
     static const std::string ACTION_BOOT_COMPLETED;

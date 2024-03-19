@@ -23,6 +23,13 @@ namespace app {
 
 using namespace android;
 
+/****************** target definition *****************/
+const std::string Intent::TARGET_PREFLEX("@target.");
+const std::string Intent::TARGET_ACTIVITY_TOPRESUME(TARGET_PREFLEX + "activity.TOP_RESUME");
+const std::string Intent::TARGET_APPLICATION_FOREGROUND(TARGET_PREFLEX + "application.FOREGROUND");
+const std::string Intent::TARGET_APPLICATION_HOME(TARGET_PREFLEX + "application.HOME");
+/******************************************************/
+
 /****************** action definition *****************/
 const std::string Intent::ACTION_BOOT_READY("action.system.BOOT_READY");
 const std::string Intent::ACTION_BOOT_COMPLETED("action.system.BOOT_COMPLETED");

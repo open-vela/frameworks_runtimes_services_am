@@ -50,6 +50,7 @@ public:
     void onUnbind();
     void onDestroy();
 
+    void handleReceiveIntent(const Intent& intent);
     void reportServiceStatus(const int32_t status);
     const sp<IBinder>& getToken();
     int32_t getStatus();

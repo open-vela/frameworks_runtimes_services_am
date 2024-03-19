@@ -77,7 +77,7 @@ int32_t ActivityManager::stopActivity(const Intent& intent, int32_t resultCode) 
     if (service != nullptr) {
         Status status = service->stopActivity(intent, resultCode, &ret);
         if (!status.isOk()) {
-            ALOGE("startActivity error:%s", status.toString8().c_str());
+            ALOGE("stopActivity error:%s", status.toString8().c_str());
         }
     }
     AM_PROFILER_END();
@@ -223,6 +223,18 @@ void ActivityManager::publishService(const sp<IBinder>& token, const sp<IBinder>
         }
     }
     AM_PROFILER_END();
+}
+
+int32_t ActivityManager::postIntent(const Intent& intent) {
+    sp<IActivityManager> service = getService();
+    int32_t ret = android::FAILED_TRANSACTION;
+    if (service != nullptr) {
+        Status status = service->postIntent(intent, &ret);
+        if (!status.isOk()) {
+            ALOGE("postIntent error:%s", status.toString8().c_str());
+        }
+    }
+    return ret;
 }
 
 int32_t ActivityManager::sendBroadcast(const Intent& intent) {

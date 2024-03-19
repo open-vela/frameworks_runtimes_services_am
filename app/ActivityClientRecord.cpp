@@ -100,5 +100,11 @@ int ActivityClientRecord::onDestroy() {
     return 0;
 }
 
+void ActivityClientRecord::handleReceiveIntent(const Intent& intent) {
+    ALOGD("Activity handleReceiveIntent: %s[%p]", mActivityName.c_str(),
+          mActivity->getToken().get());
+    return mActivity->onReceiveIntent(intent);
+}
+
 } // namespace app
 } // namespace os

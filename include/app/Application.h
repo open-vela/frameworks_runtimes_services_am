@@ -62,6 +62,7 @@ public:
     virtual void onForeground() = 0;
     virtual void onBackground() = 0;
     virtual void onDestroy() = 0;
+    virtual void onReceiveIntent(const Intent& intent){};
 
     const string& getPackageName() const;
     void setPackageName(const string& name);

@@ -59,6 +59,7 @@ public:
     int bindService(const Intent& intent, const sp<IServiceConnection>& conn) override;
     void unbindService(const sp<IServiceConnection>& conn) override;
 
+    int32_t postIntent(const Intent& intent) override;
     int32_t sendBroadcast(const Intent& intent) override;
     int32_t registerReceiver(const std::string& action,
                              const sp<IBroadcastReceiver>& receiver) override;

@@ -108,6 +108,10 @@ void ContextImpl::unbindService(const sp<IServiceConnection>& conn) {
     return mAm.unbindService(conn);
 }
 
+int32_t ContextImpl::postIntent(const Intent& intent) {
+    return mAm.postIntent(intent);
+}
+
 int32_t ContextImpl::sendBroadcast(const Intent& intent) {
     return mAm.sendBroadcast(intent);
 }

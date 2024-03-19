@@ -95,6 +95,10 @@ void ContextWrapper::unbindService(const sp<IServiceConnection>& conn) {
     return mBase->unbindService(conn);
 }
 
+int32_t ContextWrapper::postIntent(const Intent& intent) {
+    return mBase->postIntent(intent);
+}
+
 int32_t ContextWrapper::sendBroadcast(const Intent& intent) {
     return mBase->sendBroadcast(intent);
 }
