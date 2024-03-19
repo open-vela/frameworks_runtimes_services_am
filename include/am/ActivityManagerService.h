@@ -65,6 +65,7 @@ public:
     Status unbindService(const sp<IServiceConnection>& conn) override;
     Status publishService(const sp<IBinder>& token, const sp<IBinder>& service) override;
 
+    Status postIntent(const Intent& intent, int32_t* ret) override;
     Status sendBroadcast(const Intent& intent, int32_t* ret) override;
     Status registerReceiver(const std::string& action, const sp<IBroadcastReceiver>& receiver,
                             int32_t* ret) override;

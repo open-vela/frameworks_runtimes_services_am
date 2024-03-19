@@ -38,6 +38,7 @@ public:
     virtual void onDestroy() = 0;
     virtual sp<IBinder> onBind(const Intent& intent);
     virtual bool onUnbind();
+    virtual void onReceiveIntent(const Intent& intent){};
 
 private:
     friend class ServiceClientRecord;
