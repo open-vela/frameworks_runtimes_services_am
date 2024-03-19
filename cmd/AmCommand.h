@@ -40,6 +40,7 @@ private:
     int stopActivity();
     int startService();
     int stopService();
+    int postIntent();
     int dump();
 
 private:
