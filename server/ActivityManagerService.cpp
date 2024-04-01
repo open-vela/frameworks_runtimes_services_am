@@ -450,6 +450,13 @@ void ActivityManagerInner::reportActivityStatus(const sp<IBinder>& token, int32_
         intent.setAction(Intent::BROADCAST_TOP_ACTIVITY);
         intent.setData(activity->getName());
         sendBroadcast(intent);
+
+        const ActivityWaitResume::Event event2(token);
+        mPendTask.eventTrigger(event2);
+
+        // only for finishActivity case
+        const ActivityDelayDestroy::Event event3(token);
+        mPendTask.eventTrigger(event3);
     }
 
     AM_PROFILER_END();
