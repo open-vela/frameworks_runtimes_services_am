@@ -143,5 +143,81 @@ private:
     TaskStackManager* mTaskManager;
 };
 
+class ActivityWaitResume : public Task {
+public:
+    struct Event : Label {
+        sp<android::IBinder> token;
+        Event(const sp<android::IBinder>& t) : Label(ACTIVITY_WAIT_RESUME), token(t) {}
+    };
+
+    ActivityWaitResume(const ActivityHandler& resumeActivity,
+                       const ActivityHandler& willStopActivity)
+          : Task(ACTIVITY_WAIT_RESUME),
+            mResumeActivity(resumeActivity),
+            mWillStopActivity(willStopActivity) {}
+
+    void execute(const Label& e) override {
+        mWillStopActivity->lifecycleTransition(ActivityRecord::STOPPED);
+    }
+
+    bool operator==(const Label& e) const {
+        if (mId == e.mId) {
+            return mResumeActivity->getToken() == static_cast<const Event*>(&e)->token;
+        }
+        return false;
+    }
+
+    void timeout() override {
+        ALOGE("WaitActivityResume %s[%s] timeout!", mResumeActivity->getName().c_str(),
+              mResumeActivity->getStatusStr());
+        /** resume the last activity */
+        ALOGI("resume %s[%s]", mWillStopActivity->getName().c_str(),
+              mWillStopActivity->getStatusStr());
+        mWillStopActivity->lifecycleTransition(ActivityRecord::RESUMED);
+    }
+
+private:
+    ActivityHandler mResumeActivity;
+    ActivityHandler mWillStopActivity;
+};
+
+class ActivityDelayDestroy : public Task {
+public:
+    struct Event : Label {
+        sp<android::IBinder> token;
+        Event(const sp<android::IBinder>& t) : Label(ACTIVITY_DELAY_DESTROY), token(t) {}
+    };
+
+    ActivityDelayDestroy(const ActivityHandler& willDestroyActivity,
+                         const ActivityHandler& waitResumeActivity)
+          : Task(ACTIVITY_DELAY_DESTROY),
+            mWillDestroyActivity(willDestroyActivity),
+            mWaitResumeActivity(waitResumeActivity) {}
+
+    void execute(const Label& e) override {
+        mWillDestroyActivity->lifecycleTransition(ActivityRecord::DESTROYED);
+    }
+
+    bool operator==(const Label& e) const {
+        if (mId == e.mId) {
+            return mWaitResumeActivity->getToken() == static_cast<const Event*>(&e)->token;
+        }
+        return false;
+    }
+
+    void timeout() override {
+        ALOGE("WaitActivityResume %s[%s] timeout!", mWaitResumeActivity->getName().c_str(),
+              mWaitResumeActivity->getStatusStr());
+        /** direct destroy the activity */
+        ALOGI("resume %s[%s]", mWillDestroyActivity->getName().c_str(),
+              mWillDestroyActivity->getStatusStr());
+        mWillDestroyActivity->lifecycleTransition(ActivityRecord::DESTROYED);
+    }
+
+private:
+    ActivityHandler mWillDestroyActivity;
+    ActivityHandler mWaitResumeActivity;
+};
+
 } // namespace am
 } // namespace os
