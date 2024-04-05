@@ -20,7 +20,7 @@ import os.app.Intent;
 import os.app.IServiceConnection;
 
 oneway interface IApplicationThread {
-    void scheduleLaunchActivity(@utf8InCpp String activityName, in IBinder token, in Intent intent);
+    void scheduleLaunchActivity(@utf8InCpp String activityName, in IBinder token);
     void scheduleStartActivity(in IBinder token, in Intent intent);
     void scheduleResumeActivity(in IBinder token, in Intent intent);
     void schedulePauseActivity(in IBinder token);
