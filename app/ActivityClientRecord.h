@@ -47,7 +47,7 @@ public:
     int32_t getStatus();
     void onActivityResult(const int requestCode, const int resultCode, const Intent& resultData);
 
-    int onCreate(const Intent& intent);
+    int onCreate();
     int onStart(const Intent& intent);
     int onResume(const Intent& intent);
     int onPause();

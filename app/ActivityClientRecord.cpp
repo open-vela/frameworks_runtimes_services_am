@@ -41,9 +41,8 @@ void ActivityClientRecord::onActivityResult(const int requestCode, const int res
     mActivity->onActivityResult(requestCode, resultCode, resultData);
 }
 
-int ActivityClientRecord::onCreate(const Intent& intent) {
+int ActivityClientRecord::onCreate() {
     ALOGD("Activity onCreate: %s[%p]", mActivityName.c_str(), mActivity->getToken().get());
-    mActivity->setIntent(intent);
     if (mActivity->performCreate()) {
         reportActivityStatus(CREATED);
     } else {
@@ -60,6 +59,8 @@ int ActivityClientRecord::onStart(const Intent& intent) {
         ALOGD("Activity onNewIntent: %s[%p]", mActivityName.c_str(), mActivity->getToken().get());
         mActivity->onNewIntent(intent);
         mActivity->onRestart();
+    } else if (mStatus == CREATED) {
+        mActivity->setIntent(intent);
     }
 
     mActivity->performStart();
@@ -69,7 +70,7 @@ int ActivityClientRecord::onStart(const Intent& intent) {
 
 int ActivityClientRecord::onResume(const Intent& intent) {
     ALOGD("Activity onResume: %s[%p]", mActivityName.c_str(), mActivity->getToken().get());
-    if (mStatus == PAUSED) {
+    if (mStatus == PAUSED || mStatus == RESUMED) {
         mActivity->setIntent(intent);
         mActivity->onNewIntent(intent);
     }

@@ -52,8 +52,7 @@ public:
         mApp = app;
     }
 
-    Status scheduleLaunchActivity(const string& activityName, const sp<IBinder>& token,
-                                  const Intent& intent);
+    Status scheduleLaunchActivity(const string& activityName, const sp<IBinder>& token);
     Status scheduleStartActivity(const sp<IBinder>& token, const Intent& intent);
     Status scheduleResumeActivity(const sp<IBinder>& token, const Intent& intent);
     Status schedulePauseActivity(const sp<IBinder>& token);
@@ -75,8 +74,7 @@ public:
     Status terminateApplication();
 
 private:
-    int onLaunchActivity(const string& activityName, const sp<IBinder>& token,
-                         const Intent& intent);
+    int onLaunchActivity(const string& activityName, const sp<IBinder>& token);
     int onStartActivity(const sp<IBinder>& token, const Intent& intent);
     int onResumeActivity(const sp<IBinder>& token, const Intent& intent);
     int onPauseActivity(const sp<IBinder>& token);
@@ -155,11 +153,10 @@ int ApplicationThread::mainRun(int argc, char** argv) {
 }
 
 Status ApplicationThreadStub::scheduleLaunchActivity(const std::string& activityName,
-                                                     const sp<IBinder>& token,
-                                                     const Intent& intent) {
+                                                     const sp<IBinder>& token) {
     ALOGD("scheduleLaunchActivity package:%s activity:%s token[%p]", mApp->getPackageName().c_str(),
           activityName.c_str(), token.get());
-    onLaunchActivity(activityName, token, intent);
+    onLaunchActivity(activityName, token);
     return Status::ok();
 }
 
@@ -275,7 +272,7 @@ Status ApplicationThreadStub::terminateApplication() {
 }
 
 int ApplicationThreadStub::onLaunchActivity(const std::string& activityName,
-                                            const sp<IBinder>& token, const Intent& intent) {
+                                            const sp<IBinder>& token) {
     AM_PROFILER_BEGIN();
     int ret = 0;
     std::shared_ptr<Activity> activity = mApp->createActivity(activityName);
@@ -284,7 +281,7 @@ int ApplicationThreadStub::onLaunchActivity(const std::string& activityName,
                 ContextImpl::createActivityContext(mApp, activityName, token, mApp->getMainLoop());
         activity->attach(context);
         auto activityRecord = std::make_shared<ActivityClientRecord>(activityName, activity);
-        if (activityRecord->onCreate(intent) == 0) {
+        if (activityRecord->onCreate() == 0) {
             mApp->addActivity(token, activityRecord);
         } else {
             ALOGE("Activity %s/%s create failure", mApp->getPackageName().c_str(),
