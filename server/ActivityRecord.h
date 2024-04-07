@@ -115,6 +115,7 @@ private:
     std::weak_ptr<AppRecord> mApp;
     std::weak_ptr<ActivityStack> mInTask;
     Intent mIntent;
+    bool mNewIntentFlag;
 
     sp<::os::wm::IWindowManager> mWindowService;
     TaskStackManager* mTaskManager;

@@ -53,8 +53,8 @@ public:
     }
 
     Status scheduleLaunchActivity(const string& activityName, const sp<IBinder>& token);
-    Status scheduleStartActivity(const sp<IBinder>& token, const Intent& intent);
-    Status scheduleResumeActivity(const sp<IBinder>& token, const Intent& intent);
+    Status scheduleStartActivity(const sp<IBinder>& token, const std::optional<Intent>& intent);
+    Status scheduleResumeActivity(const sp<IBinder>& token, const std::optional<Intent>& intent);
     Status schedulePauseActivity(const sp<IBinder>& token);
     Status scheduleStopActivity(const sp<IBinder>& token);
     Status scheduleDestroyActivity(const sp<IBinder>& token);
@@ -75,8 +75,8 @@ public:
 
 private:
     int onLaunchActivity(const string& activityName, const sp<IBinder>& token);
-    int onStartActivity(const sp<IBinder>& token, const Intent& intent);
-    int onResumeActivity(const sp<IBinder>& token, const Intent& intent);
+    int onStartActivity(const sp<IBinder>& token, const std::optional<Intent>& intent);
+    int onResumeActivity(const sp<IBinder>& token, const std::optional<Intent>& intent);
     int onPauseActivity(const sp<IBinder>& token);
     int onStopActivity(const sp<IBinder>& token);
     int onDestroyActivity(const sp<IBinder>& token);
@@ -161,7 +161,7 @@ Status ApplicationThreadStub::scheduleLaunchActivity(const std::string& activity
 }
 
 Status ApplicationThreadStub::scheduleStartActivity(const sp<IBinder>& token,
-                                                    const Intent& intent) {
+                                                    const std::optional<Intent>& intent) {
     ALOGD("scheduleStartActivity package:%s token[%p]", mApp->getPackageName().c_str(),
           token.get());
     onStartActivity(token, intent);
@@ -169,7 +169,7 @@ Status ApplicationThreadStub::scheduleStartActivity(const sp<IBinder>& token,
 }
 
 Status ApplicationThreadStub::scheduleResumeActivity(const sp<IBinder>& token,
-                                                     const Intent& intent) {
+                                                     const std::optional<Intent>& intent) {
     ALOGD("scheduleResumeActivity package:%s token[%p]", mApp->getPackageName().c_str(),
           token.get());
     onResumeActivity(token, intent);
@@ -296,7 +296,8 @@ int ApplicationThreadStub::onLaunchActivity(const std::string& activityName,
     return ret;
 }
 
-int ApplicationThreadStub::onStartActivity(const sp<IBinder>& token, const Intent& intent) {
+int ApplicationThreadStub::onStartActivity(const sp<IBinder>& token,
+                                           const std::optional<Intent>& intent) {
     AM_PROFILER_BEGIN();
     std::shared_ptr<ActivityClientRecord> activityRecord = mApp->findActivity(token);
     if (activityRecord != nullptr) {
@@ -308,7 +309,8 @@ int ApplicationThreadStub::onStartActivity(const sp<IBinder>& token, const Inten
     return -1;
 }
 
-int ApplicationThreadStub::onResumeActivity(const sp<IBinder>& token, const Intent& intent) {
+int ApplicationThreadStub::onResumeActivity(const sp<IBinder>& token,
+                                            const std::optional<Intent>& intent) {
     AM_PROFILER_BEGIN();
     std::shared_ptr<ActivityClientRecord> activityRecord = mApp->findActivity(token);
     if (activityRecord != nullptr) {

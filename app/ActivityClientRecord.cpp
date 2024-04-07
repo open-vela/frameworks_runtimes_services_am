@@ -52,15 +52,25 @@ int ActivityClientRecord::onCreate() {
     return 0;
 }
 
-int ActivityClientRecord::onStart(const Intent& intent) {
+int ActivityClientRecord::onStart(const std::optional<Intent>& intent) {
     ALOGD("Activity onStart: %s[%p]", mActivityName.c_str(), mActivity->getToken().get());
-    if (mStatus == STOPPED) {
-        mActivity->setIntent(intent);
-        ALOGD("Activity onNewIntent: %s[%p]", mActivityName.c_str(), mActivity->getToken().get());
-        mActivity->onNewIntent(intent);
-        mActivity->onRestart();
-    } else if (mStatus == CREATED) {
-        mActivity->setIntent(intent);
+    if (mStatus == CREATED) {
+        if (intent.has_value()) {
+            mActivity->setIntent(intent.value());
+        } else {
+            ALOGE("Activity[%s] onStart error:There must be an intent, but it's empty!",
+                  mActivityName.c_str());
+        }
+    } else {
+        if (intent.has_value()) {
+            ALOGD("Activity onNewIntent: %s[%p]", mActivityName.c_str(),
+                  mActivity->getToken().get());
+            mActivity->setIntent(intent.value());
+            mActivity->onNewIntent(intent.value());
+        }
+        if (mStatus == STOPPED) {
+            mActivity->onRestart();
+        }
     }
 
     mActivity->performStart();
@@ -68,11 +78,12 @@ int ActivityClientRecord::onStart(const Intent& intent) {
     return 0;
 }
 
-int ActivityClientRecord::onResume(const Intent& intent) {
+int ActivityClientRecord::onResume(const std::optional<Intent>& intent) {
     ALOGD("Activity onResume: %s[%p]", mActivityName.c_str(), mActivity->getToken().get());
-    if (mStatus == PAUSED || mStatus == RESUMED) {
-        mActivity->setIntent(intent);
-        mActivity->onNewIntent(intent);
+    if (intent.has_value()) {
+        ALOGD("Activity onNewIntent: %s[%p]", mActivityName.c_str(), mActivity->getToken().get());
+        mActivity->setIntent(intent.value());
+        mActivity->onNewIntent(intent.value());
     }
 
     mActivity->performResume();

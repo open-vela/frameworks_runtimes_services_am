@@ -21,8 +21,8 @@ import os.app.IServiceConnection;
 
 oneway interface IApplicationThread {
     void scheduleLaunchActivity(@utf8InCpp String activityName, in IBinder token);
-    void scheduleStartActivity(in IBinder token, in Intent intent);
-    void scheduleResumeActivity(in IBinder token, in Intent intent);
+    void scheduleStartActivity(in IBinder token, in @nullable Intent intent);
+    void scheduleResumeActivity(in IBinder token, in @nullable Intent intent);
     void schedulePauseActivity(in IBinder token);
     void scheduleStopActivity(in IBinder token);
     void scheduleDestroyActivity(in IBinder token);
