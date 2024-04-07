@@ -49,6 +49,7 @@ ActivityRecord::ActivityRecord(const std::string& name, const sp<IBinder>& calle
     mWindowService = wm;
     mTaskManager = tsm;
     mPendTask = tb;
+    mNewIntentFlag = true;
 }
 
 const sp<IBinder>& ActivityRecord::getToken() const {
@@ -85,6 +86,7 @@ std::shared_ptr<AppRecord> ActivityRecord::getAppRecord() const {
 
 void ActivityRecord::setIntent(const Intent& intent) {
     mIntent = intent;
+    mNewIntentFlag = true;
 }
 
 const Intent& ActivityRecord::getIntent() const {
@@ -167,7 +169,11 @@ void ActivityRecord::start() {
         const auto appRecord = mApp.lock();
         if (appRecord && appRecord->mIsAlive) {
             ALOGD("scheduleStartActivity: %s", mName.c_str());
-            appRecord->mAppThread->scheduleStartActivity(mToken, mIntent);
+            const std::optional<Intent> intent = mNewIntentFlag
+                    ? std::optional<std::reference_wrapper<Intent>>(mIntent)
+                    : std::nullopt;
+            appRecord->mAppThread->scheduleStartActivity(mToken, intent);
+            mNewIntentFlag = false;
         }
     }
 }
@@ -178,7 +184,11 @@ void ActivityRecord::resume() {
         const auto appRecord = mApp.lock();
         if (appRecord && appRecord->mIsAlive) {
             ALOGD("scheduleResumeActivity: %s", mName.c_str());
-            appRecord->mAppThread->scheduleResumeActivity(mToken, mIntent);
+            const std::optional<Intent> intent = mNewIntentFlag
+                    ? std::optional<std::reference_wrapper<Intent>>(mIntent)
+                    : std::nullopt;
+            appRecord->mAppThread->scheduleResumeActivity(mToken, intent);
+            mNewIntentFlag = false;
         }
         mWindowService->updateWindowTokenVisibility(mToken, LayoutParams::WINDOW_VISIBLE);
         return;
