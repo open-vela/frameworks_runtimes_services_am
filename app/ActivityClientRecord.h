@@ -48,8 +48,8 @@ public:
     void onActivityResult(const int requestCode, const int resultCode, const Intent& resultData);
 
     int onCreate();
-    int onStart(const Intent& intent);
-    int onResume(const Intent& intent);
+    int onStart(const std::optional<Intent>& intent);
+    int onResume(const std::optional<Intent>& intent);
     int onPause();
     int onStop();
     int onDestroy();
