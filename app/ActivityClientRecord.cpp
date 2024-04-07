@@ -41,8 +41,9 @@ void ActivityClientRecord::onActivityResult(const int requestCode, const int res
     mActivity->onActivityResult(requestCode, resultCode, resultData);
 }
 
-int ActivityClientRecord::onCreate() {
+int ActivityClientRecord::onCreate(const Intent& intent) {
     ALOGD("Activity onCreate: %s[%p]", mActivityName.c_str(), mActivity->getToken().get());
+    mActivity->setIntent(intent);
     if (mActivity->performCreate()) {
         reportActivityStatus(CREATED);
     } else {

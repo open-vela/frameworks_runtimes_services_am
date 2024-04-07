@@ -158,7 +158,8 @@ void ActivityRecord::create() {
             appRecord->addActivity(shared_from_this());
             const auto pos = mName.find_first_of('/');
             appRecord->mAppThread->scheduleLaunchActivity(mName.substr(pos + 1, std::string::npos),
-                                                          mToken);
+                                                          mToken, mIntent);
+            mNewIntentFlag = false;
         }
     }
 }
