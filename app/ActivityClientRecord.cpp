@@ -58,9 +58,6 @@ int ActivityClientRecord::onStart(const std::optional<Intent>& intent) {
     if (mStatus == CREATED) {
         if (intent.has_value()) {
             mActivity->setIntent(intent.value());
-        } else {
-            ALOGE("Activity[%s] onStart error:There must be an intent, but it's empty!",
-                  mActivityName.c_str());
         }
     } else {
         if (intent.has_value()) {
