@@ -162,7 +162,7 @@ ActivityManagerInner::ActivityManagerInner(uv_loop_t* looper)
     mPendTask.setDebugMode(mRunMode == DEBUG_MODE);
 
     mLooper = std::make_shared<UvLoop>(looper);
-    mPendTask.attachLoop(mLooper);
+    mPendTask.startWork(mLooper);
     mLmk.init(mLooper);
     mLmk.setLMKExecutor([this](pid_t pid) {
         if (auto apprecord = mAppInfo.findAppInfo(pid)) {
