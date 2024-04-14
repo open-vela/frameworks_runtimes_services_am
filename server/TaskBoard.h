@@ -58,28 +58,10 @@ public:
     }
 };
 
-class TaskMsgHandler {
+class TaskTimeoutHandler {
 public:
-    TaskMsgHandler(const std::shared_ptr<Task>& task)
-          : mTask(task), mIsDone(false), mTimer(nullptr) {}
+    TaskTimeoutHandler(const std::shared_ptr<Task>& task, const uint64_t usTimeout);
 
-    void startTimer(uv_loop_t* loop, uint32_t msTimeout) {
-        mTimer = new UvTimer();
-        mTimer->init(loop, [this](void*) {
-            if (!mIsDone) {
-                mIsDone = true;
-                mTask->timeout();
-            }
-        });
-        mTimer->start(msTimeout);
-    }
-    void stopTimer() {
-        if (mTimer) {
-            mTimer->stop();
-            delete mTimer;
-            mTimer = nullptr;
-        }
-    }
     Task* getTask() const {
         return mTask.get();
     }
@@ -90,25 +72,36 @@ public:
     bool isDone() const {
         return mIsDone;
     }
+    uint64_t getExpectTime() const {
+        return mExpectTime;
+    }
+    void timeout() {
+        mIsDone = true;
+        mTask->timeout();
+    }
 
 private:
     std::shared_ptr<Task> mTask;
     bool mIsDone;
-    UvTimer* mTimer;
+    const uint64_t mExpectTime;
 };
 
 class TaskBoard {
 public:
     TaskBoard();
     void setDebugMode(bool isDebug);
-    void attachLoop(const std::shared_ptr<UvLoop>& looper);
-    void commitTask(const std::shared_ptr<Task>& task, uint32_t msLimitedTime = UINT_MAX);
+    void startWork(const std::shared_ptr<UvLoop>& looper);
+    void commitTask(const std::shared_ptr<Task>& task, const uint64_t msLimitedTime = UINT_MAX);
     void eventTrigger(const Label& e);
 
 private:
-    std::list<std::shared_ptr<TaskMsgHandler>> mTasklist;
+    void checkTimeout();
+
+    std::list<std::shared_ptr<TaskTimeoutHandler>> mTasklist;
     std::shared_ptr<UvLoop> mLooper;
+    uint64_t mNextCheckTime;
     bool mIsDebug;
+    UvTimer mTimer;
 };
 
 /**************************** label signature ******************************/
@@ -121,7 +114,7 @@ enum TASK_LABEL {
     SERVICE_STATUS_END = 230,
 };
 
-#define REQUEST_TIMEOUT_MS 10000
+#define REQUEST_TIMEOUT_MS 10000 // 10 seconds
 /***************************************************************************/
 
 } // namespace am
