@@ -87,6 +87,7 @@ public:
     void setStatus(Status status);
     Status getStatus() const;
     Status getTargetStatus() const;
+    void reportError();
 
     const std::string* getPackageName() const;
 
@@ -111,6 +112,7 @@ private:
     int32_t mRequestCode;
     Status mStatus;
     Status mTargetStatus;
+    bool mIsError;
     LaunchMode mLaunchMode;
     std::weak_ptr<AppRecord> mApp;
     std::weak_ptr<ActivityStack> mInTask;
@@ -158,7 +160,10 @@ public:
             mWillStopActivity(willStopActivity) {}
 
     void execute(const Label& e) override {
-        mWillStopActivity->lifecycleTransition(ActivityRecord::STOPPED);
+        if (mResumeActivity->getStatus() >= ActivityRecord::RESUMED &&
+            mResumeActivity->getStatus() <= ActivityRecord::STOPPED) {
+            mWillStopActivity->lifecycleTransition(ActivityRecord::STOPPED);
+        }
     }
 
     bool operator==(const Label& e) const {
