@@ -43,6 +43,7 @@ ActivityRecord::ActivityRecord(const std::string& name, const sp<IBinder>& calle
     mCaller = caller;
     mRequestCode = requestCode;
     mStatus = INIT;
+    mIsError = false;
     mLaunchMode = launchMode;
     mInTask = task;
     mIntent = intent;
@@ -105,17 +106,39 @@ ActivityRecord::Status ActivityRecord::getTargetStatus() const {
     return mTargetStatus;
 }
 
+void ActivityRecord::reportError() {
+    mIsError = true;
+    mStatus = (Status)(mStatus - 1);
+}
+
 void ActivityRecord::lifecycleTransition(const Status toStatus) {
     enum { NONE = 0, CREATE, START, RESUME, PAUSE, STOP, DESTROY };
     static int lifeCycleTable[7][7] = {
+            /*      →  X :toStatus, targetStatus                        */
+            /* ↓ Y :mStatus, curStatus                                  */
+            /*      none, create, start, resume, pause, stop, destroy   */
             /*init*/ {NONE, CREATE, CREATE, CREATE, CREATE, CREATE, NONE},
-            /*create*/ {NONE, NONE, START, START, NONE, STOP, DESTROY},
+            /*create*/ {NONE, NONE, START, START, START, STOP, DESTROY},
             /*start*/ {NONE, NONE, NONE, RESUME, PAUSE, STOP, STOP},
             /*resume*/ {NONE, NONE, START, NONE, PAUSE, PAUSE, PAUSE},
             /*pause*/ {NONE, NONE, START, RESUME, NONE, STOP, STOP},
             /*stop*/ {NONE, NONE, START, START, NONE, NONE, DESTROY},
             /*destroy*/ {NONE, NONE, NONE, NONE, NONE, NONE, NONE},
     };
+
+    if (mTargetStatus == RESUMED && toStatus > RESUMED && mStatus < RESUMING) {
+        // Other Activity wait for this Activity "resume", but it can't to resume.
+        // then we trigger the "ActivityWaitResume" task.
+        const ActivityWaitResume::Event event(mToken);
+        mPendTask->eventTrigger(event);
+    }
+
+    if (mStatus % 2 == 1) {
+        // when Activity status is:creating, starting, resuming, **ing.
+        // we can't do anything except wait for it to report
+        mTargetStatus = toStatus;
+        return;
+    }
 
     const int turnTo = lifeCycleTable[(mStatus + 1) >> 1][(toStatus + 1) >> 1];
     switch (turnTo) {
@@ -337,13 +360,10 @@ void ActivityLifeCycleTask::execute(const Label& e) {
     if (event->status == ActivityRecord::ERROR) {
         ALOGE("Activity %s[%s] report error!", mActivity->getName().c_str(),
               mActivity->getStatusStr());
-        mActivity->abnormalExit();
+        mActivity->reportError();
         mTaskManager->deleteActivity(mActivity);
-        return;
-    }
-
-    mActivity->setStatus(event->status);
-    if (event->status != ActivityRecord::DESTROYED) {
+    } else {
+        mActivity->setStatus(event->status);
         mActivity->lifecycleTransition(mActivity->getTargetStatus());
     }
 }
