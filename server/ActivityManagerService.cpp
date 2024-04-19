@@ -932,7 +932,7 @@ void ActivityManagerInner::dump(int fd, const android::Vector<android::String16>
 }
 
 bool ActivityManagerInner::startBootGuide() {
-    const char* usersetup = "persist.system.usersetup_complete";
+    const char* usersetup = "persist.global.system.usersetup_complete";
     int8_t defvalue = 0;
     int iscomplete = property_get_bool(usersetup, defvalue);
     if (!iscomplete) {
