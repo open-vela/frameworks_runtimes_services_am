@@ -32,19 +32,23 @@ using namespace std;
 void TaskStackManager::switchTaskToActive(const ActivityStackHandler& targetStack,
                                           const Intent& intent) {
     ALOGI("switchTaskToActive taskTag:%s", targetStack->getTaskTag().c_str());
-    const auto activeTask = getActiveTask();
+    auto activeTask = getActiveTask();
     if (targetStack != activeTask) {
         auto currentTopActivity = activeTask->getTopActivity();
         currentTopActivity->lifecycleTransition(ActivityRecord::PAUSED);
 
         auto activity = targetStack->getTopActivity();
-        activity->setIntent(intent);
-        activity->lifecycleTransition(ActivityRecord::RESUMED);
-
-        auto task = std::make_shared<ActivityWaitResume>(activity, currentTopActivity);
-        mPendTask.commitTask(task, REQUEST_TIMEOUT_MS);
-
-        pushTaskToFront(targetStack);
+        if (activity) {
+            activity->setIntent(intent);
+            activity->lifecycleTransition(ActivityRecord::RESUMED);
+            auto task = std::make_shared<ActivityWaitResume>(activity, currentTopActivity);
+            mPendTask.commitTask(task, REQUEST_TIMEOUT_MS);
+            pushTaskToFront(targetStack);
+        } else {
+            ALOGE("switchTaskToActive error:%s the task is empty!!!",
+                  targetStack->getTaskTag().c_str());
+            deleteTask(targetStack);
+        }
     }
 }
 
@@ -229,6 +233,9 @@ void TaskStackManager::finishActivity(const ActivityHandler& activity) {
         }
     } else {
         activity->lifecycleTransition(ActivityRecord::DESTROYED);
+        if (!activityTask->getTopActivity()) {
+            deleteTask(activityTask);
+        }
     }
 }
 
