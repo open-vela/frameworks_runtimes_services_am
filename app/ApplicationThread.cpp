@@ -142,8 +142,9 @@ int ApplicationThread::mainRun(int argc, char** argv) {
     mApp->onDestroy(); /** Application destroy here */
     run(UV_RUN_NOWAIT);
 
-    int tryCloseCnt = 5;
+    int tryCloseCnt = 15;
     while (isAlive() && --tryCloseCnt) {
+        usleep(100000);
         run(UV_RUN_NOWAIT);
         ALOGI("uv loop run once, perform unfinished tasks");
     }
