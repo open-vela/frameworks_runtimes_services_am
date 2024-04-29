@@ -42,6 +42,11 @@ interface IActivityManager {
     int stopActivity(in Intent intent, int resultCode);
 
     /**
+     * @brief Stop Application by Token. Token is Activity or Service.
+     */
+    int stopApplication(in IBinder token);
+
+    /**
      * @brief Activity finish self and send result.
      * @param token: the Activity will be finish.
      * @param resultCode: Description of the result state.
