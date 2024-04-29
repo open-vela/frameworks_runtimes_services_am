@@ -62,6 +62,7 @@ public:
     int32_t attachApplication(const sp<os::app::IApplicationThread>& app);
     int32_t startActivity(const sp<IBinder>& token, const Intent& intent, int32_t requestCode);
     int32_t stopActivity(const Intent& intent, int32_t resultCode);
+    int32_t stopApplication(const sp<IBinder>& token);
 
     bool finishActivity(const sp<IBinder>& token, int32_t resultCode,
                         const std::shared_ptr<Intent>& resultData);

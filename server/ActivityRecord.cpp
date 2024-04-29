@@ -43,6 +43,7 @@ ActivityRecord::ActivityRecord(const std::string& name, const sp<IBinder>& calle
     mCaller = caller;
     mRequestCode = requestCode;
     mStatus = INIT;
+    mTargetStatus = INIT;
     mIsError = false;
     mLaunchMode = launchMode;
     mInTask = task;

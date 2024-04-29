@@ -80,6 +80,7 @@ public:
     int attachApplication(const sp<IApplicationThread>& app);
     int startActivity(const sp<IBinder>& token, const Intent& intent, int32_t requestCode);
     int stopActivity(const Intent& intent, int32_t resultCode);
+    int stopApplication(const sp<IBinder>& token);
     bool finishActivity(const sp<IBinder>& token, int32_t resultCode,
                         const std::optional<Intent>& resultData);
     bool moveActivityTaskToBackground(const sp<IBinder>& token, bool nonRoot);
@@ -372,6 +373,29 @@ int ActivityManagerInner::stopActivity(const Intent& intent, int32_t resultCode)
                 }
             }
         }
+    }
+
+    AM_PROFILER_END();
+    return ret;
+}
+
+int ActivityManagerInner::stopApplication(const sp<IBinder>& token) {
+    AM_PROFILER_BEGIN();
+    int ret = android::OK;
+    std::shared_ptr<AppRecord> app;
+
+    if (auto activity = mTaskManager.getActivity(token)) {
+        app = activity->getAppRecord();
+    } else if (auto service = mServices.getService(token)) {
+        app = service->mApp.lock();
+    }
+
+    if (app) {
+        ALOGW("stopApplication target:%s by token[%p]", app->mPackageName.c_str(), token.get());
+        app->stopApplication();
+    } else {
+        ALOGE("stopApplication by illegal components[%p]", token.get());
+        ret = android::BAD_VALUE;
     }
 
     AM_PROFILER_END();
@@ -1044,6 +1068,11 @@ Status ActivityManagerService::startActivity(const sp<IBinder>& token, const Int
 Status ActivityManagerService::stopActivity(const Intent& intent, int32_t resultCode,
                                             int32_t* ret) {
     *ret = mInner->stopActivity(intent, resultCode);
+    return Status::ok();
+}
+
+Status ActivityManagerService::stopApplication(const sp<IBinder>& token, int32_t* ret) {
+    *ret = mInner->stopApplication(token);
     return Status::ok();
 }
 
