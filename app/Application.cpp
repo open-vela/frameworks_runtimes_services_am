@@ -126,6 +126,9 @@ void Application::deleteService(const sp<IBinder>& token) {
 
 void Application::clearActivityAndService() {
     for (auto it : mExistActivities) {
+        if ((it.second)->getStatus() >= ActivityClientRecord::STARTED) {
+            it.second->onStop();
+        }
         if ((it.second)->getStatus() < ActivityClientRecord::DESTROYING) {
             it.second->onDestroy();
         }
