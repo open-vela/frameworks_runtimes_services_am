@@ -84,6 +84,20 @@ int32_t ActivityManager::stopActivity(const Intent& intent, int32_t resultCode) 
     return ret;
 }
 
+int32_t ActivityManager::stopApplication(const sp<IBinder>& token) {
+    AM_PROFILER_BEGIN();
+    sp<IActivityManager> service = getService();
+    int32_t ret = android::FAILED_TRANSACTION;
+    if (service != nullptr) {
+        Status status = service->stopApplication(token, &ret);
+        if (!status.isOk()) {
+            ALOGE("stopApplication error:%s", status.toString8().c_str());
+        }
+    }
+    AM_PROFILER_END();
+    return ret;
+}
+
 bool ActivityManager::finishActivity(const sp<IBinder>& token, int32_t resultCode,
                                      const std::shared_ptr<Intent>& resultData) {
     AM_PROFILER_BEGIN();

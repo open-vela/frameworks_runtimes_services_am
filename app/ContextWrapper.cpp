@@ -63,6 +63,10 @@ ActivityManager& ContextWrapper::getActivityManager() {
     return mBase->getWindowManager();
 }
 
+int32_t ContextWrapper::stopApplication() {
+    return mBase->stopApplication();
+}
+
 int32_t ContextWrapper::startActivity(const Intent& intent) {
     return mBase->startActivity(intent);
 }

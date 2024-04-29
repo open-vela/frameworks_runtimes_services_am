@@ -298,7 +298,14 @@ ActivityStackHandler TaskStackManager::getHomeTask() {
 ActivityStackHandler TaskStackManager::findTask(const std::string& tag) {
     for (const auto& t : mAllTasks) {
         if (t->getTaskTag() == tag) {
-            return t;
+            // check the taskStack is alive
+            if (auto activity = t->getRootActivity()) {
+                if (auto app = activity->getAppRecord()) {
+                    if (app->mIsAlive) {
+                        return t;
+                    }
+                }
+            }
         }
     }
     return nullptr;
