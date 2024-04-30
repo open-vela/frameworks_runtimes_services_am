@@ -241,6 +241,7 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
 int ActivityManagerInner::startActivityReal(const string& activityName, PackageInfo& packageInfo,
                                             const Intent& intent, const sp<IBinder>& caller,
                                             const int32_t requestCode) {
+    AM_PROFILER_BEGIN();
     /** We need to check that the Intent.flag makes sense and perhaps modify it */
     string taskAffinity;
     int startFlag = intent.mFlag;
@@ -256,6 +257,7 @@ int ActivityManagerInner::startActivityReal(const string& activityName, PackageI
     if (it == packageInfo.activitiesInfo.end()) {
         ALOGE("Activity:%s/%s is not registered", packageInfo.packageName.c_str(),
               activityName.c_str());
+        AM_PROFILER_END();
         return android::BAD_VALUE;
     }
 
@@ -330,6 +332,7 @@ int ActivityManagerInner::startActivityReal(const string& activityName, PackageI
             if (submitAppStartupTask(packageInfo.packageName, packageInfo.packageName,
                                      packageInfo.execfile, std::move(task), false) != 0) {
                 ALOGW("submitAppStartupTask failure");
+                AM_PROFILER_END();
                 return android::INVALID_OPERATION;
             }
         }
@@ -338,6 +341,7 @@ int ActivityManagerInner::startActivityReal(const string& activityName, PackageI
         mTaskManager.turnToActivity(targetTask, targetActivity, intent, startFlag);
     }
 
+    AM_PROFILER_END();
     return android::OK;
 }
 
@@ -724,6 +728,7 @@ void ActivityManagerInner::reportServiceStatus(const sp<IBinder>& token, int32_t
 }
 
 int32_t ActivityManagerInner::postIntent(const Intent& intent) {
+    AM_PROFILER_BEGIN();
     ALOGI("postIntent:%s", intent.mTarget.c_str());
     std::shared_ptr<AppRecord> app = nullptr;
     sp<IBinder> token = nullptr;
@@ -753,13 +758,16 @@ int32_t ActivityManagerInner::postIntent(const Intent& intent) {
 
     if (!app || !token) {
         ALOGW("postIntent target:%s is nonexist!!", intent.mTarget.c_str());
+        AM_PROFILER_END();
         return -1;
     }
     app->scheduleReceiveIntent(token, intent);
+    AM_PROFILER_END();
     return 0;
 }
 
 int32_t ActivityManagerInner::sendBroadcast(const Intent& intent) {
+    AM_PROFILER_BEGIN();
     ALOGI("sendBroadcast:%s", intent.mAction.c_str());
     auto receivers = mReceivers.find(intent.mAction);
     if (receivers != mReceivers.end()) {
@@ -767,11 +775,13 @@ int32_t ActivityManagerInner::sendBroadcast(const Intent& intent) {
             receiver->receiveBroadcast(intent);
         }
     }
+    AM_PROFILER_END();
     return 0;
 }
 
 int32_t ActivityManagerInner::registerReceiver(const std::string& action,
                                                const sp<IBroadcastReceiver>& receiver) {
+    AM_PROFILER_BEGIN();
     ALOGI("registerReceiver:%s", action.c_str());
     auto receivers = mReceivers.find(action);
     if (receivers != mReceivers.end()) {
@@ -783,10 +793,12 @@ int32_t ActivityManagerInner::registerReceiver(const std::string& action,
         mReceivers.emplace(action, std::move(receiverList));
         ALOGI("add new receiver success");
     }
+    AM_PROFILER_END();
     return 0;
 }
 
 void ActivityManagerInner::unregisterReceiver(const sp<IBroadcastReceiver>& receiver) {
+    AM_PROFILER_BEGIN();
     ALOGI("unregisterReceiver");
     for (auto& pair : mReceivers) {
         for (auto it = pair.second.begin(); it != pair.second.end(); ++it) {
@@ -796,11 +808,13 @@ void ActivityManagerInner::unregisterReceiver(const sp<IBroadcastReceiver>& rece
             }
         }
     }
+    AM_PROFILER_END();
 }
 
 int ActivityManagerInner::intentToSingleTarget(const Intent& intent, PackageInfo& packageInfo,
                                                string& componentName,
                                                IntentAction::ComponentType type) {
+    AM_PROFILER_BEGIN();
     string packageName;
     if (intent.mTarget.empty()) {
         string target;
@@ -812,8 +826,10 @@ int ActivityManagerInner::intentToSingleTarget(const Intent& intent, PackageInfo
 
     if (packageName.empty() || mPm.getPackageInfo(packageName, &packageInfo) != 0) {
         ALOGE("can't find target by intent[%s,%s]", intent.mTarget.c_str(), intent.mAction.c_str());
+        AM_PROFILER_END();
         return -1;
     }
+    AM_PROFILER_END();
     return 0;
 }
 
@@ -821,6 +837,7 @@ int ActivityManagerInner::intentToMultiTarget(const Intent& intent,
                                               vector<PackageInfo>& packageInfoList,
                                               vector<string>& componentNameList,
                                               const IntentAction::ComponentType type) {
+    AM_PROFILER_BEGIN();
     vector<string> targetlist;
     if (intent.mTarget.empty()) {
         string target;
@@ -839,20 +856,23 @@ int ActivityManagerInner::intentToMultiTarget(const Intent& intent,
         if (packageName.empty() || mPm.getPackageInfo(packageName, &packageInfo) != 0) {
             ALOGE("can't find target by intent[%s,%s]", intent.mTarget.c_str(),
                   intent.mAction.c_str());
+            AM_PROFILER_END();
             return -1;
         }
         packageInfoList.push_back(packageInfo);
         componentNameList.push_back(componentName);
     }
-
+    AM_PROFILER_END();
     return 0;
 }
 
 int ActivityManagerInner::broadcastIntent(const Intent& intent,
                                           const IntentAction::ComponentType type) {
+    AM_PROFILER_BEGIN();
     vector<PackageInfo> packageList;
     vector<string> componentList;
     if (intentToMultiTarget(intent, packageList, componentList, type) != 0) {
+        AM_PROFILER_END();
         return -1;
     }
     const int size = componentList.size();
@@ -863,6 +883,7 @@ int ActivityManagerInner::broadcastIntent(const Intent& intent,
             startServiceReal(componentList[i], packageList[i], intent, false, nullptr, nullptr);
         }
     }
+    AM_PROFILER_END();
     return 0;
 }
 
@@ -915,6 +936,7 @@ void ActivityManagerInner::systemReady() {
 }
 
 void ActivityManagerInner::procAppTerminated(const std::shared_ptr<AppRecord>& appRecord) {
+    AM_PROFILER_BEGIN();
     /** All activity needs to be destroyed from the stack */
     std::vector<std::weak_ptr<ActivityRecord>> needDeleteActivity;
     needDeleteActivity.swap(appRecord->mExistActivity);
@@ -947,6 +969,8 @@ void ActivityManagerInner::procAppTerminated(const std::shared_ptr<AppRecord>& a
     intent.setAction(Intent::BROADCAST_APP_EXIT);
     intent.setData(appRecord->mPackageName);
     sendBroadcast(intent);
+
+    AM_PROFILER_END();
 }
 
 void ActivityManagerInner::dump(int fd, const android::Vector<android::String16>& args) {
@@ -956,7 +980,9 @@ void ActivityManagerInner::dump(int fd, const android::Vector<android::String16>
 }
 
 bool ActivityManagerInner::startBootGuide() {
+    AM_PROFILER_BEGIN();
     const char* usersetup = "persist.global.system.usersetup_complete";
+    bool ret = false;
     int8_t defvalue = 0;
     int iscomplete = property_get_bool(usersetup, defvalue);
     if (!iscomplete) {
@@ -965,30 +991,33 @@ bool ActivityManagerInner::startBootGuide() {
         intent.setAction(Intent::ACTION_BOOT_GUIDE);
         sp<IBinder> faketoken;
         if (startActivity(faketoken, intent, (int32_t)ActivityManager::NO_REQUEST) == android::OK) {
-            return true;
+            ret = true;
         }
     }
-
-    return false;
+    AM_PROFILER_END();
+    return ret;
 }
 
 int ActivityManagerInner::startHomeActivity() {
     /** start the launch app */
+    AM_PROFILER_BEGIN();
+    int ret = 0;
     Intent intent;
     intent.setAction(Intent::ACTION_HOME);
     sp<IBinder> faketoken;
     if (startActivity(faketoken, intent, (int32_t)ActivityManager::NO_REQUEST) != android::OK) {
         ALOGE("Startup home app failure!!!");
-        return -1;
+        ret = -1;
     }
-
-    return 0;
+    AM_PROFILER_END();
+    return ret;
 }
 
 int ActivityManagerInner::submitAppStartupTask(const string& packageName,
                                                const string& prcocessName, const string& execfile,
                                                AppAttachTask::TaskFunc&& task,
                                                bool isSupportMultiTask) {
+    AM_PROFILER_BEGIN();
     int pid = mAppInfo.getAttachingAppPid(prcocessName);
     if (pid < 0) {
         pid = mAppSpawn.appSpawn(execfile.c_str(), {packageName});
@@ -996,16 +1025,19 @@ int ActivityManagerInner::submitAppStartupTask(const string& packageName,
             mAppInfo.addAppWaitingAttach(prcocessName, pid);
         } else {
             ALOGE("appSpawn App:%s error", execfile.c_str());
+            AM_PROFILER_END();
             return -1;
         }
     } else if (!isSupportMultiTask) {
         ALOGW("the Application:%s[%d] is waitting for attach, please wait a moment before "
               "requesting again",
               packageName.c_str(), pid);
+        AM_PROFILER_END();
         return -1;
     }
 
     mPendTask.commitTask(std::make_shared<AppAttachTask>(pid, task));
+    AM_PROFILER_END();
     return 0;
 }
 
