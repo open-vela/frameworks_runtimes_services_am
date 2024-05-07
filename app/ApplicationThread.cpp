@@ -142,7 +142,7 @@ int ApplicationThread::mainRun(int argc, char** argv) {
     mApp->onDestroy(); /** Application destroy here */
     run(UV_RUN_NOWAIT);
 
-    int tryCloseCnt = 15;
+    int tryCloseCnt = 100;
     while (isAlive() && --tryCloseCnt) {
         usleep(100000);
         run(UV_RUN_NOWAIT);
