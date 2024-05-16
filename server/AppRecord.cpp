@@ -74,7 +74,7 @@ int AppRecord::deleteService(const std::shared_ptr<ServiceRecord>& service) {
 }
 
 void AppRecord::setForeground(const bool isForegroundActivity) {
-    if (!mIsAlive) {
+    if (mStatus != APP_STOPPED) {
         return;
     }
     if (isForegroundActivity) {
@@ -92,7 +92,7 @@ void AppRecord::setForeground(const bool isForegroundActivity) {
 }
 
 void AppRecord::scheduleReceiveIntent(const sp<IBinder>& token, const Intent& intent) {
-    if (mIsAlive) {
+    if (mStatus != APP_STOPPED) {
         mAppThread->scheduleReceiveIntent(token, intent);
     }
 }
@@ -105,9 +105,9 @@ bool AppRecord::checkActiveStatus() const {
 }
 
 void AppRecord::stopApplication() {
-    if (mIsAlive) {
-        mIsAlive = false;
+    if (mStatus == APP_RUNNING) {
         mAppThread->terminateApplication();
+        mStatus = APP_STOPPING;
     }
 }
 
@@ -122,7 +122,7 @@ const shared_ptr<AppRecord> AppInfoList::findAppInfo(const int pid) {
 
 const shared_ptr<AppRecord> AppInfoList::findAppInfoWithAlive(const int pid) {
     for (auto it : mAppList) {
-        if (it->mPid == pid && it->mIsAlive) {
+        if (it->mPid == pid && it->mStatus == APP_RUNNING) {
             return it;
         }
     }
@@ -131,7 +131,7 @@ const shared_ptr<AppRecord> AppInfoList::findAppInfoWithAlive(const int pid) {
 
 const shared_ptr<AppRecord> AppInfoList::findAppInfoWithAlive(const string& packageName) {
     for (auto it : mAppList) {
-        if (it->mPackageName == packageName && it->mIsAlive) {
+        if (it->mPackageName == packageName && it->mStatus == APP_RUNNING) {
             return it;
         }
     }
