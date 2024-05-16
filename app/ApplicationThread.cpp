@@ -139,14 +139,17 @@ int ApplicationThread::mainRun(int argc, char** argv) {
 
     run();
     pollBinder.close();
-    mApp->onDestroy(); /** Application destroy here */
+    // run twice to clear uv handler
     run(UV_RUN_NOWAIT);
+    run(UV_RUN_NOWAIT);
+    // then destory app
+    mApp->onDestroy(); /** Application destroy here */
 
     int tryCloseCnt = 100;
     while (isAlive() && --tryCloseCnt) {
         usleep(100000);
         run(UV_RUN_NOWAIT);
-        ALOGI("uv loop run once, perform unfinished tasks");
+        ALOGW("uv loop run once, perform unfinished tasks");
     }
     if (close() != 0) {
         ALOGE("uv loop can't close properly, there's a memory leak!!!");
@@ -270,8 +273,14 @@ Status ApplicationThreadStub::setForegroundApplication(bool isForeground) {
 
 Status ApplicationThreadStub::terminateApplication() {
     ALOGW("terminateApplication package:%s", mApp->getPackageName().c_str());
-    mApp->clearActivityAndService();
-    mApp->getMainLoop()->stop();
+    // delay clear activity for lifecycle changes
+    mApp->getMainLoop()->postDelayTask(
+            [this](void*) {
+                mApp->clearActivityAndService();
+                ALOGW("ApplicationThread stop");
+                mApp->getMainLoop()->stop();
+            },
+            300);
     return Status::ok();
 }
 
