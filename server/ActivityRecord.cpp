@@ -177,7 +177,7 @@ void ActivityRecord::create() {
         mStatus = CREATING;
         mWindowService->addWindowToken(mToken, LayoutParams::TYPE_APPLICATION, 0);
         const auto appRecord = mApp.lock();
-        if (appRecord && appRecord->mIsAlive) {
+        if (appRecord && appRecord->mStatus != APP_STOPPED) {
             ALOGD("scheduleLaunchActivity: %s", mName.c_str());
             appRecord->addActivity(shared_from_this());
             const auto pos = mName.find_first_of('/');
@@ -192,7 +192,7 @@ void ActivityRecord::start() {
     if (mStatus > CREATING && mStatus < DESTROYED) {
         mStatus = STARTING;
         const auto appRecord = mApp.lock();
-        if (appRecord && appRecord->mIsAlive) {
+        if (appRecord && appRecord->mStatus != APP_STOPPED) {
             ALOGD("scheduleStartActivity: %s", mName.c_str());
             const std::optional<Intent> intent = mNewIntentFlag
                     ? std::optional<std::reference_wrapper<Intent>>(mIntent)
@@ -207,7 +207,7 @@ void ActivityRecord::resume() {
     if (mStatus >= STARTING && mStatus <= STOPPED) {
         mStatus = RESUMING;
         const auto appRecord = mApp.lock();
-        if (appRecord && appRecord->mIsAlive) {
+        if (appRecord && appRecord->mStatus != APP_STOPPED) {
             ALOGD("scheduleResumeActivity: %s", mName.c_str());
             const std::optional<Intent> intent = mNewIntentFlag
                     ? std::optional<std::reference_wrapper<Intent>>(mIntent)
@@ -224,7 +224,7 @@ void ActivityRecord::pause() {
     if (mStatus > STARTING && mStatus < PAUSING) {
         mStatus = PAUSING;
         const auto appRecord = mApp.lock();
-        if (appRecord && appRecord->mIsAlive) {
+        if (appRecord && appRecord->mStatus != APP_STOPPED) {
             ALOGD("schedulePauseActivity: %s", mName.c_str());
             appRecord->mAppThread->schedulePauseActivity(mToken);
         }
@@ -236,7 +236,7 @@ void ActivityRecord::stop() {
     if (mStatus > CREATING && mStatus < STOPPING) {
         mStatus = STOPPING;
         const auto appRecord = mApp.lock();
-        if (appRecord && appRecord->mIsAlive) {
+        if (appRecord && appRecord->mStatus != APP_STOPPED) {
             ALOGD("scheduleStopActivity: %s", mName.c_str());
             appRecord->mAppThread->scheduleStopActivity(mToken);
         }
@@ -248,9 +248,8 @@ void ActivityRecord::destroy() {
     if (mStatus > CREATING && mStatus < DESTROYING) {
         mStatus = DESTROYING;
         const auto appRecord = mApp.lock();
-        if (appRecord && appRecord->mIsAlive) {
+        if (appRecord && appRecord->mStatus != APP_STOPPED) {
             ALOGD("scheduleDestroyActivity: %s", mName.c_str());
-            appRecord->deleteActivity(shared_from_this());
             appRecord->mAppThread->scheduleDestroyActivity(mToken);
         }
         mWindowService->removeWindowToken(mToken, 0);
@@ -269,7 +268,7 @@ void ActivityRecord::abnormalExit() {
 
 void ActivityRecord::onResult(int32_t requestCode, int32_t resultCode, const Intent& resultData) {
     const auto appRecord = mApp.lock();
-    if (appRecord && appRecord->mIsAlive) {
+    if (appRecord && appRecord->mStatus != APP_STOPPED) {
         ALOGD("%s onActivityResult: %" PRId32 " %" PRId32 "", mName.c_str(), requestCode,
               resultCode);
         appRecord->mAppThread->onActivityResult(mToken, requestCode, resultCode, resultData);

@@ -362,7 +362,13 @@ int ActivityManagerInner::stopActivity(const Intent& intent, int32_t resultCode)
         auto appinfo = mAppInfo.findAppInfoWithAlive(packageName);
         if (appinfo) {
             if (activityName.empty()) {
+                auto activetask = mTaskManager.getActiveTask();
+                if (activetask->getTaskTag() == appinfo->mPackageName) {
+                    // move to back if the app is active task at first
+                    mTaskManager.moveTaskToBackground(activetask);
+                }
                 appinfo->stopApplication();
+
             } else {
                 activity = appinfo->checkActivity(intent.mTarget);
                 if (activity) {
@@ -390,6 +396,11 @@ int ActivityManagerInner::stopApplication(const sp<IBinder>& token) {
 
     if (auto activity = mTaskManager.getActivity(token)) {
         app = activity->getAppRecord();
+        auto task = activity->getTask();
+        if (task && task == mTaskManager.getActiveTask()) {
+            // if the Activity is top task, we need move the task to background.
+            mTaskManager.moveTaskToBackground(task);
+        }
     } else if (auto service = mServices.getService(token)) {
         app = service->mApp.lock();
     }
@@ -457,7 +468,7 @@ void ActivityManagerInner::reportActivityStatus(const sp<IBinder>& token, int32_
         AM_PROFILER_END();
         return;
     }
-    ALOGI("reportActivityStatus called by %s [%s]",
+    ALOGW("reportActivityStatus called by %s [%s]",
           mTaskManager.getActivity(token)->getName().c_str(), ActivityRecord::statusToStr(status));
 
     const ActivityLifeCycleTask::Event event((ActivityRecord::Status)status, token);
@@ -468,6 +479,7 @@ void ActivityManagerInner::reportActivityStatus(const sp<IBinder>& token, int32_
         activity->setStatus(ActivityRecord::DESTROYED);
         mTaskManager.deleteActivity(activity);
         if (const auto appRecord = activity->getAppRecord()) {
+            appRecord->deleteActivity(activity);
             if (!appRecord->checkActiveStatus()) {
                 appRecord->stopApplication();
             }
@@ -938,6 +950,7 @@ void ActivityManagerInner::systemReady() {
 void ActivityManagerInner::procAppTerminated(const std::shared_ptr<AppRecord>& appRecord) {
     AM_PROFILER_BEGIN();
     /** All activity needs to be destroyed from the stack */
+    appRecord->mStatus = APP_STOPPED;
     std::vector<std::weak_ptr<ActivityRecord>> needDeleteActivity;
     needDeleteActivity.swap(appRecord->mExistActivity);
     /** First mark all Destroy Activity. */

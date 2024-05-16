@@ -301,7 +301,7 @@ ActivityStackHandler TaskStackManager::findTask(const std::string& tag) {
             // check the taskStack is alive
             if (auto activity = t->getRootActivity()) {
                 if (auto app = activity->getAppRecord()) {
-                    if (app->mIsAlive) {
+                    if (app->mStatus == APP_RUNNING) {
                         return t;
                     }
                 }

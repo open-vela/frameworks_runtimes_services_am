@@ -35,6 +35,8 @@ using os::app::IApplicationThread;
 
 class AppInfoList;
 
+enum AppStatus { APP_RUNNING, APP_STOPPING, APP_STOPPED };
+
 struct AppRecord {
     sp<IApplicationThread> mAppThread;
     std::string mPackageName;
@@ -45,7 +47,7 @@ struct AppRecord {
     int mForegroundActivityCnt;
     std::vector<std::weak_ptr<ActivityRecord>> mExistActivity;
     std::vector<std::weak_ptr<ServiceRecord>> mExistService;
-    bool mIsAlive;
+    AppStatus mStatus;
 
     AppRecord(sp<IApplicationThread> app, std::string packageName, int pid, int uid,
               AppInfoList* applist, ProcessPriorityPolicy* policy)
@@ -56,7 +58,7 @@ struct AppRecord {
             mAppList(applist),
             mPriorityPolicy(policy),
             mForegroundActivityCnt(0),
-            mIsAlive(true) {}
+            mStatus(APP_RUNNING) {}
 
     ActivityHandler checkActivity(const std::string& activityName);
     ServiceHandler checkService(const std::string& serviceName);
