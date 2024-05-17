@@ -131,10 +131,12 @@ private:
                              bool isSupportMultiTask);
     int findSystemTarget(const string& targetAlias, std::shared_ptr<AppRecord>& app,
                          sp<IBinder>& token);
+    ActivityHandler getActivity(const sp<IBinder>& token);
 
 private:
     int mRunMode;
     std::shared_ptr<UvLoop> mLooper;
+    std::map<sp<IBinder>, ActivityHandler> mActivityMap;
     TaskBoard mPendTask;
     ServiceList mServices;
     AppInfoList mAppInfo;
@@ -273,7 +275,7 @@ int ActivityManagerInner::startActivityReal(const string& activityName, PackageI
         }
     }
 
-    auto callActivity = mTaskManager.getActivity(caller);
+    auto callActivity = getActivity(caller);
     if (!callActivity || callActivity->getLaunchMode() == ActivityRecord::SINGLE_INSTANCE ||
         launchMode == ActivityRecord::SINGLE_INSTANCE) {
         /** if the caller's(maybe Service) Stack does't exist, we must new a task */
@@ -336,6 +338,8 @@ int ActivityManagerInner::startActivityReal(const string& activityName, PackageI
                 return android::INVALID_OPERATION;
             }
         }
+        mActivityMap[newActivity->getToken()] = newActivity;
+
     } else {
         /** if there is no need to create an Activity, caller/requestCode is invalid */
         mTaskManager.turnToActivity(targetTask, targetActivity, intent, startFlag);
@@ -372,7 +376,7 @@ int ActivityManagerInner::stopActivity(const Intent& intent, int32_t resultCode)
             } else {
                 activity = appinfo->checkActivity(intent.mTarget);
                 if (activity) {
-                    const auto callActivity = mTaskManager.getActivity(activity->getCaller());
+                    const auto callActivity = getActivity(activity->getCaller());
                     if (activity->getRequestCode() != ActivityManager::NO_REQUEST && callActivity) {
                         callActivity->onResult(activity->getRequestCode(), resultCode, intent);
                     }
@@ -394,7 +398,7 @@ int ActivityManagerInner::stopApplication(const sp<IBinder>& token) {
     int ret = android::OK;
     std::shared_ptr<AppRecord> app;
 
-    if (auto activity = mTaskManager.getActivity(token)) {
+    if (auto activity = getActivity(token)) {
         app = activity->getAppRecord();
         auto task = activity->getTask();
         if (task && task == mTaskManager.getActiveTask()) {
@@ -420,7 +424,7 @@ int ActivityManagerInner::stopApplication(const sp<IBinder>& token) {
 bool ActivityManagerInner::finishActivity(const sp<IBinder>& token, int32_t resultCode,
                                           const std::optional<Intent>& resultData) {
     AM_PROFILER_BEGIN();
-    auto activity = mTaskManager.getActivity(token);
+    auto activity = getActivity(token);
     if (!activity) {
         ALOGE("finishActivity: The token is invalid");
         AM_PROFILER_END();
@@ -429,7 +433,7 @@ bool ActivityManagerInner::finishActivity(const sp<IBinder>& token, int32_t resu
     ALOGI("finishActivity called by %s", activity->getName().c_str());
 
     /** when last pasued, then set result to next */
-    const auto callActivity = mTaskManager.getActivity(activity->getCaller());
+    const auto callActivity = getActivity(activity->getCaller());
     if (activity->getRequestCode() != ActivityManager::NO_REQUEST && resultData.has_value() &&
         callActivity) {
         callActivity->onResult(activity->getRequestCode(), resultCode, resultData.value());
@@ -444,7 +448,7 @@ bool ActivityManagerInner::finishActivity(const sp<IBinder>& token, int32_t resu
 bool ActivityManagerInner::moveActivityTaskToBackground(const sp<IBinder>& token, bool nonRoot) {
     AM_PROFILER_BEGIN();
     bool ret = false;
-    auto activity = mTaskManager.getActivity(token);
+    auto activity = getActivity(token);
     if (activity) {
         ALOGI("moveActivityTaskToBackground, activity:%s nonRoot:%s", activity->getName().c_str(),
               nonRoot ? "true" : "false");
@@ -462,14 +466,14 @@ bool ActivityManagerInner::moveActivityTaskToBackground(const sp<IBinder>& token
 
 void ActivityManagerInner::reportActivityStatus(const sp<IBinder>& token, int32_t status) {
     AM_PROFILER_BEGIN();
-    auto activity = mTaskManager.getActivity(token);
+    auto activity = getActivity(token);
     if (!activity) {
         ALOGW("reportActivityStatus error: activity is null");
         AM_PROFILER_END();
         return;
     }
     ALOGW("reportActivityStatus called by %s [%s]",
-          mTaskManager.getActivity(token)->getName().c_str(), ActivityRecord::statusToStr(status));
+          getActivity(token)->getName().c_str(), ActivityRecord::statusToStr(status));
 
     const ActivityLifeCycleTask::Event event((ActivityRecord::Status)status, token);
     mPendTask.eventTrigger(event);
@@ -478,6 +482,7 @@ void ActivityManagerInner::reportActivityStatus(const sp<IBinder>& token, int32_
     if (status == ActivityRecord::DESTROYED) {
         activity->setStatus(ActivityRecord::DESTROYED);
         mTaskManager.deleteActivity(activity);
+        mActivityMap.erase(activity->getToken());
         if (const auto appRecord = activity->getAppRecord()) {
             appRecord->deleteActivity(activity);
             if (!appRecord->checkActiveStatus()) {
@@ -963,6 +968,7 @@ void ActivityManagerInner::procAppTerminated(const std::shared_ptr<AppRecord>& a
     for (auto& it : needDeleteActivity) {
         if (auto activityRecord = it.lock()) {
             mTaskManager.deleteActivity(activityRecord);
+            mActivityMap.erase(activityRecord->getToken());
         }
     }
     needDeleteActivity.clear();
@@ -1082,6 +1088,15 @@ int ActivityManagerInner::findSystemTarget(const string& targetAlias,
         return -1;
     }
     return 0;
+}
+
+ActivityHandler ActivityManagerInner::getActivity(const sp<IBinder>& token) {
+    auto iter = mActivityMap.find(token);
+    if (iter != mActivityMap.end()) {
+        return iter->second;
+    } else {
+        return nullptr;
+    }
 }
 
 void getPackageAndComponentName(const string& target, string& packageName, string& componentName) {

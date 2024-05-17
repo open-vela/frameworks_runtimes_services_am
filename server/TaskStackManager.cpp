@@ -127,7 +127,6 @@ void TaskStackManager::pushNewActivity(const ActivityStackHandler& targetStack,
     if (targetStack == activeTask) {
         activity->getAppRecord()->setForeground(true);
     }
-    mActivityMap.emplace(activity->getToken(), activity);
     activity->lifecycleTransition(ActivityRecord::RESUMED);
 
     if (lastTopActivity) {
@@ -239,15 +238,6 @@ void TaskStackManager::finishActivity(const ActivityHandler& activity) {
     }
 }
 
-ActivityHandler TaskStackManager::getActivity(const sp<IBinder>& token) {
-    auto iter = mActivityMap.find(token);
-    if (iter != mActivityMap.end()) {
-        return iter->second;
-    } else {
-        return nullptr;
-    }
-}
-
 void TaskStackManager::deleteActivity(const ActivityHandler& activity) {
     if (auto task = activity->getTask()) {
         if (task->findActivity(activity->getToken())) {
@@ -281,7 +271,6 @@ void TaskStackManager::deleteActivity(const ActivityHandler& activity) {
             mHomeTask = getActiveTask();
         }
     }
-    mActivityMap.erase(activity->getToken());
 }
 
 ActivityStackHandler TaskStackManager::getActiveTask() {
