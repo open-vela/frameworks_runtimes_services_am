@@ -45,8 +45,6 @@ public:
                         const Intent& intent, int startFlag);
     /** finish a Activity, set result and resume the last */
     void finishActivity(const ActivityHandler& activity);
-
-    ActivityHandler getActivity(const sp<IBinder>& token);
     void deleteActivity(const ActivityHandler& activity);
 
     ActivityStackHandler getActiveTask();
@@ -60,7 +58,6 @@ public:
 private:
     std::list<ActivityStackHandler> mAllTasks;
     ActivityStackHandler mHomeTask;
-    std::map<sp<IBinder>, ActivityHandler> mActivityMap;
     TaskBoard& mPendTask;
 };
 
