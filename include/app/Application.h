@@ -75,6 +75,7 @@ public:
     UvLoop* getMainLoop() const {
         return mMainLoop;
     }
+    bool isSystemUI() const;
 
     void registerActivity(const string& name, const CreateActivityFunc& createFunc);
     void registerService(const string& name, const CreateServiceFunc& createFunc);

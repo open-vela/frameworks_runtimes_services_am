@@ -40,19 +40,21 @@ enum AppStatus { APP_RUNNING, APP_STOPPING, APP_STOPPED };
 struct AppRecord {
     sp<IApplicationThread> mAppThread;
     std::string mPackageName;
+    bool mIsSystemUI;
     int mPid;
     int mUid;
     AppInfoList* mAppList;
     ProcessPriorityPolicy* mPriorityPolicy;
     int mForegroundActivityCnt;
+    AppStatus mStatus;
     std::vector<std::weak_ptr<ActivityRecord>> mExistActivity;
     std::vector<std::weak_ptr<ServiceRecord>> mExistService;
-    AppStatus mStatus;
 
-    AppRecord(sp<IApplicationThread> app, std::string packageName, int pid, int uid,
-              AppInfoList* applist, ProcessPriorityPolicy* policy)
+    AppRecord(sp<IApplicationThread> app, std::string packageName, const bool systemui, int pid,
+              int uid, AppInfoList* applist, ProcessPriorityPolicy* policy)
           : mAppThread(app),
             mPackageName(packageName),
+            mIsSystemUI(systemui),
             mPid(pid),
             mUid(uid),
             mAppList(applist),

@@ -37,7 +37,7 @@
 #include "LowMemoryManager.h"
 #include "ProcessPriorityPolicy.h"
 #include "TaskBoard.h"
-#include "TaskStackManager.h"
+#include "TaskManager.h"
 #include "app/ActivityManager.h"
 #include "app/UvLoop.h"
 
@@ -111,8 +111,8 @@ public:
     }
 
 private:
-    int startActivityReal(const string& activityName, PackageInfo& packageInfo,
-                          const Intent& intent, const sp<IBinder>& caller,
+    int startActivityReal(ITaskManager* taskmanager, const string& activityName,
+                          PackageInfo& packageInfo, const Intent& intent, const sp<IBinder>& caller,
                           const int32_t requestCode);
     int startServiceReal(const string& serviceName, PackageInfo& packageInfo, const Intent& intent,
                          const bool isBind, const sp<IBinder>& caller,
@@ -132,6 +132,8 @@ private:
     int findSystemTarget(const string& targetAlias, std::shared_ptr<AppRecord>& app,
                          sp<IBinder>& token);
     ActivityHandler getActivity(const sp<IBinder>& token);
+    inline ITaskManager* getTaskManager(bool isSystemUI);
+    inline ActivityHandler getTopActivity();
 
 private:
     int mRunMode;
@@ -140,7 +142,7 @@ private:
     TaskBoard mPendTask;
     ServiceList mServices;
     AppInfoList mAppInfo;
-    TaskStackManager mTaskManager;
+    TaskManagerFactory mTaskManager;
     IntentAction mActionFilter;
     PackageManager mPm;
     sp<::os::wm::IWindowManager> mWindowManager;
@@ -150,8 +152,7 @@ private:
     AppSpawn mAppSpawn;
 };
 
-ActivityManagerInner::ActivityManagerInner(uv_loop_t* looper)
-      : mTaskManager(mPendTask), mPriorityPolicy(&mLmk) {
+ActivityManagerInner::ActivityManagerInner(uv_loop_t* looper) : mPriorityPolicy(&mLmk) {
     mRunMode = NORMAL_MODE;
     if (std::filesystem::exists(AMS_RUNMODE_FILE)) {
         std::ifstream file;
@@ -163,7 +164,7 @@ ActivityManagerInner::ActivityManagerInner(uv_loop_t* looper)
         }
     }
     mPendTask.setDebugMode(mRunMode == DEBUG_MODE);
-
+    mTaskManager.init(mPendTask);
     mLooper = std::make_shared<UvLoop>(looper);
     mPendTask.startWork(mLooper);
     mLmk.init(mLooper);
@@ -190,8 +191,10 @@ int ActivityManagerInner::attachApplication(const sp<IApplicationThread>& app) {
 
     string packageName;
     if (mAppInfo.getAttachingAppName(callerPid, packageName)) {
-        appRecord = std::make_shared<AppRecord>(app, packageName, callerPid, callerUid, &mAppInfo,
-                                                &mPriorityPolicy);
+        PackageInfo packageinfo;
+        mPm.getPackageInfo(packageName, &packageinfo);
+        appRecord = std::make_shared<AppRecord>(app, packageName, packageinfo.isSystemUI, callerPid,
+                                                callerUid, &mAppInfo, &mPriorityPolicy);
         mAppInfo.deleteAppWaitingAttach(callerPid);
         mAppInfo.addAppInfo(appRecord);
         const AppAttachTask::Event event(callerPid, appRecord);
@@ -215,6 +218,7 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
     AM_PROFILER_BEGIN();
     ALOGI("start activity, target:%s action:%s %s flag:%" PRId32 "", intent.mTarget.c_str(),
           intent.mAction.c_str(), intent.mData.c_str(), intent.mFlag);
+    int ret = android::OK;
     PackageInfo packageInfo;
     string activityName;
     if (intentToSingleTarget(intent, packageInfo, activityName, IntentAction::COMP_TYPE_ACTIVITY) !=
@@ -223,26 +227,34 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
         return android::BAD_VALUE;
     }
 
+    auto taskmanager = getTaskManager(packageInfo.isSystemUI);
+    ActivityStackHandler apptask;
     /** check activity name */
     if (activityName.empty()) {
-        auto appTask = mTaskManager.findTask(packageInfo.packageName);
-        if (appTask) {
-            mTaskManager.switchTaskToActive(appTask, intent);
-            AM_PROFILER_END();
-            return android::OK;
-        } else {
+        apptask = taskmanager->findTask(packageInfo.packageName);
+        if (!apptask) {
             activityName = packageInfo.entry;
         }
     }
+    if (apptask) {
+        taskmanager->switchTaskToActive(apptask, intent);
+    } else {
+        ret = startActivityReal(taskmanager, activityName, packageInfo, intent, caller,
+                                requestCode);
+    }
 
-    const int ret = startActivityReal(activityName, packageInfo, intent, caller, requestCode);
+    if (!packageInfo.isSystemUI) {
+        // 当有应用切换，给SystemUI任务栈发送消息
+        mTaskManager.getManager(SystemUIMode)->onEvent(TaskManagerEvent::StartActivityEvent);
+    }
+
     AM_PROFILER_END();
     return ret;
 }
 
-int ActivityManagerInner::startActivityReal(const string& activityName, PackageInfo& packageInfo,
-                                            const Intent& intent, const sp<IBinder>& caller,
-                                            const int32_t requestCode) {
+int ActivityManagerInner::startActivityReal(ITaskManager* taskmanager, const string& activityName,
+                                            PackageInfo& packageInfo, const Intent& intent,
+                                            const sp<IBinder>& caller, const int32_t requestCode) {
     AM_PROFILER_BEGIN();
     /** We need to check that the Intent.flag makes sense and perhaps modify it */
     string taskAffinity;
@@ -285,13 +297,13 @@ int ActivityManagerInner::startActivityReal(const string& activityName, PackageI
     ActivityStackHandler targetTask;
     bool isNewTask = false;
     if (startFlag & Intent::FLAG_ACTIVITY_NEW_TASK) {
-        targetTask = mTaskManager.findTask(taskAffinity);
+        targetTask = taskmanager->findTask(taskAffinity);
         if (!targetTask) {
             targetTask = std::make_shared<ActivityStack>(taskAffinity);
             isNewTask = true;
         }
     } else {
-        targetTask = mTaskManager.getActiveTask();
+        targetTask = taskmanager->getActiveTask();
     }
 
     ActivityHandler targetActivity;
@@ -318,18 +330,18 @@ int ActivityManagerInner::startActivityReal(const string& activityName, PackageI
         auto newActivity =
                 std::make_shared<ActivityRecord>(activityUniqueName, caller, requestCode,
                                                  launchMode, targetTask, intent, mWindowManager,
-                                                 &mTaskManager, &mPendTask);
+                                                 taskmanager, &mPendTask);
         const auto appInfo = mAppInfo.findAppInfoWithAlive(packageInfo.packageName);
         if (appInfo) {
             newActivity->setAppThread(appInfo);
-            mTaskManager.pushNewActivity(targetTask, newActivity, startFlag);
+            taskmanager->pushNewActivity(targetTask, newActivity, startFlag);
         } else {
             const ProcessPriority priority = (ProcessPriority)packageInfo.priority;
-            const auto task = [this, targetTask, newActivity, startFlag,
+            const auto task = [this, taskmanager, targetTask, newActivity, startFlag,
                                priority](const AppAttachTask::Event* e) {
                 mPriorityPolicy.add(e->mPid, true, priority);
                 newActivity->setAppThread(e->mAppRecord);
-                mTaskManager.pushNewActivity(targetTask, newActivity, startFlag);
+                taskmanager->pushNewActivity(targetTask, newActivity, startFlag);
             };
             if (submitAppStartupTask(packageInfo.packageName, packageInfo.packageName,
                                      packageInfo.execfile, std::move(task), false) != 0) {
@@ -342,7 +354,7 @@ int ActivityManagerInner::startActivityReal(const string& activityName, PackageI
 
     } else {
         /** if there is no need to create an Activity, caller/requestCode is invalid */
-        mTaskManager.turnToActivity(targetTask, targetActivity, intent, startFlag);
+        taskmanager->turnToActivity(targetTask, targetActivity, intent, startFlag);
     }
 
     AM_PROFILER_END();
@@ -364,15 +376,16 @@ int ActivityManagerInner::stopActivity(const Intent& intent, int32_t resultCode)
 
         ActivityHandler activity;
         auto appinfo = mAppInfo.findAppInfoWithAlive(packageName);
+
         if (appinfo) {
+            auto taskmanager = getTaskManager(appinfo->mIsSystemUI);
             if (activityName.empty()) {
-                auto activetask = mTaskManager.getActiveTask();
-                if (activetask->getTaskTag() == appinfo->mPackageName) {
+                auto activetask = taskmanager->getActiveTask();
+                if (activetask && activetask->getTaskTag() == appinfo->mPackageName) {
                     // move to back if the app is active task at first
-                    mTaskManager.moveTaskToBackground(activetask);
+                    taskmanager->moveTaskToBackground(activetask);
                 }
                 appinfo->stopApplication();
-
             } else {
                 activity = appinfo->checkActivity(intent.mTarget);
                 if (activity) {
@@ -380,7 +393,7 @@ int ActivityManagerInner::stopActivity(const Intent& intent, int32_t resultCode)
                     if (activity->getRequestCode() != ActivityManager::NO_REQUEST && callActivity) {
                         callActivity->onResult(activity->getRequestCode(), resultCode, intent);
                     }
-                    mTaskManager.finishActivity(activity);
+                    taskmanager->finishActivity(activity);
                 } else {
                     ALOGW("The Activity:%s does not exist!", intent.mTarget.c_str());
                     ret = android::BAD_VALUE;
@@ -400,10 +413,11 @@ int ActivityManagerInner::stopApplication(const sp<IBinder>& token) {
 
     if (auto activity = getActivity(token)) {
         app = activity->getAppRecord();
+        auto taskmanager = getTaskManager(app->mIsSystemUI);
         auto task = activity->getTask();
-        if (task && task == mTaskManager.getActiveTask()) {
+        if (task && task == taskmanager->getActiveTask()) {
             // if the Activity is top task, we need move the task to background.
-            mTaskManager.moveTaskToBackground(task);
+            taskmanager->moveTaskToBackground(task);
         }
     } else if (auto service = mServices.getService(token)) {
         app = service->mApp.lock();
@@ -439,7 +453,8 @@ bool ActivityManagerInner::finishActivity(const sp<IBinder>& token, int32_t resu
         callActivity->onResult(activity->getRequestCode(), resultCode, resultData.value());
     }
 
-    mTaskManager.finishActivity(activity);
+    auto taskmanager = getTaskManager(activity->getAppRecord()->mIsSystemUI);
+    taskmanager->finishActivity(activity);
 
     AM_PROFILER_END();
     return true;
@@ -454,7 +469,8 @@ bool ActivityManagerInner::moveActivityTaskToBackground(const sp<IBinder>& token
               nonRoot ? "true" : "false");
         auto activityTask = activity->getTask();
         if (activityTask && (nonRoot || activityTask->getRootActivity() == activity)) {
-            ret = mTaskManager.moveTaskToBackground(activityTask);
+            auto taskmanager = getTaskManager(activity->getAppRecord()->mIsSystemUI);
+            ret = taskmanager->moveTaskToBackground(activityTask);
         }
     } else {
         ALOGE("moveActivityTaskToBackground: The token is invalid");
@@ -472,36 +488,64 @@ void ActivityManagerInner::reportActivityStatus(const sp<IBinder>& token, int32_
         AM_PROFILER_END();
         return;
     }
-    ALOGW("reportActivityStatus called by %s [%s]",
-          getActivity(token)->getName().c_str(), ActivityRecord::statusToStr(status));
+    ALOGW("reportActivityStatus called by %s [%s]", getActivity(token)->getName().c_str(),
+          ActivityRecord::statusToStr(status));
 
     const ActivityLifeCycleTask::Event event((ActivityRecord::Status)status, token);
     mPendTask.eventTrigger(event);
 
-    // Only "destroy" need special process.
-    if (status == ActivityRecord::DESTROYED) {
-        activity->setStatus(ActivityRecord::DESTROYED);
-        mTaskManager.deleteActivity(activity);
-        mActivityMap.erase(activity->getToken());
-        if (const auto appRecord = activity->getAppRecord()) {
-            appRecord->deleteActivity(activity);
-            if (!appRecord->checkActiveStatus()) {
-                appRecord->stopApplication();
-            }
-        }
-    } else if (status == ActivityRecord::RESUMED) {
-        // broadcast the Top Activity
+    const auto broadcastTopActivity = [this](const string& name) {
         Intent intent;
         intent.setAction(Intent::BROADCAST_TOP_ACTIVITY);
-        intent.setData(activity->getName());
+        intent.setData(name);
         sendBroadcast(intent);
+    };
 
-        const ActivityWaitResume::Event event2(token);
-        mPendTask.eventTrigger(event2);
+    // Only "destroy" need special process.
+    switch (status) {
+        case ActivityRecord::CREATED:
+        case ActivityRecord::STARTED:
+            break;
+        case ActivityRecord::RESUMED: {
+            // broadcast the Top Activity
+            broadcastTopActivity(activity->getName());
+            const auto appRecord = activity->getAppRecord();
+            if (appRecord && !appRecord->mIsSystemUI) {
+                const ActivityWaitResume::Event event2(token);
+                mPendTask.eventTrigger(event2);
 
-        // only for finishActivity case
-        const ActivityDelayDestroy::Event event3(token);
-        mPendTask.eventTrigger(event3);
+                // only for finishActivity case
+                const ActivityDelayDestroy::Event event3(token);
+                mPendTask.eventTrigger(event3);
+            }
+            break;
+        }
+        case ActivityRecord::PAUSED:
+            break;
+        case ActivityRecord::STOPPED: {
+            const auto appRecord = activity->getAppRecord();
+            if (appRecord && appRecord->mIsSystemUI) {
+                // systemui不会改变其他应用生命周期，需要主动查询当前顶层resume应用
+                auto nextTopActivity = getTopActivity();
+                if (nextTopActivity) {
+                    broadcastTopActivity(nextTopActivity->getName());
+                }
+            }
+            break;
+        }
+        case ActivityRecord::DESTROYED: {
+            activity->setStatus(ActivityRecord::DESTROYED);
+            if (const auto appRecord = activity->getAppRecord()) {
+                auto taskmanager = getTaskManager(appRecord->mIsSystemUI);
+                taskmanager->deleteActivity(activity);
+                appRecord->deleteActivity(activity);
+                if (!appRecord->checkActiveStatus()) {
+                    appRecord->stopApplication();
+                }
+            }
+            mActivityMap.erase(activity->getToken());
+            break;
+        }
     }
 
     AM_PROFILER_END();
@@ -894,8 +938,9 @@ int ActivityManagerInner::broadcastIntent(const Intent& intent,
     }
     const int size = componentList.size();
     for (int i = 0; i < size; i++) {
+        auto taskmanager = getTaskManager(packageList[i].isSystemUI);
         if (type == IntentAction::COMP_TYPE_ACTIVITY) {
-            startActivityReal(componentList[i], packageList[i], intent, nullptr, -1);
+            startActivityReal(taskmanager, componentList[i], packageList[i], intent, nullptr, -1);
         } else if (type == IntentAction::COMP_TYPE_SERVICE) {
             startServiceReal(componentList[i], packageList[i], intent, false, nullptr, nullptr);
         }
@@ -922,7 +967,7 @@ void ActivityManagerInner::systemReady() {
             }
         }
 
-        if (!mTaskManager.getActiveTask() && mRunMode == NORMAL_MODE) {
+        if (!mTaskManager.getManager(StandardMode)->getActiveTask() && mRunMode == NORMAL_MODE) {
             startHomeActivity();
         }
     });
@@ -965,9 +1010,10 @@ void ActivityManagerInner::procAppTerminated(const std::shared_ptr<AppRecord>& a
         }
     }
     /** Remove from task stack */
+    auto taskmanager = getTaskManager(appRecord->mIsSystemUI);
     for (auto& it : needDeleteActivity) {
         if (auto activityRecord = it.lock()) {
-            mTaskManager.deleteActivity(activityRecord);
+            taskmanager->deleteActivity(activityRecord);
             mActivityMap.erase(activityRecord->getToken());
         }
     }
@@ -1065,13 +1111,13 @@ int ActivityManagerInner::findSystemTarget(const string& targetAlias,
     ALOGI("findSystemTarget:%s", targetAlias.c_str());
     ActivityHandler activity = nullptr;
     if (targetAlias == Intent::TARGET_ACTIVITY_TOPRESUME) {
-        if (const auto task = mTaskManager.getActiveTask()) {
-            activity = task->getTopActivity();
+        activity = getTopActivity();
+        if (activity) {
             app = activity->getAppRecord();
             token = activity->getToken();
         }
     } else if (targetAlias == Intent::TARGET_APPLICATION_FOREGROUND) {
-        if (const auto task = mTaskManager.getActiveTask()) {
+        if (const auto task = mTaskManager.getManager(StandardMode)->getActiveTask()) {
             activity = task->getRootActivity();
             app = activity->getAppRecord();
             token = android::IInterface::asBinder(app->mAppThread);
@@ -1097,6 +1143,24 @@ ActivityHandler ActivityManagerInner::getActivity(const sp<IBinder>& token) {
     } else {
         return nullptr;
     }
+}
+
+inline ITaskManager* ActivityManagerInner::getTaskManager(bool isSystemUI) {
+    return mTaskManager.getManager(isSystemUI ? TaskManagerType::SystemUIMode
+                                              : TaskManagerType::StandardMode);
+}
+
+inline ActivityHandler ActivityManagerInner::getTopActivity() {
+    // Check if there are any active tasks in SystemUI at first
+    auto task = mTaskManager.getManager(SystemUIMode)->getActiveTask();
+    if (!task) {
+        // then check StandardMode task.
+        task = mTaskManager.getManager(StandardMode)->getActiveTask();
+    }
+    if (task) {
+        return task->getTopActivity();
+    }
+    return nullptr;
 }
 
 void getPackageAndComponentName(const string& target, string& packageName, string& componentName) {
