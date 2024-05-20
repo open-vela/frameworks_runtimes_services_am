@@ -39,6 +39,17 @@ void ActivityStack::popActivity() {
     mStack.pop_back();
 }
 
+void ActivityStack::removeActivity(const ActivityHandler& activity) {
+    const int size = mStack.size();
+    for (int i = 0; i < size; ++i) {
+        if (mStack[i] == activity) {
+            mStack[i] = mStack[size - 1];
+            mStack.pop_back();
+            break;
+        }
+    }
+}
+
 ActivityHandler ActivityStack::getTopActivity() {
     return mStack.empty() ? nullptr : mStack.back();
 }
