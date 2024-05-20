@@ -39,6 +39,11 @@ public:
 
     void pushActivity(const ActivityHandler& activity);
     void popActivity();
+    void removeActivity(const ActivityHandler& activity);
+    const std::vector<ActivityHandler>& getActivityArray() {
+        return mStack;
+    }
+
     ActivityHandler getTopActivity();
     ActivityHandler getRootActivity();
     ActivityHandler findActivity(const std::string& activityName);

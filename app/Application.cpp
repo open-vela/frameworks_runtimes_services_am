@@ -16,13 +16,14 @@
 
 #include "app/Application.h"
 
+#include <WindowManager.h>
+#include <pm/PackageManager.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <utils/Log.h>
 
 #include "ActivityClientRecord.h"
 #include "ServiceClientRecord.h"
-#include "WindowManager.h"
 #include "app/ActivityManager.h"
 
 namespace os {
@@ -49,6 +50,17 @@ const string& Application::getPackageName() const {
 
 void Application::setPackageName(const string& name) {
     mPackageName = name;
+}
+
+bool Application::isSystemUI() const {
+    ::os::pm::PackageManager pm;
+    ::os::pm::PackageInfo info;
+    if (pm.getPackageInfo(mPackageName, &info) != 0) {
+        ALOGE("Unable to look up package:%s information", mPackageName.c_str());
+        return false;
+    }
+
+    return info.isSystemUI;
 }
 
 void Application::registerActivity(const string& name, const CreateActivityFunc& createFunc) {

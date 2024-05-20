@@ -340,5 +340,24 @@ std::ostream& operator<<(std::ostream& os, const TaskStackManager& task) {
     return os;
 }
 
+std::ostream& TaskStackManager::print(std::ostream& os) {
+#define RESET "\033[0m"
+#define GREEN "\033[32m"
+#define YELLOW "\033[33m"
+#define BLUE "\033[34m"
+
+    os << GREEN << "foreground task:" << RESET << endl;
+    for (auto& it : mAllTasks) {
+        if (it == mHomeTask) {
+            os << YELLOW << "home task:" << RESET << endl;
+            os << *it << endl;
+            os << BLUE << "background task:" << RESET << endl;
+        } else {
+            os << *it << endl;
+        }
+    }
+    return os;
+}
+
 } // namespace am
 } // namespace os

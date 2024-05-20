@@ -34,7 +34,7 @@ using os::app::Intent;
 
 class AppRecord;
 class ActivityStack;
-class TaskStackManager;
+class ITaskManager;
 
 using ActivityStackHandler = std::shared_ptr<ActivityStack>;
 
@@ -61,7 +61,7 @@ public:
 
     ActivityRecord(const std::string& name, const sp<IBinder>& caller, const int32_t requestCode,
                    const LaunchMode launchMode, const ActivityStackHandler& task,
-                   const Intent& intent, sp<::os::wm::IWindowManager> wm, TaskStackManager* tsm,
+                   const Intent& intent, sp<::os::wm::IWindowManager> wm, ITaskManager* tm,
                    TaskBoard* tb);
 
     /** Lifecycle state management, let Activity goto status */
@@ -120,7 +120,7 @@ private:
     bool mNewIntentFlag;
 
     sp<::os::wm::IWindowManager> mWindowService;
-    TaskStackManager* mTaskManager;
+    ITaskManager* mTaskManager;
     TaskBoard* mPendTask;
 };
 
@@ -135,7 +135,7 @@ public:
               : Label(ACTIVITY_STATUS_REPORT), token(t), status(s) {}
     };
 
-    ActivityLifeCycleTask(const ActivityHandler& activity, TaskStackManager* taskManager);
+    ActivityLifeCycleTask(const ActivityHandler& activity, ITaskManager* taskManager);
 
     bool operator==(const Label& e) const;
     void execute(const Label& e) override;
@@ -143,7 +143,7 @@ public:
 
 private:
     ActivityHandler mActivity;
-    TaskStackManager* mTaskManager;
+    ITaskManager* mTaskManager;
 };
 
 class ActivityWaitResume : public Task {

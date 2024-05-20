@@ -23,7 +23,7 @@
 #include <utils/Log.h>
 
 #include "AppRecord.h"
-#include "TaskStackManager.h"
+#include "TaskManager.h"
 #include "app/Intent.h"
 #include "wm/LayoutParams.h"
 
@@ -36,8 +36,7 @@ using os::wm::LayoutParams;
 ActivityRecord::ActivityRecord(const std::string& name, const sp<IBinder>& caller,
                                const int32_t requestCode, const LaunchMode launchMode,
                                const ActivityStackHandler& task, const Intent& intent,
-                               sp<::os::wm::IWindowManager> wm, TaskStackManager* tsm,
-                               TaskBoard* tb) {
+                               sp<::os::wm::IWindowManager> wm, ITaskManager* tm, TaskBoard* tb) {
     mName = name;
     mToken = new android::BBinder();
     mCaller = caller;
@@ -49,7 +48,7 @@ ActivityRecord::ActivityRecord(const std::string& name, const sp<IBinder>& calle
     mInTask = task;
     mIntent = intent;
     mWindowService = wm;
-    mTaskManager = tsm;
+    mTaskManager = tm;
     mPendTask = tb;
     mNewIntentFlag = true;
 }
@@ -175,9 +174,11 @@ void ActivityRecord::lifecycleTransition(const Status toStatus) {
 void ActivityRecord::create() {
     if (mStatus == INIT) {
         mStatus = CREATING;
-        mWindowService->addWindowToken(mToken, LayoutParams::TYPE_APPLICATION, 0);
         const auto appRecord = mApp.lock();
         if (appRecord && appRecord->mStatus != APP_STOPPED) {
+            int windowtype = appRecord->mIsSystemUI ? LayoutParams::TYPE_SYSTEM_WINDOW
+                                                    : LayoutParams::TYPE_APPLICATION;
+            mWindowService->addWindowToken(mToken, windowtype, 0);
             ALOGD("scheduleLaunchActivity: %s", mName.c_str());
             appRecord->addActivity(shared_from_this());
             const auto pos = mName.find_first_of('/');
@@ -345,7 +346,7 @@ std::ostream& operator<<(std::ostream& os, const ActivityRecord& record) {
 }
 
 ActivityLifeCycleTask::ActivityLifeCycleTask(const ActivityHandler& activity,
-                                             TaskStackManager* taskManager)
+                                             ITaskManager* taskManager)
       : Task(ACTIVITY_STATUS_REPORT), mActivity(activity), mTaskManager(taskManager) {}
 
 bool ActivityLifeCycleTask::operator==(const Label& e) const {
