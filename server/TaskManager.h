@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <array>
 #include <memory>
 
 #include "ActivityStack.h"
@@ -77,7 +78,7 @@ public:
     friend std::ostream& operator<<(std::ostream& os, const TaskManagerFactory& task);
 
 private:
-    std::vector<std::unique_ptr<ITaskManager>> mTaskManagers;
+    std::array<std::unique_ptr<ITaskManager>, TYPE_NUM> mTaskManagers;
 };
 
 } // namespace am
