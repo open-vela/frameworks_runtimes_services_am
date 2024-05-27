@@ -22,13 +22,13 @@ namespace os {
 namespace am {
 
 bool TaskManagerFactory::init(TaskBoard& taskBoard) {
-    mTaskManagers.resize(TYPE_NUM);
     mTaskManagers[StandardMode] = std::make_unique<TaskStackManager>(taskBoard);
     mTaskManagers[SystemUIMode] = std::make_unique<SystemUIManager>();
     return true;
 }
 
 ITaskManager* TaskManagerFactory::getManager(TaskManagerType type) {
+    ALOG_ASSERT(type >= 0 && type < TYPE_NUM, "the TaskManagerType=%d is invalid!!!", type);
     return mTaskManagers[type].get();
 }
 
