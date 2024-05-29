@@ -16,7 +16,7 @@
 
 #include "app/UvLoop.h"
 
-#include <utils/Log.h>
+#include "app/Logger.h"
 
 namespace os {
 namespace app {
@@ -27,7 +27,10 @@ UvLoop::UvLoop(bool useDefault)
         mLooper(useDefault ? uv_default_loop() : new uv_loop_t,
                 [this](uv_loop_t* loop) { this->destroy(loop); }) {
     if (!mIsDefaultLoop) {
-        LOG_ALWAYS_FATAL_IF(uv_loop_init(mLooper.get()) != 0, "UvLoop init failure");
+        if (uv_loop_init(mLooper.get()) != 0) {
+            ALOGE("UvLoop init failure");
+            assert(0);
+        }
     }
     mMsgHandler.attachLoop(this->get());
 }
