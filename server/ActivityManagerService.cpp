@@ -14,14 +14,11 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "AMS"
-
 #include "am/ActivityManagerService.h"
 
 #include <binder/IPCThreadState.h>
 #include <kvdb.h>
 #include <pm/PackageManager.h>
-#include <utils/Log.h>
 
 #include <filesystem>
 #include <fstream>
@@ -39,6 +36,7 @@
 #include "TaskBoard.h"
 #include "TaskManager.h"
 #include "app/ActivityManager.h"
+#include "app/Logger.h"
 #include "app/UvLoop.h"
 
 namespace os {
@@ -488,7 +486,7 @@ void ActivityManagerInner::reportActivityStatus(const sp<IBinder>& token, int32_
         AM_PROFILER_END();
         return;
     }
-    ALOGW("reportActivityStatus called by %s [%s]", getActivity(token)->getName().c_str(),
+    ALOGI("reportActivityStatus called by %s [%s]", getActivity(token)->getName().c_str(),
           ActivityRecord::statusToStr(status));
 
     const ActivityLifeCycleTask::Event event((ActivityRecord::Status)status, token);
@@ -675,6 +673,7 @@ int ActivityManagerInner::stopService(const Intent& intent) {
         return android::DEAD_OBJECT;
     }
 
+    ALOGI("stopService %s/%s", service->getPackageName()->c_str(), service->mServiceName.c_str());
     stopServiceReal(service);
 
     AM_PROFILER_END();
@@ -740,7 +739,6 @@ int ActivityManagerInner::stopServiceByToken(const sp<IBinder>& token) {
 }
 
 void ActivityManagerInner::stopServiceReal(ServiceHandler& service) {
-    ALOGD("stopService %s/%s", service->getPackageName()->c_str(), service->mServiceName.c_str());
     if (service->mStatus < ServiceRecord::DESTROYING) {
         service->stop();
     }

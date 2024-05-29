@@ -20,7 +20,8 @@
 #include <os/app/BnReply.h>
 #include <os/app/IMessageChannel.h>
 #include <os/app/IReply.h>
-#include <utils/Log.h>
+
+#include "app/Logger.h"
 
 namespace os {
 namespace app {
