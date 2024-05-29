@@ -16,7 +16,7 @@
 
 #include "ProcessPriorityPolicy.h"
 
-#include <utils/Log.h>
+#include "app/Logger.h"
 
 namespace os {
 namespace am {

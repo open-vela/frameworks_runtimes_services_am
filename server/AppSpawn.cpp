@@ -23,7 +23,8 @@
 #include <spawn.h>
 #include <string.h>
 #include <sys/wait.h>
-#include <utils/Log.h>
+
+#include "app/Logger.h"
 
 namespace os {
 namespace app {

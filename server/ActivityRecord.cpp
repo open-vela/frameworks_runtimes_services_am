@@ -14,17 +14,15 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "AMS"
-
 #include "ActivityRecord.h"
 
 #include <binder/IInterface.h>
 #include <binder/IServiceManager.h>
-#include <utils/Log.h>
 
 #include "AppRecord.h"
 #include "TaskManager.h"
 #include "app/Intent.h"
+#include "app/Logger.h"
 #include "wm/LayoutParams.h"
 
 namespace os {
