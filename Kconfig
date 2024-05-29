@@ -42,4 +42,24 @@ config AM_TEST
 	default n
 	depends on GOOGLE_TEST
 
+config ACTIVITY_SERVICE_LOG_LEVEL
+	int "Activity Service Log Level"
+	default 6
+	range 0 7
+	help
+		LOG_EMERG   :0
+		LOG_ALERT   :1
+		LOG_CRIT    :2
+		LOG_ERR     :3
+		LOG_WARNING :4
+		LOG_NOTICE  :5
+		LOG_INFO    :6
+		LOG_DEBUG   :7
+
+config ACTIVITY_SERVICE_LOG_WITH_COLOR
+	bool "Event Service Log With Color"
+	default n
+	help
+		Enable log with color
+
 endif

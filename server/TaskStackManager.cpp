@@ -18,7 +18,7 @@
 
 #include "TaskStackManager.h"
 
-#include <utils/Log.h>
+#include "app/Logger.h"
 
 namespace os {
 namespace am {
@@ -342,16 +342,16 @@ std::ostream& operator<<(std::ostream& os, const TaskStackManager& task) {
 
 std::ostream& TaskStackManager::print(std::ostream& os) {
 #define RESET "\033[0m"
+#define RED "\033[31m"
 #define GREEN "\033[32m"
 #define YELLOW "\033[33m"
-#define BLUE "\033[34m"
 
-    os << GREEN << "foreground task:" << RESET << endl;
+    os << RED << "foreground task:" << RESET << endl;
     for (auto& it : mAllTasks) {
         if (it == mHomeTask) {
             os << YELLOW << "home task:" << RESET << endl;
             os << *it << endl;
-            os << BLUE << "background task:" << RESET << endl;
+            os << GREEN << "background task:" << RESET << endl;
         } else {
             os << *it << endl;
         }

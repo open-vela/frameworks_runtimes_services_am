@@ -13,16 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#define LOG_TAG "AMS"
 
 #include "LowMemoryManager.h"
 
 #include <signal.h>
 #include <string.h>
-#include <utils/Log.h>
 
 #include <fstream>
 #include <string>
+
+#include "app/Logger.h"
 
 namespace os {
 namespace am {

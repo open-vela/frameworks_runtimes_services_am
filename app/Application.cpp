@@ -20,11 +20,11 @@
 #include <pm/PackageManager.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <utils/Log.h>
 
 #include "ActivityClientRecord.h"
 #include "ServiceClientRecord.h"
 #include "app/ActivityManager.h"
+#include "app/Logger.h"
 
 namespace os {
 namespace app {
