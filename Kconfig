@@ -40,7 +40,7 @@ config AMS_RUNMODE_FILE
 config AM_TEST
 	tristate "Enable am framework test"
 	default n
-	depends on GOOGLE_TEST
+	depends on LIB_GOOGLETEST
 
 config ACTIVITY_SERVICE_LOG_LEVEL
 	int "Activity Service Log Level"
