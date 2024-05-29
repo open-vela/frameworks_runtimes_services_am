@@ -93,12 +93,7 @@ int AmCommand::startActivity() {
     makeIntent(intent);
     intent.setFlag(Intent::FLAG_ACTIVITY_NEW_TASK);
     android::sp<android::IBinder> token = new android::BBinder();
-    int ret = mAm.startActivity(token, intent, -1);
-    if (ret == 0) {
-        token->getWeakRefs()->decWeak(token.get());
-        token->decStrong(token.get());
-    }
-    return ret;
+    return mAm.startActivity(token, intent, -1);
 }
 
 int AmCommand::stopActivity() {
