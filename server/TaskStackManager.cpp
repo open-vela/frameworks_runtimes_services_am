@@ -39,7 +39,10 @@ void TaskStackManager::switchTaskToActive(const ActivityStackHandler& targetStac
 
         auto activity = targetStack->getTopActivity();
         if (activity) {
-            activity->setIntent(intent);
+            // FLAG_APP_SWITCH_TASK means only change task and not set new intent.
+            if ((intent.mFlag & Intent::FLAG_APP_SWITCH_TASK) != Intent::FLAG_APP_SWITCH_TASK) {
+                activity->setIntent(intent);
+            }
             activity->lifecycleTransition(ActivityRecord::RESUMED);
             auto task = std::make_shared<ActivityWaitResume>(activity, currentTopActivity);
             mPendTask.commitTask(task, REQUEST_TIMEOUT_MS);
