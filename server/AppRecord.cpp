@@ -74,7 +74,7 @@ int AppRecord::deleteService(const std::shared_ptr<ServiceRecord>& service) {
 }
 
 void AppRecord::setForeground(const bool isForegroundActivity) {
-    if (mStatus != APP_STOPPED) {
+    if (mStatus == APP_STOPPED) {
         return;
     }
     if (isForegroundActivity) {
