@@ -22,6 +22,9 @@ namespace am {
 void SystemUIManager::switchTaskToActive(const ActivityStackHandler& task, const Intent& intent) {
     // all Activity to resume in the task
     for (auto& activity : task->getActivityArray()) {
+        if ((intent.mFlag & Intent::FLAG_APP_SWITCH_TASK) != Intent::FLAG_APP_SWITCH_TASK) {
+            activity->setIntent(intent);
+        }
         activity->lifecycleTransition(ActivityRecord::RESUMED);
         activity->getAppRecord()->setForeground(true);
     }

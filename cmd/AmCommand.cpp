@@ -91,7 +91,7 @@ int AmCommand::makeIntent(Intent &intent) {
 int AmCommand::startActivity() {
     Intent intent;
     makeIntent(intent);
-    intent.setFlag(Intent::FLAG_ACTIVITY_NEW_TASK);
+    intent.setFlag(intent.mFlag | Intent::FLAG_ACTIVITY_NEW_TASK);
     android::sp<android::IBinder> token = new android::BBinder();
     return mAm.startActivity(token, intent, -1);
 }

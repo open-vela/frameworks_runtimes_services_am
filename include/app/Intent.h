@@ -40,6 +40,8 @@ public:
         FLAG_ACTIVITY_SINGLE_TOP = 2,
         FLAG_ACTIVITY_CLEAR_TOP = 4,
         FLAG_ACTIVITY_CLEAR_TASK = 8,
+
+        FLAG_APP_SWITCH_TASK = 1024, // only switch task, don't set new intent
     };
 
     Intent() : mFlag(NO_FLAG){};
