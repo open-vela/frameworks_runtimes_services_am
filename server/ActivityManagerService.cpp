@@ -1144,8 +1144,8 @@ ActivityHandler ActivityManagerInner::getActivity(const sp<IBinder>& token) {
 }
 
 inline ITaskManager* ActivityManagerInner::getTaskManager(bool isSystemUI) {
-    return mTaskManager.getManager(isSystemUI ? TaskManagerType::SystemUIMode
-                                              : TaskManagerType::StandardMode);
+    return isSystemUI ? mTaskManager.getManager(TaskManagerType::SystemUIMode)
+                      : mTaskManager.getManager(TaskManagerType::StandardMode);
 }
 
 inline ActivityHandler ActivityManagerInner::getTopActivity() {
