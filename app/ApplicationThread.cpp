@@ -15,9 +15,9 @@
  */
 
 #define LOG_TAG "App"
-
 #include "app/ApplicationThread.h"
 
+#include <assert.h>
 #include <binder/IPCThreadState.h>
 #include <binder/IServiceManager.h>
 #include <binder/ProcessState.h>
@@ -139,14 +139,18 @@ int ApplicationThread::mainRun(int argc, char** argv) {
     // then destory app
     mApp->onDestroy(); /** Application destroy here */
 
-    int tryCloseCnt = 100;
-    while (isAlive() && --tryCloseCnt) {
-        usleep(100000);
-        run(UV_RUN_NOWAIT);
-        ALOGW("uv loop run once, perform unfinished tasks");
-    }
+    // set uv close flag
     if (close() != 0) {
-        ALOGE("uv loop can't close properly, there's a memory leak!!!");
+        int tryCloseCnt = 50;
+        while (isAlive() && --tryCloseCnt) {
+            usleep(300000);
+            run(UV_RUN_NOWAIT);
+            ALOGW("uv loop run once, perform unfinished tasks");
+        }
+        if (close() != 0) {
+            ALOGE("uv loop can't close properly, there's a memory leak!!!");
+            assert(0);
+        }
     }
     ALOGW("Application[%s]:%s has been stopped!!!", argv[0], argv[1]);
     return 0;
