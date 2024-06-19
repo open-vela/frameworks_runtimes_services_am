@@ -42,6 +42,7 @@ public:
         FLAG_ACTIVITY_CLEAR_TASK = 8,
 
         FLAG_APP_SWITCH_TASK = 1024, // only switch task, don't set new intent
+        FLAG_APP_MOVE_BACK,          // move app to background,it only works in stopActivity
     };
 
     Intent() : mFlag(NO_FLAG){};

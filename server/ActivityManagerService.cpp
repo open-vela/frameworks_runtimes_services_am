@@ -383,7 +383,9 @@ int ActivityManagerInner::stopActivity(const Intent& intent, int32_t resultCode)
                     // move to back if the app is active task at first
                     taskmanager->moveTaskToBackground(activetask);
                 }
-                appinfo->stopApplication();
+                if (intent.mFlag != Intent::FLAG_APP_MOVE_BACK) {
+                    appinfo->stopApplication();
+                }
             } else {
                 activity = appinfo->checkActivity(intent.mTarget);
                 if (activity) {
