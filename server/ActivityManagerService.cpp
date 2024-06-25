@@ -861,14 +861,20 @@ int32_t ActivityManagerInner::registerReceiver(const std::string& action,
 void ActivityManagerInner::unregisterReceiver(const sp<IBroadcastReceiver>& receiver) {
     AM_PROFILER_BEGIN();
     ALOGI("unregisterReceiver");
-    for (auto& pair : mReceivers) {
-        for (auto it = pair.second.begin(); it != pair.second.end(); ++it) {
+    for (auto iter = mReceivers.begin(); iter != mReceivers.end();) {
+        for (auto it = iter->second.begin(); it != iter->second.end(); ++it) {
             if (android::IInterface::asBinder(*it) == android::IInterface::asBinder(receiver)) {
-                pair.second.erase(it);
+                iter->second.erase(it);
                 break;
             }
         }
+        if (iter->second.empty()) {
+            iter = mReceivers.erase(iter);
+        } else {
+            ++iter;
+        }
     }
+
     AM_PROFILER_END();
 }
 

@@ -79,6 +79,15 @@ ProcessPriorityPolicy::ProcessPriorityPolicy(LowMemoryManager* lmk) {
     lmk->setPrepareLMKCallback([this] { analyseProcessPriority(); });
 }
 
+ProcessPriorityPolicy::~ProcessPriorityPolicy() {
+    PidPriorityInfo* pnode = mHead;
+    while (pnode) {
+        const auto next = pnode->next;
+        delete pnode;
+        pnode = next;
+    }
+}
+
 void ProcessPriorityPolicy::analyseProcessPriority() {
     ALOGD("analyseProcessPriority");
     int levelcnt = 0;
