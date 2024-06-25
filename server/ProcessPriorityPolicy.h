@@ -65,6 +65,7 @@ struct PidPriorityInfo {
 class ProcessPriorityPolicy {
 public:
     ProcessPriorityPolicy(LowMemoryManager* lmk);
+    ~ProcessPriorityPolicy();
 
     PidPriorityInfo* get(pid_t pid);
     PidPriorityInfo* add(pid_t pid, bool isForeground,
