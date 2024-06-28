@@ -39,7 +39,7 @@ public:
 
     int setPidOomScore(pid_t pid, int score);
     int cancelMonitorPid(pid_t pid);
-    void executeLMK(const int freememory);
+    void executeLMK(const int freememory, const int maxblock);
 
 private:
     const static int MAX_ADJUST_NUM = 5;
@@ -47,7 +47,7 @@ private:
     std::unordered_map<pid_t, int> mPidOomScore;
     PrepareLMKCB mPrepareCallback;
     LMKExectorCB mExectorCallback;
-    int mOomScoreThreshold[MAX_ADJUST_NUM][2];
+    int mOomScoreThreshold[MAX_ADJUST_NUM][3];
     os::app::UvTimer mTimer;
     std::vector<std::shared_ptr<os::app::UvPoll>> mPollPressureFds;
 };
