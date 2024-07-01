@@ -170,6 +170,7 @@ void LowMemoryManager::executeLMK(const int freememory, const int maxblock) {
         mLooper->postDelayTask(
                 [this, pid](void*) {
                     if (mPidOomScore.find(pid) != mPidOomScore.end()) {
+                        ALOGW("warning, kill the app:%d by signal!!!!", pid);
                         kill(pid, SIGTERM);
                     }
                 },
