@@ -334,6 +334,13 @@ int ActivityManagerInner::startActivityReal(ITaskManager* taskmanager, const str
             newActivity->setAppThread(appInfo);
             taskmanager->pushNewActivity(targetTask, newActivity, startFlag);
         } else {
+            // Check the system environment is adequate for starting the application
+            if (!mLmk.isOkToLaunch()) {
+                ALOGE("check launch envirnoment, can't start new application");
+                AM_PROFILER_END();
+                return android::INVALID_OPERATION;
+            }
+
             const ProcessPriority priority = (ProcessPriority)packageInfo.priority;
             const auto task = [this, taskmanager, targetTask, newActivity, startFlag,
                                priority](const AppAttachTask::Event* e) {
