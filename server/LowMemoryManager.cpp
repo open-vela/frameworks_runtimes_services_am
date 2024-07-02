@@ -28,6 +28,8 @@ namespace os {
 namespace am {
 
 const int DELAYED_KILLING_TIMEOUT = 2000;
+const float MIN_MEM_THRESH = 0.066; // Used to calculate the minimum memory available to the system
+
 #ifdef CONFIG_AM_LMK_CFG
 const std::string lmkcfg = CONFIG_AM_LMK_CFG;
 #else
@@ -62,8 +64,10 @@ bool LowMemoryManager::init(const std::shared_ptr<os::app::UvLoop>& looper) {
         }
     }
 
+    struct mallinfo info = mallinfo();
+    mMinMemoryThreshold = info.arena * MIN_MEM_THRESH;
+
     if (cnt == 0) {
-        struct mallinfo info = mallinfo();
         ALOGI("system total memory:%d, used:%d free:%d", info.arena, info.uordblks, info.fordblks);
         // if "/etc/lmk.cfg" no configuration data, the lmk warning thresholds are set to 40%, 20%,
         // 10% of system memory.
@@ -109,8 +113,8 @@ bool LowMemoryManager::init(const std::shared_ptr<os::app::UvLoop>& looper) {
         ALOGW("lmk is reported by cycle query");
         // Periodicity monitoring:just for test lmk when kernel doesn't provide notifications.
         mTimer.init(mLooper->get(), [this](void*) {
-            struct mallinfo info = mallinfo();
-            executeLMK(info.fordblks, info.mxordblk);
+            struct mallinfo meminfo = mallinfo();
+            executeLMK(meminfo.fordblks, meminfo.mxordblk);
         });
         mTimer.start(2000, 2000); // 2 seconds per cycle
     }
@@ -118,6 +122,36 @@ bool LowMemoryManager::init(const std::shared_ptr<os::app::UvLoop>& looper) {
 
     return true;
 } // namespace am
+
+bool LowMemoryManager::isOkToLaunch() {
+    // check memory
+    unsigned int maxblock = -1;
+#ifdef CONFIG_FS_PROCFS_INCLUDE_PRESSURE
+    int fd = open("/proc/pressure/memory", O_RDONLY);
+    if (fd > 0) {
+        char buf[256];
+        const int len = read(fd, buf, 256);
+        if (len > 0) {
+            buf[len] = 0;
+            int free;
+            if (sscanf(buf, "remaining %d, largest:%d", &free, &maxblock) == 2) {
+                ALOGW("pressure format error:%s", buf);
+            }
+        }
+        close(fd);
+    }
+#else
+    struct mallinfo info = mallinfo();
+    maxblock = info.mxordblk;
+#endif
+    if (maxblock < mMinMemoryThreshold) {
+        ALOGW("system memory less then min use threshold! current:%d, threshold:%d", maxblock,
+              mMinMemoryThreshold);
+        return false;
+    }
+
+    return true;
+}
 
 int LowMemoryManager::setPidOomScore(pid_t pid, int score) {
     auto iter = mPidOomScore.find(pid);
