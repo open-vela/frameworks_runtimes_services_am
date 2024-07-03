@@ -836,7 +836,7 @@ int32_t ActivityManagerInner::postIntent(const Intent& intent) {
 
 int32_t ActivityManagerInner::sendBroadcast(const Intent& intent) {
     AM_PROFILER_BEGIN();
-    ALOGI("sendBroadcast:%s", intent.mAction.c_str());
+    ALOGD("sendBroadcast:%s", intent.mAction.c_str());
     auto receivers = mReceivers.find(intent.mAction);
     if (receivers != mReceivers.end()) {
         for (auto& receiver : receivers->second) {
@@ -859,7 +859,7 @@ int32_t ActivityManagerInner::registerReceiver(const std::string& action,
         std::list<sp<IBroadcastReceiver>> receiverList;
         receiverList.emplace_back(receiver);
         mReceivers.emplace(action, std::move(receiverList));
-        ALOGI("add new receiver success");
+        ALOGD("add new receiver success");
     }
     AM_PROFILER_END();
     return 0;
