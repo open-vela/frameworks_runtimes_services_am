@@ -145,7 +145,9 @@ PidPriorityInfo* ProcessPriorityPolicy::add(pid_t pid, bool isForeground, Proces
                 pnode->last = mTail;
                 if (mTail) mTail->next = pnode;
                 mTail = pnode;
-                mHead = pnode;
+                if (!mHead) {
+                    mHead = pnode;
+                }
             }
             mBackgroundPos = pnode;
         }
