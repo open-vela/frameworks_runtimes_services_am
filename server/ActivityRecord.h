@@ -160,11 +160,12 @@ public:
             mWillStopActivity(willStopActivity) {}
 
     void execute(const Label& e) override {
-        if (mResumeActivity->getStatus() >= ActivityRecord::RESUMED &&
-            mResumeActivity->getStatus() <= ActivityRecord::STOPPED &&
-            // A切到B应用的过程中，A应用被拉起，则A不能执行stop。这里检查A的目标状态是否变了
-            mWillStopActivity->getTargetStatus() == ActivityRecord::PAUSED) {
+        // A切到B应用的过程中，A应用被拉起，则A不能执行stop。这里检查A的目标状态是否变了
+        if (mWillStopActivity->getTargetStatus() == ActivityRecord::PAUSED) {
             mWillStopActivity->lifecycleTransition(ActivityRecord::STOPPED);
+        } else {
+            ALOGW("the %s doesn't need to stop,revert to %s", mWillStopActivity->getName().c_str(),
+                  ActivityRecord::statusToStr(mWillStopActivity->getTargetStatus()));
         }
     }
 

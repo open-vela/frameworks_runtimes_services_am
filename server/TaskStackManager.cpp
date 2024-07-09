@@ -83,6 +83,7 @@ bool TaskStackManager::moveTaskToBackground(const ActivityStackHandler& targetSt
         }
     }
 
+    // If it's above HomeTask, move it below HomeTask, otherwise no need to move it
     for (auto iter = mAllTasks.begin(); iter != mAllTasks.end();) {
         if (*iter == targetStack) {
             isBeforeHomeTask = true;
