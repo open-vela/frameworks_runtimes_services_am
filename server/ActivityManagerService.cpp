@@ -515,7 +515,10 @@ void ActivityManagerInner::reportActivityStatus(const sp<IBinder>& token, int32_
             break;
         case ActivityRecord::RESUMED: {
             // broadcast the Top Activity
-            broadcastTopActivity(activity->getName());
+            const auto taskmanager = mTaskManager.getManager(TaskManagerType::StandardMode);
+            if (activity == taskmanager->getActiveTask()->getTopActivity()) {
+                broadcastTopActivity(activity->getName());
+            }
             const auto appRecord = activity->getAppRecord();
             if (appRecord && !appRecord->mIsSystemUI) {
                 const ActivityWaitResume::Event event2(token);
