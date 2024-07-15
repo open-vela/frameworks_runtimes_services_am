@@ -85,7 +85,7 @@ void TaskBoard::checkTimeout() {
         // non-check if tasklist is empty
         mNextCheckTime = ULLONG_MAX;
     }
-    ALOGD("TaskBoard task size:%d, next checkout time:%lld", mTasklist.size(), mNextCheckTime);
+    ALOGD("TaskBoard task size:%zu, next checkout time:%" PRIu64, mTasklist.size(), mNextCheckTime);
 }
 
 void TaskBoard::commitTask(const std::shared_ptr<Task>& task, const uint64_t msLimitedTime) {
