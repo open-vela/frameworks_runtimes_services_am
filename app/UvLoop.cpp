@@ -79,5 +79,17 @@ void UvLoop::stop() {
     uv_stop(mLooper.get());
 }
 
+void UvLoop::printAllHandles() {
+    FILE* fp = NULL;
+#ifdef __NuttX__
+    fp = fopen("/dev/log", "wb");
+#endif
+    fp = fp ? fp : stderr;
+    uv_print_all_handles(mLooper.get(), fp);
+    if (fp != stderr) {
+        fclose(fp);
+    }
+}
+
 } // namespace app
 } // namespace os
