@@ -168,6 +168,7 @@ int ApplicationThread::mainRun(int argc, char** argv) {
         }
         if (close() != 0) {
             ALOGE("uv loop can't close properly, there's a memory leak!!!");
+            printAllHandles();
             assert(0);
         }
     }

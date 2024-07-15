@@ -109,6 +109,7 @@ public:
     bool isAlive();
     int close();
     void stop();
+    void printAllHandles();
 
 private:
     // Custom deleter
