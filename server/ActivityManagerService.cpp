@@ -857,7 +857,7 @@ int32_t ActivityManagerInner::registerReceiver(const std::string& action,
     auto receivers = mReceivers.find(action);
     if (receivers != mReceivers.end()) {
         receivers->second.emplace_back(receiver);
-        ALOGI("register success, cnt:%d", receivers->second.size());
+        ALOGI("register success, cnt:%zu", receivers->second.size());
     } else {
         std::list<sp<IBroadcastReceiver>> receiverList;
         receiverList.emplace_back(receiver);
