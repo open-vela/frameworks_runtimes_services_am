@@ -505,6 +505,7 @@ void ActivityManagerInner::reportActivityStatus(const sp<IBinder>& token, int32_
         Intent intent;
         intent.setAction(Intent::BROADCAST_TOP_ACTIVITY);
         intent.setData(name);
+        ALOGI("broadcastTopActivity:%s", name.c_str());
         sendBroadcast(intent);
     };
 
@@ -514,12 +515,12 @@ void ActivityManagerInner::reportActivityStatus(const sp<IBinder>& token, int32_
         case ActivityRecord::STARTED:
             break;
         case ActivityRecord::RESUMED: {
+            const auto appRecord = activity->getAppRecord();
             // broadcast the Top Activity
-            const auto taskmanager = mTaskManager.getManager(TaskManagerType::StandardMode);
+            const auto taskmanager = getTaskManager(appRecord->mIsSystemUI);
             if (activity == taskmanager->getActiveTask()->getTopActivity()) {
                 broadcastTopActivity(activity->getName());
             }
-            const auto appRecord = activity->getAppRecord();
             if (appRecord && !appRecord->mIsSystemUI) {
                 const ActivityWaitResume::Event event2(token);
                 mPendTask.eventTrigger(event2);
