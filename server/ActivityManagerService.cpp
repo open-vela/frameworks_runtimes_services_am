@@ -516,18 +516,21 @@ void ActivityManagerInner::reportActivityStatus(const sp<IBinder>& token, int32_
             break;
         case ActivityRecord::RESUMED: {
             const auto appRecord = activity->getAppRecord();
-            // broadcast the Top Activity
-            const auto taskmanager = getTaskManager(appRecord->mIsSystemUI);
-            if (activity == taskmanager->getActiveTask()->getTopActivity()) {
-                broadcastTopActivity(activity->getName());
-            }
-            if (appRecord && !appRecord->mIsSystemUI) {
-                const ActivityWaitResume::Event event2(token);
-                mPendTask.eventTrigger(event2);
+            if (appRecord) {
+                // broadcast the Top Activity
+                const auto activetask = getTaskManager(appRecord->mIsSystemUI)->getActiveTask();
+                if (activetask && activity == activetask->getTopActivity()) {
+                    broadcastTopActivity(activity->getName());
+                }
 
-                // only for finishActivity case
-                const ActivityDelayDestroy::Event event3(token);
-                mPendTask.eventTrigger(event3);
+                if (!appRecord->mIsSystemUI) {
+                    const ActivityWaitResume::Event event2(token);
+                    mPendTask.eventTrigger(event2);
+
+                    // only for finishActivity case
+                    const ActivityDelayDestroy::Event event3(token);
+                    mPendTask.eventTrigger(event3);
+                }
             }
             break;
         }
