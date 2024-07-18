@@ -200,15 +200,15 @@ void LowMemoryManager::executeLMK(const int freememory, const int maxblock) {
             mExectorCallback(pid);
         }
         // Check if the process is finished after a delay time.
-        mLooper->postDelayTask(
-                [this, pid](void*) {
-                    // kill -0, check if process is running
-                    if (kill(pid, 0) == 0) {
-                        ALOGW("warning, kill the app:%d by signal!!!!", pid);
-                        kill(pid, SIGTERM);
-                    }
-                },
-                DELAYED_KILLING_TIMEOUT);
+        // mLooper->postDelayTask(
+        //         [this, pid](void*) {
+        //             // kill -0, check if process is running
+        //             if (kill(pid, 0) == 0) {
+        //                 ALOGW("warning, kill the app:%d by signal!!!!", pid);
+        //                 kill(pid, SIGTERM);
+        //             }
+        //         },
+        //         DELAYED_KILLING_TIMEOUT);
         mPidOomScore.erase(pid);
     }
 }
