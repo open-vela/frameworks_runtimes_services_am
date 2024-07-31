@@ -178,7 +178,7 @@ int ActivityManagerInner::attachApplication(const sp<IApplicationThread>& app) {
     AM_PROFILER_BEGIN();
     const int callerPid = android::IPCThreadState::self()->getCallingPid();
     auto appRecord = mAppInfo.findAppInfo(callerPid);
-    ALOGI("attachApplication. pid:%d appRecord:[%p]", callerPid, appRecord.get());
+    ALOGI("attachApplication. pid:%d packagename:[%s]", callerPid, appRecord ? appRecord->mPackageName.data() : "");
     if (appRecord) {
         ALOGE("the application:%s had be attached", appRecord->mPackageName.c_str());
         AM_PROFILER_END();
