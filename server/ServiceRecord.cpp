@@ -107,11 +107,18 @@ bool ServiceRecord::isAlive() {
     return mStartFlag != F_UNKNOW;
 }
 
-const string* ServiceRecord::getPackageName() {
+const string* ServiceRecord::getPackageName() const {
     if (auto appRecord = mApp.lock()) {
         return &appRecord->mPackageName;
     }
     return nullptr;
+}
+
+int ServiceRecord::getPid() const {
+    if (auto appRecord = mApp.lock()) {
+        return appRecord->mPid;
+    }
+    return -1;
 }
 
 const char* ServiceRecord::statusToStr(const int status) {
@@ -181,11 +188,13 @@ void ServiceList::unbindConnection(const sp<IServiceConnection>& conn) {
 
 std::ostream& operator<<(std::ostream& os, const ServiceList& services) {
     os << "\n\nServices Information:" << std::endl;
-    for (auto& it : services.mServiceList) {
-        os << "\t" << *it->getPackageName() << "/" << it->mServiceName << " |"
-           << ((it->mStartFlag & ServiceRecord::F_STARTED) ? "start|" : "")
-           << ((it->mStartFlag & ServiceRecord::F_BINDED) ? "binded|" : "") << " ["
-           << ServiceRecord::statusToStr(it->mStatus) << "]" << std::endl;
+    for (const auto& serviceRecord : services.mServiceList) {
+        if (serviceRecord->getPackageName() == nullptr) continue;
+        os << "\t" << *serviceRecord->getPackageName() << "/" << serviceRecord->mServiceName << " [ "
+           << serviceRecord->getPid() << " ]" << " |"
+           << ((serviceRecord->mStartFlag & ServiceRecord::F_STARTED) ? "start|" : "")
+           << ((serviceRecord->mStartFlag & ServiceRecord::F_BINDED) ? "binded|" : "") << " ["
+           << ServiceRecord::statusToStr(serviceRecord->mStatus) << "]" << std::endl;
     }
     return os;
 }
