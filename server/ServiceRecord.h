@@ -72,7 +72,8 @@ public:
     void unbind(const sp<IServiceConnection>& conn);
 
     void abnormalExit();
-    const std::string* getPackageName();
+    const std::string* getPackageName() const;
+    int getPid() const; 
     bool isAlive();
     static const char* statusToStr(int status);
 
