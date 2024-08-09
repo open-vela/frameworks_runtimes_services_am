@@ -161,6 +161,9 @@ int ApplicationThread::mainRun(int argc, char** argv) {
     // set uv close flag
     if (close() != 0) {
         int tryCloseCnt = 50;
+#ifdef CONFIG_MM_KASAN
+        tryCloseCnt = 200;
+#endif
         while (isAlive() && --tryCloseCnt) {
             usleep(300000);
             run(UV_RUN_NOWAIT);
