@@ -114,7 +114,11 @@ enum TASK_LABEL {
     SERVICE_STATUS_END = 230,
 };
 
+#ifdef CONFIG_MM_KASAN
+#define REQUEST_TIMEOUT_MS 30000 // 30 seconds
+#else
 #define REQUEST_TIMEOUT_MS 10000 // 10 seconds
+#endif
 /***************************************************************************/
 
 } // namespace am
