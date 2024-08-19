@@ -146,7 +146,7 @@ void Application::clearActivityAndService() {
             it.second->onDestroy();
         }
     }
-    mExistServices.clear();
+    mExistActivities.clear();
 
     for (auto it : mExistServices) {
         if (it->getStatus() < ServiceClientRecord::DESTROYING) {
