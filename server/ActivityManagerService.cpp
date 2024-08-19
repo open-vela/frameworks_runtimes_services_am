@@ -168,7 +168,8 @@ ActivityManagerInner::ActivityManagerInner(uv_loop_t* looper) : mPriorityPolicy(
     mLmk.init(mLooper);
     mLmk.setLMKExecutor([this](pid_t pid) {
         if (auto apprecord = mAppInfo.findAppInfo(pid)) {
-            ALOGW("LMK stop application:%s", apprecord->mPackageName.c_str());
+            ALOGW("LMK stop application:%s app status: %d", apprecord->mPackageName.c_str(),
+                  apprecord->mStatus);
             apprecord->stopApplication();
         }
     });
@@ -178,7 +179,8 @@ int ActivityManagerInner::attachApplication(const sp<IApplicationThread>& app) {
     AM_PROFILER_BEGIN();
     const int callerPid = android::IPCThreadState::self()->getCallingPid();
     auto appRecord = mAppInfo.findAppInfo(callerPid);
-    ALOGI("attachApplication. pid:%d packagename:[%s]", callerPid, appRecord ? appRecord->mPackageName.data() : "");
+    ALOGI("attachApplication. pid:%d packagename:[%s]", callerPid,
+          appRecord ? appRecord->mPackageName.data() : "");
     if (appRecord) {
         ALOGE("the application:%s had be attached", appRecord->mPackageName.c_str());
         AM_PROFILER_END();
