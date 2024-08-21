@@ -179,8 +179,6 @@ int ActivityManagerInner::attachApplication(const sp<IApplicationThread>& app) {
     AM_PROFILER_BEGIN();
     const int callerPid = android::IPCThreadState::self()->getCallingPid();
     auto appRecord = mAppInfo.findAppInfo(callerPid);
-    ALOGI("attachApplication. pid:%d packagename:[%s]", callerPid,
-          appRecord ? appRecord->mPackageName.data() : "");
     if (appRecord) {
         ALOGE("the application:%s had be attached", appRecord->mPackageName.c_str());
         AM_PROFILER_END();
@@ -195,6 +193,8 @@ int ActivityManagerInner::attachApplication(const sp<IApplicationThread>& app) {
         mPm.getPackageInfo(packageName, &packageinfo);
         appRecord = std::make_shared<AppRecord>(app, packageName, packageinfo.isSystemUI, callerPid,
                                                 callerUid, &mAppInfo, &mPriorityPolicy);
+        ALOGI("attachApplication. pid:%d packagename:[%s]", callerPid,
+              appRecord->mPackageName.data());
         mAppInfo.deleteAppWaitingAttach(callerPid);
         mAppInfo.addAppInfo(appRecord);
         const AppAttachTask::Event event(callerPid, appRecord);
