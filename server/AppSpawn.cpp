@@ -64,9 +64,9 @@ int AppSpawn::appSpawn(const char* execfile, std::initializer_list<std::string> 
     ALOGD("appSpawn :%s %s", argv[0], argv[1]);
 
     const int ret = posix_spawn(&pid, execfile, NULL, NULL, argv, NULL);
-    if (ret < 0) {
+    if (ret != 0) {
         ALOGE("posix_spawn %s failed error:%d", execfile, ret);
-        return ret;
+        return ret > 0 ? -ret : ret;
     }
     return pid;
 }
