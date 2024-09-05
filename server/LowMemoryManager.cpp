@@ -28,7 +28,7 @@ namespace os {
 namespace am {
 
 const int DELAYED_KILLING_TIMEOUT = 12000;
-const float MIN_MEM_THRESH = 0.066; // Used to calculate the minimum memory available to the system
+const float MIN_MEM_THRESH = 0.022; // Used to calculate the minimum memory available to the system
 
 #ifdef CONFIG_AM_LMK_CFG
 const std::string lmkcfg = CONFIG_AM_LMK_CFG;
