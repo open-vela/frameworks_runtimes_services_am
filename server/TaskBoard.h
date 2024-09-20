@@ -93,6 +93,7 @@ public:
     void startWork(const std::shared_ptr<UvLoop>& looper);
     void commitTask(const std::shared_ptr<Task>& task, const uint64_t msLimitedTime = UINT_MAX);
     void eventTrigger(const Label& e);
+    void removeTask(const Label& e);
 
 private:
     void checkTimeout();
