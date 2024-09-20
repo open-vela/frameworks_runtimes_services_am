@@ -552,6 +552,12 @@ void ActivityManagerInner::reportActivityStatus(const sp<IBinder>& token, int32_
         case ActivityRecord::DESTROYED: {
             activity->setStatus(ActivityRecord::DESTROYED);
             if (const auto appRecord = activity->getAppRecord()) {
+                bool isSystemUI = appRecord->mIsSystemUI;
+                if (!isSystemUI) {
+                    const ActivityWaitResume::Event event2(token);
+                    mPendTask.removeTask(event2);
+                }
+
                 auto taskmanager = getTaskManager(appRecord->mIsSystemUI);
                 taskmanager->deleteActivity(activity);
                 appRecord->deleteActivity(activity);

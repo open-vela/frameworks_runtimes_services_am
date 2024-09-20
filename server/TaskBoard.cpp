@@ -111,5 +111,9 @@ void TaskBoard::eventTrigger(const Label& e) {
     }
 }
 
+void TaskBoard::removeTask(const Label& e) {
+    mTasklist.remove_if([&e](const auto& task) { return *(task->getTask()) == e; });
+}
+
 } // namespace am
 } // namespace os
