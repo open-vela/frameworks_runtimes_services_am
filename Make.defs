@@ -15,9 +15,9 @@
 #
 
 ifneq ($(CONFIG_SYSTEM_SERVER),)
-CONFIGURED_APPS += $(APPDIR)/frameworks/base/am
+CONFIGURED_APPS += $(APPDIR)/frameworks/runtimes/services/am
 
-CXXFLAGS += ${INCDIR_PREFIX}$(APPDIR)/frameworks/base/am/aidl
-CXXFLAGS += ${INCDIR_PREFIX}$(APPDIR)/frameworks/base/am/include
-CFLAGS += ${INCDIR_PREFIX}$(APPDIR)/frameworks/base/am/include
+CXXFLAGS += ${INCDIR_PREFIX}$(APPDIR)/frameworks/runtimes/services/am/aidl
+CXXFLAGS += ${INCDIR_PREFIX}$(APPDIR)/frameworks/runtimes/services/am/include
+CFLAGS += ${INCDIR_PREFIX}$(APPDIR)/frameworks/runtimes/services/am/include
 endif
