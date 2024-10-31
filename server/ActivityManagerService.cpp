@@ -330,9 +330,6 @@ int ActivityManagerInner::startActivityReal(ITaskManager* taskmanager, const str
                 std::make_shared<ActivityRecord>(activityUniqueName, caller, requestCode,
                                                  launchMode, targetTask, intent, mWindowManager,
                                                  taskmanager, &mPendTask);
-        if (intent.mAction == Intent::ACTION_BOOT_GUIDE) {
-            newActivity->setCallback([this]() { startHomeActivity(); });
-        }
         bool is_home_task =
                 std::any_of(packageInfo.activitiesInfo.begin(), packageInfo.activitiesInfo.end(),
                             [](const auto& activity) {
@@ -344,6 +341,7 @@ int ActivityManagerInner::startActivityReal(ITaskManager* taskmanager, const str
         const auto appInfo = mAppInfo.findAppInfoWithAlive(packageInfo.packageName);
         if (appInfo) {
             newActivity->setAppThread(appInfo);
+            if (is_home_task) taskmanager->setHomeTask(targetTask);
             taskmanager->pushNewActivity(targetTask, newActivity, startFlag);
         } else {
             // Check the system environment is adequate for starting the application
@@ -358,6 +356,7 @@ int ActivityManagerInner::startActivityReal(ITaskManager* taskmanager, const str
                                is_home_task](const AppAttachTask::Event* e) {
                 mPriorityPolicy.add(e->mPid, true, priority);
                 newActivity->setAppThread(e->mAppRecord);
+                if (is_home_task) taskmanager->setHomeTask(targetTask);
                 taskmanager->pushNewActivity(targetTask, newActivity, startFlag);
             };
             if (submitAppStartupTask(packageInfo.packageName, packageInfo.packageName,
@@ -1024,6 +1023,7 @@ void ActivityManagerInner::systemReady() {
     broadcastIntent(intent, IntentAction::COMP_TYPE_ACTIVITY);
 
     if (startBootGuide() == false) {
+        ALOGI("startBootGuide failed, startHomeActivity");
         startHomeActivity();
     }
 
