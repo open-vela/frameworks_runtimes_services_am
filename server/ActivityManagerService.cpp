@@ -330,6 +330,9 @@ int ActivityManagerInner::startActivityReal(ITaskManager* taskmanager, const str
                 std::make_shared<ActivityRecord>(activityUniqueName, caller, requestCode,
                                                  launchMode, targetTask, intent, mWindowManager,
                                                  taskmanager, &mPendTask);
+        if (intent.mAction == Intent::ACTION_BOOT_GUIDE) {
+            newActivity->setCallback([this]() { startHomeActivity(); });
+        }
         bool is_home_task =
                 std::any_of(packageInfo.activitiesInfo.begin(), packageInfo.activitiesInfo.end(),
                             [](const auto& activity) {
