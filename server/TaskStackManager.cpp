@@ -65,8 +65,23 @@ bool TaskStackManager::moveTaskToBackground(const ActivityStackHandler& targetSt
         return false;
     }
 
+    // If it's above HomeTask, move it below HomeTask, otherwise no need to move it
+    auto hometask_index = std::find(mAllTasks.begin(), mAllTasks.end(), mHomeTask);
+    if (hometask_index == mAllTasks.end()) {
+        mAllTasks.remove(targetStack);
+        mAllTasks.push_back(targetStack);
+    } else {
+        for (auto iter = mAllTasks.begin(); iter != hometask_index; ++iter) {
+            if (*iter == targetStack) {
+                mAllTasks.erase(iter);
+                mAllTasks.insert(++hometask_index, targetStack);
+                break;
+            }
+        }
+    }
+
     if (targetStack == activeTask) {
-        isBeforeHomeTask = true;
+        // isBeforeHomeTask = true;
         auto topActivity = targetStack->getTopActivity();
         topActivity->lifecycleTransition(ActivityRecord::PAUSED);
         targetStack->setForeground(false);
