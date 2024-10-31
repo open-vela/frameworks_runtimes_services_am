@@ -63,6 +63,7 @@ public:
     virtual std::ostream& print(std::ostream& os) {
         return os;
     }
+    virtual void setHomeTask(const ActivityStackHandler& task) {}
 };
 
 class TaskManagerFactory {
