@@ -228,10 +228,9 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
     }
 
     auto taskmanager = getTaskManager(packageInfo.isSystemUI);
-    ActivityStackHandler apptask;
+    ActivityStackHandler apptask = taskmanager->findTask(packageInfo.packageName);
     /** check activity name */
     if (activityName.empty()) {
-        apptask = taskmanager->findTask(packageInfo.packageName);
         if (!apptask) {
             activityName = packageInfo.entry;
         }
@@ -331,6 +330,17 @@ int ActivityManagerInner::startActivityReal(ITaskManager* taskmanager, const str
                 std::make_shared<ActivityRecord>(activityUniqueName, caller, requestCode,
                                                  launchMode, targetTask, intent, mWindowManager,
                                                  taskmanager, &mPendTask);
+        if (intent.mAction == Intent::ACTION_BOOT_GUIDE) {
+            newActivity->setCallback([this]() { startHomeActivity(); });
+        }
+        bool is_home_task =
+                std::any_of(packageInfo.activitiesInfo.begin(), packageInfo.activitiesInfo.end(),
+                            [](const auto& activity) {
+                                return std::any_of(activity.actions.begin(), activity.actions.end(),
+                                                   [](const auto& action) {
+                                                       return action == Intent::ACTION_HOME;
+                                                   });
+                            });
         const auto appInfo = mAppInfo.findAppInfoWithAlive(packageInfo.packageName);
         if (appInfo) {
             newActivity->setAppThread(appInfo);
@@ -344,8 +354,8 @@ int ActivityManagerInner::startActivityReal(ITaskManager* taskmanager, const str
             }
 
             const ProcessPriority priority = (ProcessPriority)packageInfo.priority;
-            const auto task = [this, taskmanager, targetTask, newActivity, startFlag,
-                               priority](const AppAttachTask::Event* e) {
+            const auto task = [this, taskmanager, targetTask, newActivity, startFlag, priority,
+                               is_home_task](const AppAttachTask::Event* e) {
                 mPriorityPolicy.add(e->mPid, true, priority);
                 newActivity->setAppThread(e->mAppRecord);
                 taskmanager->pushNewActivity(targetTask, newActivity, startFlag);
@@ -551,6 +561,7 @@ void ActivityManagerInner::reportActivityStatus(const sp<IBinder>& token, int32_
         }
         case ActivityRecord::DESTROYED: {
             activity->setStatus(ActivityRecord::DESTROYED);
+            activity->executeCallback();
             if (const auto appRecord = activity->getAppRecord()) {
                 bool isSystemUI = appRecord->mIsSystemUI;
                 if (!isSystemUI) {
