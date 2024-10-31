@@ -97,6 +97,13 @@ public:
 
     friend std::ostream& operator<<(std::ostream& os, const ActivityRecord& record);
 
+    void setCallback(std::function<void()> launcher) {
+        mLauncher = launcher;
+    }
+    void executeCallback() {
+        if (mLauncher) mLauncher();
+    }
+
 private:
     void create();
     void start();
@@ -122,6 +129,8 @@ private:
     sp<::os::wm::IWindowManager> mWindowService;
     ITaskManager* mTaskManager;
     TaskBoard* mPendTask;
+
+    std::function<void()> mLauncher;
 };
 
 using ActivityHandler = std::shared_ptr<ActivityRecord>;

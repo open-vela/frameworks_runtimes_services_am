@@ -56,6 +56,9 @@ public:
 
     friend std::ostream& operator<<(std::ostream& os, const TaskStackManager& task);
     std::ostream& print(std::ostream& os) override;
+    void setHomeTask(const ActivityStackHandler& task) override {
+        mHomeTask = task;
+    }
 
 private:
     std::list<ActivityStackHandler> mAllTasks;
