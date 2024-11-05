@@ -22,7 +22,7 @@ if(CONFIG_SYSTEM_ACTIVITY_SERVICE)
                          package_manager window_manager)
 
   # complie options
-  set(CFLAGS -Wno-class-memaccess)
+  set(CFLAGS -Wno-class-memaccess -Wno-array-bounds)
   set(INCDIR ${CURRENT_DIR}/include ${CURRENT_DIR}/../include
              ${CMAKE_CURRENT_BINARY_DIR}/aidl)
   file(GLOB_RECURSE CXXRCS ${CURRENT_DIR}/app/*.cpp ${CURRENT_DIR}/server/*.cpp)
