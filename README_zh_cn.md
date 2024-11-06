@@ -5,11 +5,7 @@ Vela的XMS的系统中的活动管理服务（Activity Manager Service）模块�
 ## 目录
 
 - [特性](#特性)
-- [安装](#安装)
 - [示例](#示例)
-- [贡献](#贡献)
-- [许可证](#许可证)
-- [联系方式](#联系方式)
 
 ## 特性
 
@@ -30,9 +26,6 @@ Vela的XMS的系统中的活动管理服务（Activity Manager Service）模块�
 - 后台任务限制：AMS 实施后台任务和服务的限制，优化系统性能和电池使用。
 
 - 服务和广播管理：AMS 还负责管理服务和广播接收器的生命周期，确保系统的响应性和稳定性。
-
-
-## 安装
 
 ## 示例
 
@@ -58,9 +51,3 @@ Vela的XMS的系统中的活动管理服务（Activity Manager Service）模块�
     am.stopActivity(intent, intent.mFlag);
 
 ```
-
-## 贡献
-
-## 许可证
-
-## 联系方式
