@@ -7,11 +7,7 @@ Activity Manager Service (AMS) module in Vela's XMS system. This module is respo
 ## Table of Contents
 
 - [Features](#features)
-- [Installation](#installation)
 - [Examples](#examples)
-- [Contributions](#contributions)
-- [License](#license)
-- [Contact Information](#contact-information)
 
 ## Features
 
@@ -33,7 +29,6 @@ Activity Manager Service (AMS) module in Vela's XMS system. This module is respo
 
 - **Service and Broadcast Management**: AMS is also responsible for managing the lifecycle of services and broadcast receivers, ensuring system responsiveness and stability.
 
-## Installation
 
 ## Examples
 
@@ -58,9 +53,3 @@ Example code using the Vela Activity Manager Service (AMS) module typically invo
     ActivityManager am;
     am.stopActivity(intent, intent.mFlag);
 ```
-
-## Contributions
-
-## License
-
-## Contact Information
