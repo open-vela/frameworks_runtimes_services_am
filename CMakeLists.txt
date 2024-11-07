@@ -17,7 +17,10 @@
 if(CONFIG_SYSTEM_ACTIVITY_SERVICE)
   set(CURRENT_DIR ${CMAKE_CURRENT_LIST_DIR})
   set(CUR_TARGET activity_manager)
-  nuttx_add_library(${CUR_TARGET} STATIC)
+
+  nuttx_add_prebuilt(BIN_TARGETS activity_manager APP_TARGETS am amTest)
+
+  nuttx_library_ifndef(SKIP_PREBUILT ${CUR_TARGET})
   nuttx_add_dependencies(TARGET ${CUR_TARGET} DEPENDS android_binder
                          package_manager window_manager)
 
@@ -27,9 +30,9 @@ if(CONFIG_SYSTEM_ACTIVITY_SERVICE)
              ${CMAKE_CURRENT_BINARY_DIR}/aidl)
   file(GLOB_RECURSE CXXRCS ${CURRENT_DIR}/app/*.cpp ${CURRENT_DIR}/server/*.cpp)
 
-  target_compile_options(${CUR_TARGET} PRIVATE ${CFLAGS})
-  target_sources(${CUR_TARGET} PRIVATE ${CXXRCS})
-  target_include_directories(${CUR_TARGET} PRIVATE ${INCDIR})
+  nuttx_compile_options(${CFLAGS})
+  nuttx_sources(${CXXRCS})
+  nuttx_include_directories(${INCDIR})
 
   # export header file
   set_property(
