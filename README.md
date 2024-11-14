@@ -1,6 +1,6 @@
 # Project Name
 
-\[ English | [简体中文](READEME_zh_cn.md) \]
+\[ English | [简体中文](README_zh_cn.md) \]
 
 Activity Manager Service (AMS) module in Vela's XMS system. This module is responsible for managing the lifecycle of applications, as well as scheduling tasks and activities.
 
