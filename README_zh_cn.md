@@ -1,5 +1,7 @@
 # 项目名称
 
+\[ [English](README.md) | 简体中文 \]
+
 Vela的XMS的系统中的活动管理服务（Activity Manager Service）模块。该模块负责管理应用的生命周期、任务和活动的调度。
 
 ## 目录
