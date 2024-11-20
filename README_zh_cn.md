@@ -1,8 +1,8 @@
-# 项目名称
+# 活动管理服务
 
 \[ [English](README.md) | 简体中文 \]
 
-Vela的XMS的系统中的活动管理服务（Activity Manager Service）模块。该模块负责管理应用的生命周期、任务和活动的调度。
+openvela 的 XMS 的系统中的活动管理服务（Activity Manager Service）模块。该模块负责管理应用的生命周期、任务和活动的调度。
 
 ## 目录
 
@@ -35,21 +35,20 @@ Vela的XMS的系统中的活动管理服务（Activity Manager Service）模块�
 
 - 启动一个新的活动
 
-```c++
+    ```c++
     Intent intent;
     makeIntent(intent);
     intent.setFlag(intent.mFlag | Intent::FLAG_ACTIVITY_NEW_TASK);
     android::sp<android::IBinder> token = new android::BBinder();
     ActivityManager am;
     am.startActivity(token, intent, -1);
-```
+    ```
 
 - 停止一个新的活动
 
-```c++
+    ```c++
     Intent intent;
     makeIntent(intent);
     ActivityManager am;
     am.stopActivity(intent, intent.mFlag);
-
-```
+    ```
