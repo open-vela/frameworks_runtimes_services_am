@@ -1,8 +1,8 @@
-# Project Name
+# Activity Manager Service
 
 \[ English | [简体中文](README_zh_cn.md) \]
 
-Activity Manager Service (AMS) module in Vela's XMS system. This module is responsible for managing the lifecycle of applications, as well as scheduling tasks and activities.
+Activity Manager Service (AMS) module in openvela's XMS system. This module is responsible for managing the lifecycle of applications, as well as scheduling tasks and activities.
 
 ## Table of Contents
 
@@ -36,20 +36,20 @@ Example code using the Vela Activity Manager Service (AMS) module typically invo
 
 - **Starting a New Activity**
 
-```c++
+    ```c++
     Intent intent;
     makeIntent(intent);
     intent.setFlag(intent.mFlag | Intent::FLAG_ACTIVITY_NEW_TASK);
     android::sp<android::IBinder> token = new android::BBinder();
     ActivityManager am;
     am.startActivity(token, intent, -1);
-```
+    ```
 
 - **Stopping an Activity**
 
-```c++
+    ```c++
     Intent intent;
     makeIntent(intent);
     ActivityManager am;
     am.stopActivity(intent, intent.mFlag);
-```
+    ```
