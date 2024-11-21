@@ -31,7 +31,7 @@ openvela 的 XMS 的系统中的活动管理服务（Activity Manager Service）
 
 ## 示例
 
-使用Vela Activity Manager Service (AMS) 模块的示例代码通常涉及通过 ActivityManager 类进行活动的管理和任务控制。以下是一些常见的示例：
+使用 Openvela Activity Manager Service (AMS) 模块的示例代码通常涉及通过 ActivityManager 类进行活动的管理和任务控制。以下是一些常见的示例：
 
 - 启动一个新的活动
 

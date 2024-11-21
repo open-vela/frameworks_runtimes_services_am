@@ -32,7 +32,7 @@ Activity Manager Service (AMS) module in openvela's XMS system. This module is r
 
 ## Examples
 
-Example code using the Vela Activity Manager Service (AMS) module typically involves managing activities and controlling tasks through the ActivityManager class. Here are some common examples:
+Example code using the Openvela Activity Manager Service (AMS) module typically involves managing activities and controlling tasks through the ActivityManager class. Here are some common examples:
 
 - **Starting a New Activity**
 
