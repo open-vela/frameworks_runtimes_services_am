@@ -37,6 +37,9 @@ static int calculateScore(PidPriorityInfo* pnode, int& levelCnt, ProcessStatus l
     int score = 1000;
 
     if (location == FOREGROUND_PROCESS) {
+        if (pnode->priorityLevel == ProcessPriority::PERSISTENT) {
+            return OS_PERSISTENT_PROC_ADJ;
+        }
         score = pnode->oomScore > OS_FOREGROUND_APP_ADJ ? OS_FOREGROUND_APP_ADJ : pnode->oomScore;
         return score;
     } else if (location == SYSTEM_HOME_PROCESS) {
