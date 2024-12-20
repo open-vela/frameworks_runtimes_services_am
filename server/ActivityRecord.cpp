@@ -176,10 +176,10 @@ void ActivityRecord::create() {
         if (appRecord && appRecord->mStatus != APP_STOPPED) {
             int windowtype = appRecord->mIsSystemUI ? LayoutParams::TYPE_SYSTEM_WINDOW
                                                     : LayoutParams::TYPE_APPLICATION;
-            mWindowService->addWindowToken(mToken, windowtype, 0);
+            const auto pos = mName.find_first_of('/');
+            mWindowService->addWindowToken(mToken, windowtype, 0, mName.substr(0, pos));
             ALOGD("scheduleLaunchActivity: %s", mName.c_str());
             appRecord->addActivity(shared_from_this());
-            const auto pos = mName.find_first_of('/');
             appRecord->mAppThread->scheduleLaunchActivity(mName.substr(pos + 1, std::string::npos),
                                                           mToken, mIntent);
             mNewIntentFlag = false;
