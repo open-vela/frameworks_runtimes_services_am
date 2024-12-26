@@ -26,16 +26,42 @@ using android::IBinder;
 using android::sp;
 using android::binder::Status;
 
+/**
+ * @class ServiceConnection
+ * @brief A class that handles the connection and disconnection events of a service.
+ */
 class ServiceConnection : public BnServiceConnection {
 public:
+    /**
+     * @brief Called when the service is successfully connected.
+     *
+     * @param[in] server The IBinder object representing the service that has been connected.
+     */
     virtual void onConnected(const sp<IBinder>& server) = 0;
+    /**
+     * @brief Called when the service is disconnected.
+     *
+     * @param[in] server The IBinder object representing the service that has been disconnected.
+     */
     virtual void onDisconnected(const sp<IBinder>& server) = 0;
 
 private:
+    /**
+     * @brief Internal method that is invoked when the service is connected.
+     *
+     * @param[in] server The IBinder object representing the connected service.
+     * @return The status of the connection (always returns Status::ok()).
+     */
     Status onServiceConnected(const sp<IBinder>& server) override {
         onConnected(server);
         return Status::ok();
     }
+    /**
+     * @brief Internal method that is invoked when the service is disconnected.
+     *
+     * @param[in] server The IBinder object representing the disconnected service.
+     * @return The status of the disconnection (always returns Status::ok()).
+     */
     Status onServiceDisconnected(const sp<IBinder>& server) override {
         onDisconnected(server);
         return Status::ok();
