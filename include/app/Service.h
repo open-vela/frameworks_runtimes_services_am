@@ -28,25 +28,75 @@ using os::app::IServiceConnection;
 
 class ServiceClientRecord;
 
+/**
+ * @class Service
+ * @brief Base class for implementing a service that runs in the background.
+ */
 class Service : public ContextWrapper {
 public:
+    /**
+     * @brief Constructs a Service object.
+     */
     Service();
+    /**
+     * @brief Default destructor for Service.
+     */
     virtual ~Service() = default;
-
+    /**
+     * @brief Called when the service is created.
+     */
     virtual void onCreate() = 0;
+    /**
+     * @brief Called when the service receives a start command.
+     *
+     * @param[in] intent The intent that started the service.
+     */
     virtual void onStartCommand(const Intent& intent) = 0;
+    /**
+     * @brief Called when the service is destroyed.
+     */
     virtual void onDestroy() = 0;
+    /**
+     * @brief Called when a client binds to the service.
+     *
+     * @param[in] intent The intent used for binding the service.
+     * @return A binder object that clients can use to interact with the service.
+     */
     virtual sp<IBinder> onBind(const Intent& intent);
+    /**
+     * @brief Called when a client unbinds from the service.
+     *
+     * @return Returns true if unbind operation was successful, otherwise `false`.
+     */
     virtual bool onUnbind();
+    /**
+     * @brief Called when an intent is received by the service.
+     *
+     * @param[in] intent The intent that was received.
+     */
     virtual void onReceiveIntent(const Intent& intent){};
 
 private:
     friend class ServiceClientRecord;
+    /**
+     * @brief Binds the service to a client.
+     *
+     * This function is used internally to bind the service to a client connection. It establishes
+     * the communication channel between the service and the client.
+     *
+     * @param[in] intent The Intent object containing information about the bind request.
+     * @param[in] conn The service connection interface to communicate with the client.
+     * @return int A status code indicating the result of the bind operation.
+     */
     int bind(const Intent& intent, const sp<IServiceConnection>& conn);
+    /**
+     * @brief Unbinds the service from the client.
+     */
     void unbind();
 
-    sp<IBinder> mServiceBinder;
-    bool mIsBinded;
+    sp<IBinder>
+            mServiceBinder; /**< The binder object that clients use to interact with the service. */
+    bool mIsBinded;         /**< Flag indicating whether the service is bound to a client */
 };
 
 } // namespace app
