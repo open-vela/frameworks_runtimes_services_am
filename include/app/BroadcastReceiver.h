@@ -21,11 +21,26 @@ namespace app {
 
 using android::binder::Status;
 
+/**
+ * @class BroadcastReceiver
+ * @brief Abstract class for handling broadcast intents.
+ */
 class BroadcastReceiver : public BnBroadcastReceiver {
 public:
+    /**
+     * @brief Called when a broadcast message is received.
+     *
+     * @param[in] intent The broadcast Intent received.
+     */
     virtual void onReceive(const Intent& intent) = 0;
 
 private:
+    /**
+     * @brief Receives the broadcast and forwards it to `onReceive`.
+     *
+     * @param[in] intent The broadcast Intent received.
+     * @return The status of the broadcast reception (always returns Status::ok()).
+     */
     Status receiveBroadcast(const Intent& intent) override {
         onReceive(intent);
         return Status::ok();
