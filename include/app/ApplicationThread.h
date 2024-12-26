@@ -26,19 +26,52 @@
 namespace os {
 namespace app {
 
+/**
+ * @brief A type alias for a function callback that takes a `void*` parameter.
+ */
 using TASK_CALLBACK = std::function<void(void*)>;
 
 class ApplicationThreadStub;
 
+/**
+ * @class ApplicationThread
+ * @brief Represents a thread responsible for running the application's event loop.
+ *
+ * The `ApplicationThread` class extends `UvLoop` and is responsible for executing
+ * the main event loop of the application. It interacts with the `Application` class
+ * and provides a mechanism for managing application tasks in a separate thread.
+ */
 class ApplicationThread : public UvLoop {
 public:
+    /**
+     * @brief Constructor for the ApplicationThread class.
+     *
+     * @param[in] app The application associated with this thread.
+     */
     ApplicationThread(Application* app);
+    /**
+     * @brief Destructor for the ApplicationThread class.
+     */
     ~ApplicationThread();
+    /**
+     * @brief Runs the main loop for the ApplicationThread.
+     *
+     * This function is responsible for starting the event loop and processing tasks.
+     *
+     * @param[in] argc The number of command line arguments.
+     * @param[in] argv The array of command line arguments.
+     * @return An integer status code indicating the result of the main loop execution.
+     */
     int mainRun(int argc, char** argv);
+    /**
+     * @brief Stop the application thread.
+     *
+     * Stops the event loop and halts the execution of the thread.
+     */
     void stop();
 
 private:
-    Application* mApp;
+    Application* mApp; /**< A pointer to the Application instance managed by this thread. */
 };
 
 } // namespace app
