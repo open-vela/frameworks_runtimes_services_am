@@ -228,9 +228,10 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
     }
 
     auto taskmanager = getTaskManager(packageInfo.isSystemUI);
-    ActivityStackHandler apptask = taskmanager->findTask(packageInfo.packageName);
+    ActivityStackHandler apptask;
     /** check activity name */
     if (activityName.empty()) {
+        apptask = taskmanager->findTask(packageInfo.packageName);
         if (!apptask) {
             activityName = packageInfo.entry;
         }
