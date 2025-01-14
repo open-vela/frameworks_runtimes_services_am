@@ -183,7 +183,7 @@ int ApplicationThread::mainRun(int argc, char** argv) {
 Status ApplicationThreadStub::scheduleLaunchActivity(const std::string& activityName,
                                                      const sp<IBinder>& token,
                                                      const Intent& intent) {
-    ALOGD("scheduleLaunchActivity package:%s activity:%s token[%p]", mApp->getPackageName().c_str(),
+    ALOGI("scheduleLaunchActivity package:%s activity:%s token[%p]", mApp->getPackageName().c_str(),
           activityName.c_str(), token.get());
     onLaunchActivity(activityName, token, intent);
     return Status::ok();
@@ -191,7 +191,7 @@ Status ApplicationThreadStub::scheduleLaunchActivity(const std::string& activity
 
 Status ApplicationThreadStub::scheduleStartActivity(const sp<IBinder>& token,
                                                     const std::optional<Intent>& intent) {
-    ALOGD("scheduleStartActivity package:%s token[%p]", mApp->getPackageName().c_str(),
+    ALOGI("scheduleStartActivity package:%s token[%p]", mApp->getPackageName().c_str(),
           token.get());
     onStartActivity(token, intent);
     return Status::ok();
@@ -199,27 +199,27 @@ Status ApplicationThreadStub::scheduleStartActivity(const sp<IBinder>& token,
 
 Status ApplicationThreadStub::scheduleResumeActivity(const sp<IBinder>& token,
                                                      const std::optional<Intent>& intent) {
-    ALOGD("scheduleResumeActivity package:%s token[%p]", mApp->getPackageName().c_str(),
+    ALOGI("scheduleResumeActivity package:%s token[%p]", mApp->getPackageName().c_str(),
           token.get());
     onResumeActivity(token, intent);
     return Status::ok();
 }
 
 Status ApplicationThreadStub::schedulePauseActivity(const sp<IBinder>& token) {
-    ALOGD("schedulePauseActivity package:%s token[%p]", mApp->getPackageName().c_str(),
+    ALOGI("schedulePauseActivity package:%s token[%p]", mApp->getPackageName().c_str(),
           token.get());
     onPauseActivity(token);
     return Status::ok();
 }
 
 Status ApplicationThreadStub::scheduleStopActivity(const sp<IBinder>& token) {
-    ALOGD("scheduleStopActivity package:%s token[%p]", mApp->getPackageName().c_str(), token.get());
+    ALOGI("scheduleStopActivity package:%s token[%p]", mApp->getPackageName().c_str(), token.get());
     onStopActivity(token);
     return Status::ok();
 }
 
 Status ApplicationThreadStub::scheduleDestroyActivity(const sp<IBinder>& token) {
-    ALOGD("scheduleDestroyActivity package:%s token[%p]", mApp->getPackageName().c_str(),
+    ALOGI("scheduleDestroyActivity package:%s token[%p]", mApp->getPackageName().c_str(),
           token.get());
     onDestroyActivity(token);
     return Status::ok();
@@ -244,7 +244,7 @@ Status ApplicationThreadStub::onActivityResult(const sp<IBinder>& token, int32_t
     /** Thinking: postTask causes the Data copy, it's necessary?  [oneway aidl interface]
      *  Do it immediately in here
      * */
-    ALOGD("onActivityResult package:%s token[%p]", mApp->getPackageName().c_str(), token.get());
+    ALOGI("onActivityResult package:%s token[%p]", mApp->getPackageName().c_str(), token.get());
     std::shared_ptr<ActivityClientRecord> activityRecord = mApp->findActivity(token);
     if (activityRecord) {
         activityRecord->onActivityResult(requestCode, resultCode, resultData);
