@@ -32,6 +32,7 @@
 #include "ServiceClientRecord.h"
 #include "app/Application.h"
 #include "app/ContextImpl.h"
+#include "app/Logger.h"
 #include "os/app/BnApplicationThread.h"
 #include "os/app/IApplicationThread.h"
 
