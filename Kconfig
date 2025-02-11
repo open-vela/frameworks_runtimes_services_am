@@ -62,4 +62,13 @@ config ACTIVITY_SERVICE_LOG_WITH_COLOR
 	help
 		Enable log with color
 
+config AMS_REQUEST_TIMEOUT_MS
+	int "Request timeout in milliseconds"
+	default 10000 if !MM_KASAN
+	default 30000 if MM_KASAN
+	help
+		This option defines the request timeout in milliseconds.
+		The default is 10000 ms (10 seconds) when KASAN is not enabled,
+		and 30000 ms (30 seconds) when KASAN is enabled.
+
 endif
