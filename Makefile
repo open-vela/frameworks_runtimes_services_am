@@ -37,6 +37,7 @@ endif
 
 ifneq ($(CONFIG_AM_TEST),)
 CXXFLAGS += ${INCDIR_PREFIX}$(APPDIR)/external/googletest/googletest/googletest/include
+CXXFLAGS += ${INCDIR_PREFIX}server ${INCDIR_PREFIX}../server
 PROGNAME += amTest
 PRIORITY  = SCHED_PRIORITY_DEFAULT
 STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
