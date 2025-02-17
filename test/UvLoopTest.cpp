@@ -21,6 +21,9 @@
 
 #include <thread>
 
+#include "IntentTest.cpp"
+#include "ProcessPriorityPolicyTest.cpp"
+
 using namespace os::app;
 
 namespace test {
