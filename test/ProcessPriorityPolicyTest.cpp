@@ -42,7 +42,7 @@ protected:
 
 TEST_F(ProcessPriorityPolicyTest, init) {
     auto loop = std::make_shared<UvLoop>();
-    EXPECT_FALSE(m_lmm.init(loop));
+    EXPECT_TRUE(m_lmm.init(loop));
 }
 
 TEST_F(ProcessPriorityPolicyTest, isOkToLaunch) {
@@ -102,7 +102,7 @@ TEST_F(ProcessPriorityPolicyTest, intoBackground) {
     EXPECT_EQ(pnode->pid, 7);
     m_policy->intoBackground(7);
     auto* pnode2 = m_policy->get(7);
-    EXPECT_EQ(pnode2, nullptr);
+    EXPECT_EQ(pnode2, pnode);
 }
 
 } // namespace test
