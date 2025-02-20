@@ -69,18 +69,17 @@ TEST_F(IntentTest, TestReadFromParcel) {
     std::string target("com.example.Target");
     std::string action("com.example.action.TEST");
     std::string data("content://testdata");
-    uint32_t flag = 0x1234;
-
-    PersistableBundle extraBundle;
-
-    // 写入数据到 Parcel
-    parcel.writeUtf8AsUtf16(target);
-    parcel.writeUtf8AsUtf16(action);
-    parcel.writeUtf8AsUtf16(data);
-    parcel.writeUint32(flag);
-    extraBundle.writeToParcel(&parcel); // 假设 PersistableBundle 有这个方法
+    uint32_t flag = 1;
+    os::app::Intent tmp;
+    tmp.setTarget(target);
+    tmp.setAction(action);
+    tmp.setData(data);
+    tmp.setFlag(flag);
+    tmp.writeToParcel(&parcel);
 
     // 创建 Intent 对象并调用 readFromParcel
+    // 重置数据指针到开始位置（为了读取数据）
+    parcel.setDataPosition(0);
     status_t result = intent.readFromParcel(&parcel);
 
     // 验证返回值是否是 OK
