@@ -23,6 +23,18 @@
  * #define APPLICATION MyApplication
  * #include <app/AppMain.h>
  */
+
+/**
+ * @brief The entry point for the application.
+ *
+ * This function initializes the application and runs the main event loop
+ * using the ApplicationThread class. It processes command line arguments
+ * and starts the application thread to handle the main loop.
+ *
+ * @param[in] argc The number of command line arguments.
+ * @param[in] argv The array of command line arguments.
+ * @return An integer status code, where 0 indicates successful execution.
+ */
 extern "C" int main(int argc, char **argv) {
     APPLICATION app;
     os::app::ApplicationThread appThread(&app);

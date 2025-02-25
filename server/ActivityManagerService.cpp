@@ -228,9 +228,10 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
     }
 
     auto taskmanager = getTaskManager(packageInfo.isSystemUI);
-    ActivityStackHandler apptask = taskmanager->findTask(packageInfo.packageName);
+    ActivityStackHandler apptask;
     /** check activity name */
     if (activityName.empty()) {
+        apptask = taskmanager->findTask(packageInfo.packageName);
         if (!apptask) {
             activityName = packageInfo.entry;
         }
@@ -344,6 +345,7 @@ int ActivityManagerInner::startActivityReal(ITaskManager* taskmanager, const str
         const auto appInfo = mAppInfo.findAppInfoWithAlive(packageInfo.packageName);
         if (appInfo) {
             newActivity->setAppThread(appInfo);
+            if (is_home_task) taskmanager->setHomeTask(targetTask);
             taskmanager->pushNewActivity(targetTask, newActivity, startFlag);
         } else {
             // Check the system environment is adequate for starting the application
@@ -358,6 +360,7 @@ int ActivityManagerInner::startActivityReal(ITaskManager* taskmanager, const str
                                is_home_task](const AppAttachTask::Event* e) {
                 mPriorityPolicy.add(e->mPid, true, priority);
                 newActivity->setAppThread(e->mAppRecord);
+                if (is_home_task) taskmanager->setHomeTask(targetTask);
                 taskmanager->pushNewActivity(targetTask, newActivity, startFlag);
             };
             if (submitAppStartupTask(packageInfo.packageName, packageInfo.packageName,
@@ -1024,6 +1027,7 @@ void ActivityManagerInner::systemReady() {
     broadcastIntent(intent, IntentAction::COMP_TYPE_ACTIVITY);
 
     if (startBootGuide() == false) {
+        ALOGI("startBootGuide failed, startHomeActivity");
         startHomeActivity();
     }
 

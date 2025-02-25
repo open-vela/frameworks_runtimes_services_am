@@ -85,7 +85,7 @@ bool TaskStackManager::moveTaskToBackground(const ActivityStackHandler& targetSt
         auto topActivity = targetStack->getTopActivity();
         topActivity->lifecycleTransition(ActivityRecord::PAUSED);
         targetStack->setForeground(false);
-        mAllTasks.pop_front();
+        // mAllTasks.pop_front();
         activeTask = getActiveTask();
         if (activeTask) {
             auto nextActivity = activeTask->getTopActivity();
@@ -98,25 +98,7 @@ bool TaskStackManager::moveTaskToBackground(const ActivityStackHandler& targetSt
         }
     }
 
-    // If it's above HomeTask, move it below HomeTask, otherwise no need to move it
-    for (auto iter = mAllTasks.begin(); iter != mAllTasks.end();) {
-        if (*iter == targetStack) {
-            isBeforeHomeTask = true;
-            auto tmp = iter;
-            ++iter;
-            mAllTasks.erase(tmp);
-        } else {
-            if (*iter == mHomeTask) {
-                if (isBeforeHomeTask) {
-                    mAllTasks.insert(++iter, targetStack);
-                }
-                return true;
-            }
-            ++iter;
-        }
-    }
-
-    return false;
+    return isBeforeHomeTask;
 }
 
 void TaskStackManager::pushNewActivity(const ActivityStackHandler& targetStack,
@@ -128,8 +110,6 @@ void TaskStackManager::pushNewActivity(const ActivityStackHandler& targetStack,
     if (activeTask) {
         lastTopActivity = activeTask->getTopActivity();
         lastTopActivity->lifecycleTransition(ActivityRecord::PAUSED);
-    } else {
-        mHomeTask = targetStack;
     }
 
     if (startFlag & Intent::FLAG_ACTIVITY_CLEAR_TASK) {
