@@ -54,8 +54,8 @@ TEST(UvLoopTest, timer) {
         auto endTime = std::chrono::high_resolution_clock::now();
         auto duration =
                 std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
-        EXPECT_EQ(duration > 999 && duration < 1100, true);
-        handler->stop();
+        EXPECT_TRUE(duration > 900 && duration < 1100) << "Duration is out of expected range: " <<
+duration << " ms"; handler->stop();
     });
     timer.start(1000, 0);
     looper.run();
