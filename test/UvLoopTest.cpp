@@ -15,6 +15,7 @@
  */
 
 #include <app/UvLoop.h>
+#include <binder/ProcessState.h>
 #include <gtest/gtest.h>
 #include <mqueue.h>
 #include <unistd.h>
@@ -130,6 +131,7 @@ TEST(UvLoop, poll_mqueue) {
 }
 
 extern "C" int main(int argc, char** argv) {
+    android::ProcessState::self()->startThreadPool();
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }
