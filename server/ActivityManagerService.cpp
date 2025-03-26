@@ -1143,6 +1143,12 @@ int ActivityManagerInner::submitAppStartupTask(const string& packageName,
         pid = mAppSpawn.appSpawn(execfile.c_str(), {packageName});
         if (pid > 0) {
             mAppInfo.addAppWaitingAttach(prcocessName, pid);
+            /* 由于appSpawn 是异步的，所以需要等待attach成功后再执行task
+               考虑到时序问题，譬如，用户在调用bindService和调用attachApplication之间，继续调用bindService,
+               那么就会导致同一个service被create多次。
+               这里保证每个应用只会有一个attach任务,避免由于时序问题导致的多次service/activity的create
+            */
+            mPendTask.commitTask(std::make_shared<AppAttachTask>(pid, task));
         } else {
             ALOGE("appSpawn App:%s error", execfile.c_str());
             AM_PROFILER_END();
@@ -1155,8 +1161,10 @@ int ActivityManagerInner::submitAppStartupTask(const string& packageName,
         AM_PROFILER_END();
         return -1;
     }
+    ALOGW("the Application:%s[%d] is waitting for attach, please wait a moment before "
+          "requesting again",
+          packageName.c_str(), pid);
 
-    mPendTask.commitTask(std::make_shared<AppAttachTask>(pid, task));
     AM_PROFILER_END();
     return 0;
 }
