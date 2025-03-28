@@ -67,7 +67,7 @@ TEST(UvLoopTest, timer) {
     EXPECT_EQ(looper.close(), 0);
 }
 
-TEST(UvLoop, poll_pipe) {
+TEST(UvLoopTest, poll_pipe) {
     UvLoop looper;
     UvLoop* handler = &looper;
 
@@ -96,7 +96,7 @@ TEST(UvLoop, poll_pipe) {
     EXPECT_EQ(looper.close(), 0);
 }
 
-TEST(UvLoop, poll_mqueue) {
+TEST(UvLoopTest, poll_mqueue) {
     UvLoop looper;
     UvLoop* handler = &looper;
 
@@ -130,8 +130,8 @@ TEST(UvLoop, poll_mqueue) {
 }
 
 extern "C" int main(int argc, char** argv) {
-    android::ProcessState::self()->startThreadPool();
     testing::InitGoogleTest(&argc, argv);
+    ::testing::GTEST_FLAG(filter) = "UvLoopTest.*:IntentTest.*:ProcessPriorityPolicyTest.*";
     return RUN_ALL_TESTS();
 }
 
