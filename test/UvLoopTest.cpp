@@ -91,6 +91,7 @@ TEST(UvLoopTest, poll_pipe) {
     pollfd.close();
     while (looper.isAlive()) {
         looper.run(UV_RUN_NOWAIT);
+        usleep(1);
     }
     EXPECT_EQ(looper.isAlive(), false);
     EXPECT_EQ(looper.close(), 0);
@@ -126,7 +127,12 @@ TEST(UvLoopTest, poll_mqueue) {
     EXPECT_EQ(mq_send(fd, (const char*)&num, sizeof(int), 1), 0);
     looper.run();
     pollfd.close();
-    looper.close();
+    while (looper.isAlive()) {
+        looper.run(UV_RUN_NOWAIT);
+        usleep(1);
+    }
+    EXPECT_EQ(looper.isAlive(), false);
+    EXPECT_EQ(looper.close(), 0);
 }
 
 extern "C" int main(int argc, char** argv) {
