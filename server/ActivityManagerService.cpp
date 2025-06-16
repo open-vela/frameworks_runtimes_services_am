@@ -237,6 +237,18 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
         }
     }
     if (apptask) {
+#ifdef CONFIG_MM_KASAN
+        if (auto activity = apptask->getTopActivity(); activity) {
+            auto appRecord = activity->getAppRecord();
+            if (appRecord && appRecord->mStatus != AppStatus::APP_RUNNING) {
+                ALOGW("The application:%s is stoppping, can not restart it, stop it again",
+                      appRecord->mPackageName.c_str());
+                appRecord->stopApplication();
+                AM_PROFILER_END();
+                return android::BAD_VALUE;
+            }
+        }
+#endif
         taskmanager->switchTaskToActive(apptask, intent);
     } else {
         ret = startActivityReal(taskmanager, activityName, packageInfo, intent, caller,
