@@ -376,7 +376,9 @@ void ActivityLifeCycleTask::timeout() {
     ALOGE("wait Activity %s[%s] reporting timeout!", mActivity->getName().c_str(),
           mActivity->getStatusStr());
     mActivity->abnormalExit();
+#ifndef CONFIG_MM_KASAN
     mTaskManager->deleteActivity(mActivity);
+#endif
 }
 
 } // namespace am
