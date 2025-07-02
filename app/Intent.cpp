@@ -17,6 +17,7 @@
 #include "app/Intent.h"
 
 #include "ParcelUtils.h"
+#include "app/Logger.h"
 
 namespace os {
 namespace app {
@@ -68,6 +69,14 @@ status_t Intent::readFromParcel(const Parcel* parcel) {
     SAFE_PARCEL(parcel->readUtf8FromUtf16, &mData);
     SAFE_PARCEL(parcel->readUint32, &mFlag);
     SAFE_PARCEL(mExtra.readFromParcel, parcel);
+    uint32_t maxValue = NO_FLAG | FLAG_ACTIVITY_NEW_TASK | FLAG_ACTIVITY_SINGLE_TOP |
+            FLAG_ACTIVITY_CLEAR_TOP | FLAG_ACTIVITY_CLEAR_TASK | FLAG_APP_SWITCH_TASK |
+            FLAG_APP_MOVE_BACK;
+    if (mFlag > maxValue) {
+        // Check if the flags are valid
+        ALOGE("Intent::readFromParcel: Invalid flags set");
+        assert(false);
+    }
     return android::OK;
 }
 
@@ -77,6 +86,15 @@ status_t Intent::writeToParcel(Parcel* parcel) const {
     SAFE_PARCEL(parcel->writeUtf8AsUtf16, mData);
     SAFE_PARCEL(parcel->writeUint32, mFlag);
     SAFE_PARCEL(mExtra.writeToParcel, parcel);
+    uint32_t maxValue = NO_FLAG | FLAG_ACTIVITY_NEW_TASK | FLAG_ACTIVITY_SINGLE_TOP |
+            FLAG_ACTIVITY_CLEAR_TOP | FLAG_ACTIVITY_CLEAR_TASK | FLAG_APP_SWITCH_TASK |
+            FLAG_APP_MOVE_BACK;
+    if (mFlag > maxValue) {
+        // Check if the flags are valid
+        ALOGE("Intent::writeToParcel: Invalid flags set");
+        assert(false);
+    }
+
     return android::OK;
 }
 
