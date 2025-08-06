@@ -286,5 +286,24 @@ void ActivityManager::unregisterReceiver(const sp<IBroadcastReceiver>& receiver)
     }
 }
 
+int32_t ActivityManager::clearApplication(int32_t pid) {
+#ifdef CONFIG_SYSTEM_SERVER_LITE
+    AM_PROFILER_BEGIN();
+    sp<IActivityManager> service = getService();
+    int32_t ret = android::FAILED_TRANSACTION;
+    if (service != nullptr) {
+        Status status = service->clearApplication(pid, &ret);
+        if (!status.isOk()) {
+            ALOGE("clearApplication error:%s", status.toString8().c_str());
+        }
+    }
+    AM_PROFILER_END();
+    return ret;
+#else
+    ALOGE("clearApplication is not supported in this build");
+    return -1;
+#endif
+}
+
 } // namespace app
 } // namespace os

@@ -128,4 +128,9 @@ interface IActivityManager {
      * @brief unregisterReceiver
      */
     void unregisterReceiver(in IBroadcastReceiver receiver);
+
+    /**
+     * @brief clearApplication
+     */
+    int clearApplication(int pid);
 }

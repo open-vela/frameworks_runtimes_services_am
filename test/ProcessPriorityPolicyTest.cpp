@@ -42,7 +42,7 @@ protected:
 
 TEST_F(ProcessPriorityPolicyTest, init) {
     auto loop = std::make_shared<UvLoop>();
-    EXPECT_TRUE(m_lmm.init(loop));
+    EXPECT_TRUE(m_lmm.init(loop.get()));
 }
 
 TEST_F(ProcessPriorityPolicyTest, isOkToLaunch) {

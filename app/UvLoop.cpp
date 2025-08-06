@@ -16,31 +16,38 @@
 
 #include "app/UvLoop.h"
 
+#include <cassert>
+
 #include "app/Logger.h"
 
 namespace os {
 namespace app {
 
 /** Should't use the uv_default_loop() in nuttx if the Memory not isolated */
-UvLoop::UvLoop(bool useDefault)
-      : mIsDefaultLoop(useDefault),
-        mLooper(useDefault ? uv_default_loop() : new uv_loop_t,
-                [this](uv_loop_t* loop) { this->destroy(loop); }) {
-    if (!mIsDefaultLoop) {
-        if (uv_loop_init(mLooper.get()) != 0) {
+UvLoop::UvLoop(bool useDefault) : mIsDefaultLoop(useDefault), mLooper(new uv_loop_t) {
+    if (mIsDefaultLoop) {
+        if (uv_loop_init(mLooper) != 0) {
             ALOGE("UvLoop init failure");
             assert(0);
         }
     }
-    mMsgHandler.attachLoop(this->get());
+    mMsgHandler.attachLoop(mLooper);
 }
 
-UvLoop::UvLoop(uv_loop_t* loop) : mIsDefaultLoop(false), mLooper(loop, [](uv_loop_t*) {}) {
+UvLoop::UvLoop(uv_loop_t* loop) : mIsDefaultLoop(false), mLooper(loop) {
     mMsgHandler.attachLoop(loop);
 }
 
+UvLoop::~UvLoop() {
+    mMsgHandler.close();
+    if (mIsDefaultLoop) {
+        destroy(mLooper);
+        mLooper = nullptr;
+    }
+}
+
 uv_loop_t* UvLoop::get() const {
-    return mLooper.get();
+    return mLooper;
 }
 
 int UvLoop::postDelayTask(const UV_CALLBACK& cb, uint64_t timeout, void* data) {
@@ -57,15 +64,22 @@ int UvLoop::postDelayTask(const UV_CALLBACK& cb, uint64_t timeout, void* data) {
 }
 
 int UvLoop::run(uv_run_mode mode) {
-    return uv_run(mLooper.get(), mode);
+    return uv_run(mLooper, mode);
 }
 
 bool UvLoop::isAlive() {
-    return uv_loop_alive(mLooper.get()) != 0;
+    return uv_loop_alive(mLooper) != 0;
+}
+
+void UvLoop::destroy(uv_loop_t* loop) const {
+    if (loop) {
+        uv_loop_close(loop);
+        delete loop;
+    }
 }
 
 int UvLoop::close() {
-    const int ret = uv_loop_close(mLooper.get());
+    const int ret = uv_loop_close(mLooper);
     if (ret) {
         ALOGW("Uvloop close error: loop is busy");
     } else {
@@ -76,7 +90,7 @@ int UvLoop::close() {
 
 void UvLoop::stop() {
     mMsgHandler.close();
-    uv_stop(mLooper.get());
+    uv_stop(mLooper);
 }
 
 void UvLoop::printAllHandles() {
@@ -85,7 +99,7 @@ void UvLoop::printAllHandles() {
     fp = fopen("/dev/log", "wb");
 #endif
     fp = fp ? fp : stderr;
-    uv_print_all_handles(mLooper.get(), fp);
+    uv_print_all_handles(mLooper, fp);
     if (fp != stderr) {
         fclose(fp);
     }

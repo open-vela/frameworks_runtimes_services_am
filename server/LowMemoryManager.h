@@ -33,7 +33,7 @@ public:
     using LMKExectorCB = std::function<void(pid_t)>;
     LowMemoryManager() = default;
 
-    bool init(const std::shared_ptr<os::app::UvLoop>& looper);
+    bool init(os::app::UvLoop* looper);
     bool isOkToLaunch();
     void setPrepareLMKCallback(const PrepareLMKCB& callback);
     void setLMKExecutor(const LMKExectorCB& lmkExectorFunc);
@@ -44,8 +44,8 @@ public:
 
 private:
     const static int MAX_ADJUST_NUM = 5;
-    unsigned int mMinMemoryThreshold; // Minimum memory value to support system operation
-    std::shared_ptr<os::app::UvLoop> mLooper;
+    unsigned int mMinMemoryThreshold{}; // Minimum memory value to support system operation
+    os::app::UvLoop* mLooper{};
     std::unordered_map<pid_t, int> mPidOomScore;
     PrepareLMKCB mPrepareCallback;
     LMKExectorCB mExectorCallback;

@@ -211,6 +211,12 @@ public:
      */
     Status unregisterReceiver(const sp<IBroadcastReceiver>& receiver) override;
     /**
+     * @brief clear xms single app resource.
+     *
+     * @return True if the app clear success, false otherwise.
+     */
+    Status clearApplication(int32_t pid, int32_t* ret) override;
+    /**
      * @brief Dumps the current state of the ActivityManagerService.
      *
      * @param[in] fd The file descriptor to write the dump to.

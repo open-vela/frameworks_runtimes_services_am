@@ -38,7 +38,7 @@ const static std::string lmkcfg = "/etc/lmk.cfg";
 // The configuration "/data/lmk.cfg" is easy to modify for test
 const static std::string lmkcfg_debug = "/data/lmk.cfg";
 
-bool LowMemoryManager::init(const std::shared_ptr<os::app::UvLoop>& looper) {
+bool LowMemoryManager::init(os::app::UvLoop* looper) {
     mLooper = looper;
     memset(mOomScoreThreshold, 0, sizeof(mOomScoreThreshold));
 

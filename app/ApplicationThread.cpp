@@ -25,6 +25,10 @@
 #include <unistd.h>
 #include <uv.h>
 
+#ifdef CONFIG_SYSTEM_SERVER_LITE
+#include "app/ActivityManagerServiceLoop.h"
+#endif
+
 #include <mutex>
 
 #include "ActivityClientRecord.h"
@@ -52,6 +56,15 @@ public:
     void bind(Application* app) {
         mApp = app;
     }
+
+#ifdef CONFIG_SYSTEM_SERVER_LITE
+    void bind(ApplicationThread* appThread) {
+        mAppThread = appThread;
+    }
+    void bind(int pid) {
+        mPid = pid;
+    }
+#endif
 
     Status scheduleLaunchActivity(const string& activityName, const sp<IBinder>& token,
                                   const Intent& intent);
@@ -90,15 +103,26 @@ private:
                        const sp<IServiceConnection>& serviceBinder);
     void onUnbindService(const sp<IBinder>& token);
 
+    void deleteApplicationThread();
+
 private:
     Application* mApp;
+#ifdef CONFIG_SYSTEM_SERVER_LITE
+    ApplicationThread* mAppThread{nullptr}; // For ApplicationThread
+    int mPid{0};                            // For ApplicationThread
+#endif
 };
 
 /**
  * ApplicationThread: Application's main thread
  */
-ApplicationThread::ApplicationThread(Application* app) : mApp(app) {
-    mApp->setMainLoop(this);
+ApplicationThread::ApplicationThread(Application* app)
+      :
+#ifdef CONFIG_SYSTEM_SERVER_LITE
+        mLoop(xms_loop),
+#endif
+        mApp(app) {
+    mApp->setMainLoop(&mLoop);
 }
 
 ApplicationThread::~ApplicationThread() {}
@@ -107,24 +131,40 @@ void ApplicationThread::stop() {
     ALOGD("ApplicationThread::stop");
     mApp->clearActivityAndService();
     // delay a while for receive msg from Server and other task.
-    postDelayTask([this](void*) { UvLoop::stop(); }, 100);
+    mLoop.postDelayTask([this](void*) { mLoop.stop(); }, 100);
 }
 
+#ifndef CONFIG_SYSTEM_SERVER_LITE
 static void signalHandler(uv_signal_t* handle, int signum) {
     ALOGW("warning: receive signal:%d", signum);
     ApplicationThread* appThread = static_cast<ApplicationThread*>(handle->data);
     appThread->stop();
 }
+#endif
 
-int ApplicationThread::mainRun(int argc, char** argv) {
+int ApplicationThread::start(int argc, char** argv) {
     if (argc < 2) {
         ALOGE("illegally launch Application!!!");
         return -1;
     }
     ALOGI("start Application:%s execfile:%s", argv[1], argv[0]);
+#ifdef CONFIG_SYSTEM_SERVER_LITE
+    android::sp<ApplicationThreadStub> appThread(new ApplicationThreadStub);
+    mApp->setPackageName(argv[1]);
+    mApp->onCreate(); /** Application create here */
+    appThread->bind(mApp);
+    mAppThreadStub = appThread;
+    appThread->bind(this);
+    appThread->bind(xms_pid);
 
+    ActivityManager am;
+    if (0 != am.attachApplication(appThread)) {
+        ALOGE("ApplicationThread attach failure");
+        return -3;
+    }
+#else
     uv_signal_t sigterm;
-    uv_signal_init(get(), &sigterm);
+    uv_signal_init(mLoop.get(), &sigterm);
     sigterm.data = this;
     uv_signal_start(&sigterm, signalHandler, SIGTERM);
 
@@ -134,7 +174,7 @@ int ApplicationThread::mainRun(int argc, char** argv) {
         ALOGE("failed to open binder device:%d", errno);
         return -2;
     }
-    UvPoll pollBinder(get(), binderFd);
+    UvPoll pollBinder(mLoop.get(), binderFd);
     pollBinder.start(UV_READABLE, [](int fd, int status, int events, void* data) {
         android::IPCThreadState::self()->handlePolledCommands();
     });
@@ -143,6 +183,7 @@ int ApplicationThread::mainRun(int argc, char** argv) {
     mApp->setPackageName(argv[1]);
     mApp->onCreate(); /** Application create here */
     appThread->bind(mApp);
+    mAppThreadStub = appThread;
 
     ActivityManager am;
     if (0 != am.attachApplication(appThread)) {
@@ -150,34 +191,34 @@ int ApplicationThread::mainRun(int argc, char** argv) {
         return -3;
     }
 
-    run();
+    mLoop.run();
     pollBinder.close();
     uv_close((uv_handle_t*)&sigterm, NULL);
     // run twice to clear uv handler
-    run(UV_RUN_NOWAIT);
-    run(UV_RUN_NOWAIT);
+    mLoop.run(UV_RUN_NOWAIT);
+    mLoop.run(UV_RUN_NOWAIT);
     // then destory app
     mApp->onDestroy(); /** Application destroy here */
 
     // set uv close flag
-    if (close() != 0) {
+    if (mLoop.close() != 0) {
         int tryCloseCnt = 50;
 #ifdef CONFIG_MM_KASAN
         tryCloseCnt = 200;
 #endif
-        while (isAlive() && --tryCloseCnt) {
+        while (mLoop.isAlive() && --tryCloseCnt) {
             usleep(300000);
-            run(UV_RUN_NOWAIT);
+            mLoop.run(UV_RUN_NOWAIT);
             ALOGW("uv loop run once, perform unfinished tasks");
         }
-        if (close() != 0) {
+        if (mLoop.close() != 0) {
             ALOGE("uv loop can't close properly, there's a memory leak!!!");
-            printAllHandles();
+            mLoop.printAllHandles();
             assert(0);
         }
     }
     ALOGW("Application[%s]:%s has been stopped!!!", argv[0], argv[1]);
-
+#endif
     return 0;
 }
 
@@ -296,14 +337,7 @@ Status ApplicationThreadStub::setForegroundApplication(bool isForeground) {
 
 Status ApplicationThreadStub::terminateApplication() {
     ALOGW("terminateApplication package:%s", mApp->getPackageName().c_str());
-    // delay clear activity for lifecycle changes
-    mApp->getMainLoop()->postDelayTask(
-            [this](void*) {
-                mApp->clearActivityAndService();
-                ALOGW("ApplicationThread stop");
-                mApp->getMainLoop()->stop();
-            },
-            300);
+    deleteApplicationThread();
     return Status::ok();
 }
 
@@ -319,9 +353,15 @@ int ApplicationThreadStub::onLaunchActivity(const std::string& activityName,
         auto activityRecord = std::make_shared<ActivityClientRecord>(activityName, activity);
         if (activityRecord->onCreate(intent) == 0) {
             mApp->addActivity(token, activityRecord);
+            mApp->getMainLoop()->postTask([this, activityRecord]() {
+                activityRecord->reportActivityStatus(ActivityClientRecord::CREATED);
+            });
         } else {
             ALOGE("Activity %s/%s create failure", mApp->getPackageName().c_str(),
                   activityName.c_str());
+            mApp->getMainLoop()->postTask([activityRecord]() {
+                activityRecord->reportActivityStatus(ActivityClientRecord::ERROR);
+            });
             ret = -1;
         }
     } else {
@@ -338,6 +378,9 @@ int ApplicationThreadStub::onStartActivity(const sp<IBinder>& token,
     std::shared_ptr<ActivityClientRecord> activityRecord = mApp->findActivity(token);
     if (activityRecord != nullptr) {
         activityRecord->onStart(intent);
+        mApp->getMainLoop()->postTask([activityRecord]() {
+            activityRecord->reportActivityStatus(ActivityClientRecord::STARTED);
+        });
         AM_PROFILER_END();
         return 0;
     }
@@ -351,6 +394,9 @@ int ApplicationThreadStub::onResumeActivity(const sp<IBinder>& token,
     std::shared_ptr<ActivityClientRecord> activityRecord = mApp->findActivity(token);
     if (activityRecord != nullptr) {
         activityRecord->onResume(intent);
+        mApp->getMainLoop()->postTask([activityRecord]() {
+            activityRecord->reportActivityStatus(ActivityClientRecord::RESUMED);
+        });
         AM_PROFILER_END();
         return 0;
     }
@@ -363,6 +409,9 @@ int ApplicationThreadStub::onPauseActivity(const sp<IBinder>& token) {
     std::shared_ptr<ActivityClientRecord> activityRecord = mApp->findActivity(token);
     if (activityRecord != nullptr) {
         activityRecord->onPause();
+        mApp->getMainLoop()->postTask([activityRecord]() {
+            activityRecord->reportActivityStatus(ActivityClientRecord::PAUSED);
+        });
         AM_PROFILER_END();
         return 0;
     }
@@ -375,6 +424,9 @@ int ApplicationThreadStub::onStopActivity(const sp<IBinder>& token) {
     std::shared_ptr<ActivityClientRecord> activityRecord = mApp->findActivity(token);
     if (activityRecord != nullptr) {
         activityRecord->onStop();
+        mApp->getMainLoop()->postTask([activityRecord]() {
+            activityRecord->reportActivityStatus(ActivityClientRecord::STOPPED);
+        });
         AM_PROFILER_END();
         return 0;
     }
@@ -388,6 +440,9 @@ int ApplicationThreadStub::onDestroyActivity(const sp<IBinder>& token) {
     if (activityRecord != nullptr) {
         activityRecord->onDestroy();
         mApp->deleteActivity(token);
+        mApp->getMainLoop()->postTask([activityRecord]() {
+            activityRecord->reportActivityStatus(ActivityClientRecord::DESTROYED);
+        });
         AM_PROFILER_END();
         return 0;
     }
@@ -459,6 +514,25 @@ void ApplicationThreadStub::onUnbindService(const sp<IBinder>& token) {
     }
     AM_PROFILER_END();
     return;
+}
+
+void ApplicationThreadStub::deleteApplicationThread() {
+    mApp->getMainLoop()->postDelayTask(
+            [this](void*) {
+                mApp->clearActivityAndService();
+                ALOGW("ApplicationThread stop");
+#ifdef CONFIG_SYSTEM_SERVER_LITE
+                // delete this object
+                ALOGI("ApplicationThreadStub delete itself");
+                mApp->onDestroy(); /** Application destroy here */
+                ActivityManager am;
+                am.clearApplication(mPid);
+                delete mAppThread;
+#else
+                mApp->getMainLoop()->stop();
+#endif
+            },
+            300);
 }
 
 } // namespace app

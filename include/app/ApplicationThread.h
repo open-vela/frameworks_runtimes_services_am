@@ -41,7 +41,7 @@ class ApplicationThreadStub;
  * the main event loop of the application. It interacts with the `Application` class
  * and provides a mechanism for managing application tasks in a separate thread.
  */
-class ApplicationThread : public UvLoop {
+class ApplicationThread {
 public:
     /**
      * @brief Constructor for the ApplicationThread class.
@@ -62,7 +62,7 @@ public:
      * @param[in] argv The array of command line arguments.
      * @return An integer status code indicating the result of the main loop execution.
      */
-    int mainRun(int argc, char** argv);
+    int start(int argc, char** argv);
     /**
      * @brief Stop the application thread.
      *
@@ -71,7 +71,10 @@ public:
     void stop();
 
 private:
-    Application* mApp; /**< A pointer to the Application instance managed by this thread. */
+    UvLoop mLoop; /**< A pointer to the event loop associated with this thread. */
+    android::sp<ApplicationThreadStub>
+            mAppThreadStub; /**< A pointer to the ApplicationThreadStub instance. */
+    Application* mApp;      /**< A pointer to the Application instance managed by this thread. */
 };
 
 } // namespace app

@@ -39,6 +39,17 @@
 #include "app/Logger.h"
 #include "app/UvLoop.h"
 
+#ifdef CONFIG_SYSTEM_SERVER_LITE
+#include <nuttx/lib/builtin.h>
+
+#include "app/ActivityManagerServiceLoop.h"
+#endif
+
+#ifdef CONFIG_SYSTEM_SERVER_LITE
+int os::app::xms_pid = 0;
+uv_loop_t* os::app::xms_loop = nullptr;
+#endif
+
 namespace os {
 namespace am {
 
@@ -65,7 +76,6 @@ static const string VSERVICE_EXEC_NAME = "vservice";
 
 static void getPackageAndComponentName(const string& target, string& packageName,
                                        string& componentName);
-
 class ActivityManagerInner {
 public:
     enum RunMode {
@@ -98,6 +108,7 @@ public:
     int32_t sendBroadcast(const Intent& intent);
     int32_t registerReceiver(const std::string& action, const sp<IBroadcastReceiver>& receiver);
     void unregisterReceiver(const sp<IBroadcastReceiver>& receiver);
+    int32_t clearApplication(int32_t pid);
 
     void dump(int fd, const android::Vector<android::String16>& args);
 
@@ -135,7 +146,7 @@ private:
 
 private:
     int mRunMode;
-    std::shared_ptr<UvLoop> mLooper;
+    UvLoop mLooper;
     std::map<sp<IBinder>, ActivityHandler> mActivityMap;
     TaskBoard mPendTask;
     ServiceList mServices;
@@ -147,10 +158,17 @@ private:
     map<string, list<sp<IBroadcastReceiver>>> mReceivers; /** Broadcast */
     LowMemoryManager mLmk;
     ProcessPriorityPolicy mPriorityPolicy;
+#ifndef CONFIG_SYSTEM_SERVER_LITE
     AppSpawn mAppSpawn;
+#endif
 };
 
-ActivityManagerInner::ActivityManagerInner(uv_loop_t* looper) : mPriorityPolicy(&mLmk) {
+ActivityManagerInner::ActivityManagerInner(uv_loop_t* looper)
+      : mLooper(looper), mPriorityPolicy(&mLmk) {
+    AM_PROFILER_BEGIN();
+#ifdef CONFIG_SYSTEM_SERVER_LITE
+    xms_loop = looper;
+#endif
     mRunMode = NORMAL_MODE;
     if (std::filesystem::exists(AMS_RUNMODE_FILE)) {
         std::ifstream file;
@@ -163,9 +181,9 @@ ActivityManagerInner::ActivityManagerInner(uv_loop_t* looper) : mPriorityPolicy(
     }
     mPendTask.setDebugMode(mRunMode == DEBUG_MODE);
     mTaskManager.init(mPendTask);
-    mLooper = std::make_shared<UvLoop>(looper);
-    mPendTask.startWork(mLooper);
-    mLmk.init(mLooper);
+    mPendTask.startWork(&mLooper);
+#ifndef CONFIG_SYSTEM_SERVER_LITE
+    mLmk.init(&mLooper);
     mLmk.setLMKExecutor([this](pid_t pid) {
         if (auto apprecord = mAppInfo.findAppInfo(pid)) {
             ALOGW("LMK stop application:%s app status: %d", apprecord->mPackageName.c_str(),
@@ -173,10 +191,16 @@ ActivityManagerInner::ActivityManagerInner(uv_loop_t* looper) : mPriorityPolicy(
             apprecord->stopApplication();
         }
     });
+#endif
 }
 
 int ActivityManagerInner::attachApplication(const sp<IApplicationThread>& app) {
     AM_PROFILER_BEGIN();
+#ifdef CONFIG_SYSTEM_SERVER_LITE
+    const int callerPid = xms_pid++; // ApplicationThreadStub::mAppId is the pid of the application
+    auto appRecord = mAppInfo.findAppInfo(callerPid);
+    const int callerUid = -1;
+#else
     const int callerPid = android::IPCThreadState::self()->getCallingPid();
     auto appRecord = mAppInfo.findAppInfo(callerPid);
     if (appRecord) {
@@ -186,7 +210,7 @@ int ActivityManagerInner::attachApplication(const sp<IApplicationThread>& app) {
     }
 
     const int callerUid = android::IPCThreadState::self()->getCallingUid();
-
+#endif
     string packageName;
     if (mAppInfo.getAttachingAppName(callerPid, packageName)) {
         PackageInfo packageinfo;
@@ -343,6 +367,7 @@ int ActivityManagerInner::startActivityReal(ITaskManager* taskmanager, const str
                 std::make_shared<ActivityRecord>(activityUniqueName, caller, requestCode,
                                                  launchMode, targetTask, intent, mWindowManager,
                                                  taskmanager, &mPendTask);
+        mActivityMap[newActivity->getToken()] = newActivity;
         if (intent.mAction == Intent::ACTION_BOOT_GUIDE) {
             newActivity->setCallback([this]() { startHomeActivity(); });
         }
@@ -382,7 +407,7 @@ int ActivityManagerInner::startActivityReal(ITaskManager* taskmanager, const str
                 return android::INVALID_OPERATION;
             }
         }
-        mActivityMap[newActivity->getToken()] = newActivity;
+        // mActivityMap[newActivity->getToken()] = newActivity;
 
     } else {
         /** if there is no need to create an Activity, caller/requestCode is invalid */
@@ -928,6 +953,28 @@ void ActivityManagerInner::unregisterReceiver(const sp<IBroadcastReceiver>& rece
     AM_PROFILER_END();
 }
 
+int32_t ActivityManagerInner::clearApplication(int32_t pid) {
+    AM_PROFILER_BEGIN();
+    ALOGW("pid: %d had exit", static_cast<int>(pid));
+    auto app = mAppInfo.findAppInfo(pid);
+    if (app) {
+        procAppTerminated(app);
+        mAppInfo.deleteAppInfo(pid);
+    } else {
+        string packagename;
+        if (mAppInfo.getAttachingAppName(pid, packagename)) {
+            ALOGE("App:%s abnormal exit without attachApplication", packagename.c_str());
+            mAppInfo.deleteAppWaitingAttach(pid);
+        }
+    }
+
+    if (!mTaskManager.getManager(StandardMode)->getActiveTask() && mRunMode == NORMAL_MODE) {
+        startHomeActivity();
+    }
+    AM_PROFILER_END();
+    return android::OK;
+}
+
 int ActivityManagerInner::intentToSingleTarget(const Intent& intent, PackageInfo& packageInfo,
                                                string& componentName,
                                                IntentAction::ComponentType type) {
@@ -1008,7 +1055,8 @@ int ActivityManagerInner::broadcastIntent(const Intent& intent,
 void ActivityManagerInner::systemReady() {
     AM_PROFILER_BEGIN();
     ALOGD("### systemReady ### ");
-    mAppSpawn.signalInit(mLooper->get(), [this](int pid) {
+#ifndef CONFIG_SYSTEM_SERVER_LITE
+    mAppSpawn.signalInit(mLooper.get(), [this](int pid) {
         ALOGW("AppSpawn pid:%d had exit", pid);
         auto app = mAppInfo.findAppInfo(pid);
         if (app) {
@@ -1027,6 +1075,7 @@ void ActivityManagerInner::systemReady() {
             startHomeActivity();
         }
     });
+#endif
 
     if (mRunMode > NORMAL_MODE) {
         ALOGW("AMS run mode[%d], apps don't start automatically", mRunMode);
@@ -1139,6 +1188,52 @@ int ActivityManagerInner::startHomeActivity() {
     return ret;
 }
 
+#ifdef CONFIG_SYSTEM_SERVER_LITE
+int ActivityManagerInner::submitAppStartupTask(const string& packageName,
+                                               const string& prcocessName, const string& execfile,
+                                               AppAttachTask::TaskFunc&& task,
+                                               bool isSupportMultiTask) {
+    AM_PROFILER_BEGIN();
+    int pid = mAppInfo.getAttachingAppPid(prcocessName);
+    if (pid < 0) {
+        int index = builtin_isavail(execfile.c_str());
+        if (index < 0) {
+            ALOGE("package name: %s, appSpawn App:%s is not available", packageName.c_str(),
+                  execfile.c_str());
+            AM_PROFILER_END();
+            return -1;
+        }
+
+        const builtin_s* app = builtin_for_index(index);
+
+        char* argv[] = {
+                const_cast<char*>(&execfile[0]),
+                const_cast<char*>(&packageName[0]),
+        };
+        pid = xms_pid;
+        mAppInfo.addAppWaitingAttach(prcocessName, pid);
+        mPendTask.commitTask(std::make_shared<AppAttachTask>(pid, task));
+
+        int ret = app->main(sizeof(argv) / sizeof(char*), argv);
+
+        if (ret < 0) {
+            ALOGE("appSpawn App:%s error", execfile.c_str());
+            AM_PROFILER_END();
+            mAppInfo.deleteAppWaitingAttach(pid);
+            return -1;
+        }
+        ALOGI("appSpawn App:%s success, pid:%d", execfile.c_str(), pid);
+    } else if (!isSupportMultiTask) {
+        ALOGW("the Application:%s[%d] is waitting for attach, please wait a moment before "
+              "requesting again",
+              packageName.c_str(), pid);
+        AM_PROFILER_END();
+        return -1;
+    }
+    AM_PROFILER_END();
+    return 0;
+}
+#else // CONFIG_SYSTEM_SERVER_LITE
 int ActivityManagerInner::submitAppStartupTask(const string& packageName,
                                                const string& prcocessName, const string& execfile,
                                                AppAttachTask::TaskFunc&& task,
@@ -1174,6 +1269,7 @@ int ActivityManagerInner::submitAppStartupTask(const string& packageName,
     AM_PROFILER_END();
     return 0;
 }
+#endif
 
 int ActivityManagerInner::findSystemTarget(const string& targetAlias,
                                            std::shared_ptr<AppRecord>& app, sp<IBinder>& token) {
@@ -1342,6 +1438,11 @@ Status ActivityManagerService::registerReceiver(const std::string& action,
 
 Status ActivityManagerService::unregisterReceiver(const sp<IBroadcastReceiver>& receiver) {
     mInner->unregisterReceiver(receiver);
+    return Status::ok();
+}
+
+Status ActivityManagerService::clearApplication(int32_t pid, int32_t* ret) {
+    *ret = mInner->clearApplication(pid);
     return Status::ok();
 }
 

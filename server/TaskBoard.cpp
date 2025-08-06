@@ -47,7 +47,7 @@ void TaskBoard::setDebugMode(bool isDebug) {
     mIsDebug = isDebug;
 }
 
-void TaskBoard::startWork(const std::shared_ptr<UvLoop>& looper) {
+void TaskBoard::startWork(UvLoop* looper) {
     if (!mIsDebug) {
         // start timer
         mTimer.init(looper->get(), [this](void*) { checkTimeout(); });

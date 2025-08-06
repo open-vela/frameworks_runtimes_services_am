@@ -90,9 +90,7 @@ public:
      * @return Returns 0 on success, or a non-zero value on error.
      */
     int push(T& msg) {
-        std::lock_guard<std::mutex> lock(mMutex);
-        mQueue.push(msg);
-        return uv_async_send(&mUvAsync);
+        return emplace(std::move(msg));
     }
     /**
      * @brief Emplaces a message to the queue and triggers processing.
@@ -106,9 +104,18 @@ public:
      */
     template <class... Args>
     int emplace(Args&&... args) {
-        std::lock_guard<std::mutex> lock(mMutex);
-        mQueue.emplace(std::forward<Args>(args)...);
-        return uv_async_send(&mUvAsync);
+        int cnt{0};
+        {
+            std::lock_guard<std::mutex> lock(mMutex);
+            mQueue.emplace(std::forward<Args>(args)...);
+            cnt = mQueue.size();
+        }
+        if (cnt == 1) {
+            // If this is the first message, we need to trigger processing
+            return uv_async_send(&mUvAsync);
+        }
+
+        return 0;
     }
     /**
      * @brief Handle messages from the queue.
@@ -128,10 +135,18 @@ private:
      * @brief Processes and handles all messages in the queue.
      */
     void processMessage() {
-        std::lock_guard<std::mutex> lock(mMutex);
-        while (!mQueue.empty()) {
-            handleMessage(mQueue.front());
-            mQueue.pop();
+        std::queue<T> tempQueue;
+        {
+            std::lock_guard<std::mutex> lock(mMutex);
+            if (mQueue.empty()) {
+                return; // No messages to process
+            }
+            // Swap the queue to avoid holding the lock while processing
+            tempQueue.swap(mQueue);
+        }
+        while (!tempQueue.empty()) {
+            handleMessage(tempQueue.front());
+            tempQueue.pop();
         }
     }
 
@@ -152,13 +167,17 @@ public:
      *
      * @param[in] useDefault Whether to use the default loop.
      */
-    UvLoop(bool useDefault = false);
+    UvLoop(bool useDefault = true);
     /**
      * @brief Constructs a UvLoop using an existing libuv loop.
      *
      * @param[in] loop An existing `uv_loop_t` to use.
      */
     UvLoop(uv_loop_t* loop);
+    /**
+     * @brief Default destructor for the UvLoop class.
+     */
+    ~UvLoop();
     /**
      * @brief A callback type for tasks posted to the loop.
      */
@@ -258,13 +277,10 @@ private:
      *
      * @param[in] loop The `uv_loop_t` instance to be destroyed.
      */
-    void destroy(uv_loop_t* loop) const {
-        if (!mIsDefaultLoop) {
-            delete loop;
-        }
-    }
-    bool mIsDefaultLoop;                         /**< Whether the loop is the default libuv loop. */
-    std::unique_ptr<uv_loop_t, Deleter> mLooper; /**< The `uv_loop_t` object managed by the loop. */
+    void destroy(uv_loop_t* loop) const;
+
+    bool mIsDefaultLoop;        /**< Whether the loop is the default libuv loop. */
+    uv_loop_t* mLooper;         /**< The `uv_loop_t` object managed by the loop. */
     MessageHandler mMsgHandler; /**< The message handler used for processing tasks. */
 };
 

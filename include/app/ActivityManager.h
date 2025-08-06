@@ -214,6 +214,13 @@ public:
      */
     void unregisterReceiver(const sp<IBroadcastReceiver>& receiver);
     /**
+     * @brief Clear an application by its process ID.
+     *
+     * @param[in] pid The process ID of the application to clear.
+     * @return The status of the operation.
+     */
+    int32_t clearApplication(int32_t pid);
+    /**
      * @brief Get the activity manager service instance.
      *
      * @return A reference to the activity manager service.

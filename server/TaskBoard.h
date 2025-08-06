@@ -90,7 +90,7 @@ class TaskBoard {
 public:
     TaskBoard();
     void setDebugMode(bool isDebug);
-    void startWork(const std::shared_ptr<UvLoop>& looper);
+    void startWork(UvLoop* looper);
     void commitTask(const std::shared_ptr<Task>& task, const uint64_t msLimitedTime = UINT_MAX);
     void eventTrigger(const Label& e);
     void removeTask(const Label& e);
@@ -99,7 +99,6 @@ private:
     void checkTimeout();
 
     std::list<std::shared_ptr<TaskTimeoutHandler>> mTasklist;
-    std::shared_ptr<UvLoop> mLooper;
     uint64_t mNextCheckTime;
     bool mIsDebug;
     UvTimer mTimer;

@@ -35,9 +35,15 @@
  * @param[in] argv The array of command line arguments.
  * @return An integer status code, where 0 indicates successful execution.
  */
-extern "C" int main(int argc, char **argv) {
+extern "C" int main(int argc, char** argv) {
+#ifdef CONFIG_SYSTEM_SERVER_LITE
+    auto* app = new APPLICATION;
+    os::app::ApplicationThread* appThread = new os::app::ApplicationThread(app);
+    appThread->start(argc, argv);
+#else
     APPLICATION app;
     os::app::ApplicationThread appThread(&app);
-    appThread.mainRun(argc, argv);
+    appThread.start(argc, argv);
+#endif
     return 0;
 }

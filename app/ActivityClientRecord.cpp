@@ -44,13 +44,7 @@ void ActivityClientRecord::onActivityResult(const int requestCode, const int res
 int ActivityClientRecord::onCreate(const Intent& intent) {
     ALOGD("Activity onCreate: %s[%p]", mActivityName.c_str(), mActivity->getToken().get());
     mActivity->setIntent(intent);
-    if (mActivity->performCreate()) {
-        reportActivityStatus(CREATED);
-    } else {
-        reportActivityStatus(ERROR);
-        return -1;
-    }
-    return 0;
+    return mActivity->performCreate() ? 0 : -1;
 }
 
 int ActivityClientRecord::onStart(const std::optional<Intent>& intent) {
@@ -72,7 +66,6 @@ int ActivityClientRecord::onStart(const std::optional<Intent>& intent) {
     }
 
     mActivity->performStart();
-    reportActivityStatus(STARTED);
     return 0;
 }
 
@@ -85,28 +78,24 @@ int ActivityClientRecord::onResume(const std::optional<Intent>& intent) {
     }
 
     mActivity->performResume();
-    reportActivityStatus(RESUMED);
     return 0;
 }
 
 int ActivityClientRecord::onPause() {
     ALOGD("Activity onPause: %s[%p]", mActivityName.c_str(), mActivity->getToken().get());
     mActivity->performPause();
-    reportActivityStatus(PAUSED);
     return 0;
 }
 
 int ActivityClientRecord::onStop() {
     ALOGD("Activity onStop: %s[%p]", mActivityName.c_str(), mActivity->getToken().get());
     mActivity->performStop();
-    reportActivityStatus(STOPPED);
     return 0;
 }
 
 int ActivityClientRecord::onDestroy() {
     ALOGD("Activity onDestroy: %s[%p]", mActivityName.c_str(), mActivity->getToken().get());
     mActivity->performDestroy();
-    reportActivityStatus(DESTROYED);
     return 0;
 }
 
