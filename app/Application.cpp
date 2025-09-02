@@ -158,7 +158,7 @@ void Application::clearActivityAndService() {
 
 WindowManager* Application::getWindowManager() {
     if (mWindowManager == NULL) {
-        mWindowManager = new WindowManager();
+        mWindowManager = WindowManager::create();
     }
     return mWindowManager;
 }
