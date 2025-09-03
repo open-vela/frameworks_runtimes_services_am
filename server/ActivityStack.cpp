@@ -86,11 +86,11 @@ void ActivityStack::setForeground(const bool isForeground) {
 
 std::ostream& operator<<(std::ostream& os, const ActivityStack& activityStack) {
     if (!activityStack.mStack.empty()) {
-        int pid = -1;
+        AppId appId = -1;
         if (auto app = activityStack.mStack[0]->getAppRecord()) {
-            pid = app->mPid;
+            appId = app->mAppId;
         }
-        os << "Tag [" << pid << "] {" << activityStack.mTag << "}:";
+        os << "Tag [" << appId << "] {" << activityStack.mTag << "}:";
         // reverse iter
         for (int i = activityStack.mStack.size() - 1; i >= 0; --i) {
             os << "\n\t" << *(activityStack.mStack[i].get());

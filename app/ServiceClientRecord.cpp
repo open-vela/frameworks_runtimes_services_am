@@ -16,8 +16,6 @@
 
 #include "ServiceClientRecord.h"
 
-#include "app/Application.h"
-
 namespace os {
 namespace app {
 
@@ -46,44 +44,40 @@ void ServiceClientRecord::onStart(const Intent& intent) {
     if (mStatus == CREATING) {
         ALOGD("Service onCreate: %s[%p]", mServiceName.c_str(), mService->getToken().get());
         mService->onCreate();
-        mService->getApplication()->getMainLoop()->postTask(
-                [this]() { reportServiceStatus(CREATED); });
+        reportServiceStatus(CREATED);
     }
     ALOGD("Service onStart: %s[%p]", mServiceName.c_str(), mService->getToken().get());
     mService->setIntent(intent);
     mService->onStartCommand(intent);
     mStartFlag |= F_STARTED;
-    mService->getApplication()->getMainLoop()->postTask([this]() { reportServiceStatus(STARTED); });
+    reportServiceStatus(STARTED);
 }
 
 void ServiceClientRecord::onBind(const Intent& intent, const sp<IServiceConnection>& conn) {
     if (mStatus == CREATING) {
         ALOGD("Service onCreate: %s[%p]", mServiceName.c_str(), mService->getToken().get());
         mService->onCreate();
-        mService->getApplication()->getMainLoop()->postTask(
-                [this]() { reportServiceStatus(CREATED); });
+        reportServiceStatus(CREATED);
     }
     ALOGD("Service onBind: %s[%p]", mServiceName.c_str(), mService->getToken().get());
     mService->setIntent(intent);
     mService->bind(intent, conn);
     mStartFlag |= F_BINDED;
-    mService->getApplication()->getMainLoop()->postTask([this]() { reportServiceStatus(BINDING); });
+    reportServiceStatus(BINDED);
 }
 
 void ServiceClientRecord::onUnbind() {
     if (mStartFlag & F_BINDED) {
         ALOGD("Service onUnbind: %s[%p]", mServiceName.c_str(), mService->getToken().get());
         mService->unbind();
-        mService->getApplication()->getMainLoop()->postTask(
-                [this]() { reportServiceStatus(UNBINDED); });
+        reportServiceStatus(UNBINDED);
     }
 }
 
 void ServiceClientRecord::onDestroy() {
     ALOGD("Service onDestroy: %s[%p]", mServiceName.c_str(), mService->getToken().get());
     mService->onDestroy();
-    mService->getApplication()->getMainLoop()->postTask(
-            [this]() { reportServiceStatus(DESTROYED); });
+    reportServiceStatus(DESTROYED);
 }
 
 void ServiceClientRecord::handleReceiveIntent(const Intent& intent) {

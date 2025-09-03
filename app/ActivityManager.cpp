@@ -24,6 +24,7 @@
 #include <optional>
 
 #include "ActivityTrace.h"
+#include "XMSConfig.h"
 
 namespace os {
 namespace app {
@@ -286,23 +287,23 @@ void ActivityManager::unregisterReceiver(const sp<IBroadcastReceiver>& receiver)
     }
 }
 
-int32_t ActivityManager::clearApplication(int32_t pid) {
-#ifdef CONFIG_SYSTEM_SERVER_LITE
+int32_t ActivityManager::clearApplication(const sp<IApplicationThread>& app) {
+    if (!xmsLiteMode()) {
+        ALOGE("clearApplication is not supported in this build");
+        return -1;
+    }
+
     AM_PROFILER_BEGIN();
     sp<IActivityManager> service = getService();
     int32_t ret = android::FAILED_TRANSACTION;
     if (service != nullptr) {
-        Status status = service->clearApplication(pid, &ret);
+        Status status = service->clearApplication(app, &ret);
         if (!status.isOk()) {
             ALOGE("clearApplication error:%s", status.toString8().c_str());
         }
     }
     AM_PROFILER_END();
     return ret;
-#else
-    ALOGE("clearApplication is not supported in this build");
-    return -1;
-#endif
 }
 
 } // namespace app

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 Xiaomi Corporation
+ * Copyright (C) 2025 Xiaomi Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,26 @@
 
 #pragma once
 
+#include <nuttx/config.h>
+#include <sys/types.h>
 #include <uv.h>
+
+#ifdef CONFIG_SYSTEM_SERVER_LITE
+typedef int AppId;
+#else
+typedef pid_t AppId;
+#endif
 
 namespace os {
 namespace app {
-extern uv_loop_t* xms_loop;
-extern int xms_pid;
+
+AppId getXmsAppId();
+
+uv_loop_t* getXmsLoop();
+
+void setXmsLoop(uv_loop_t* loop);
+
+AppId getNextXmsAppId();
+
 } // namespace app
 } // namespace os

@@ -18,6 +18,7 @@
 
 #include <binder/IPCThreadState.h>
 #include <kvdb.h>
+#include <nuttx/lib/builtin.h>
 #include <pm/PackageManager.h>
 
 #include <filesystem>
@@ -35,20 +36,45 @@
 #include "ProcessPriorityPolicy.h"
 #include "TaskBoard.h"
 #include "TaskManager.h"
+#include "XMSConfig.h"
 #include "app/ActivityManager.h"
 #include "app/Logger.h"
 #include "app/UvLoop.h"
 
-#ifdef CONFIG_SYSTEM_SERVER_LITE
-#include <nuttx/lib/builtin.h>
+namespace os {
+namespace app {
+AppId xms_appid = 0;
+uv_loop_t* xms_loop = nullptr;
 
-#include "app/ActivityManagerServiceLoop.h"
-#endif
+AppId getXmsAppId() {
+    if (xmsLiteMode()) {
+        return xms_appid;
+    }
+    return -1;
+}
 
-#ifdef CONFIG_SYSTEM_SERVER_LITE
-int os::app::xms_pid = 0;
-uv_loop_t* os::app::xms_loop = nullptr;
-#endif
+uv_loop_t* getXmsLoop() {
+    if (xmsLiteMode()) {
+        return xms_loop;
+    }
+    return nullptr;
+}
+
+void setXmsLoop(uv_loop_t* loop) {
+    if (xmsLiteMode()) {
+        xms_loop = loop;
+    }
+}
+
+AppId getNextXmsAppId() {
+    if (xmsLiteMode()) {
+        return xms_appid++;
+    }
+    return -1;
+}
+
+} // namespace app
+} // namespace os
 
 namespace os {
 namespace am {
@@ -108,7 +134,7 @@ public:
     int32_t sendBroadcast(const Intent& intent);
     int32_t registerReceiver(const std::string& action, const sp<IBroadcastReceiver>& receiver);
     void unregisterReceiver(const sp<IBroadcastReceiver>& receiver);
-    int32_t clearApplication(int32_t pid);
+    int32_t clearApplication(const sp<IApplicationThread>& app);
 
     void dump(int fd, const android::Vector<android::String16>& args);
 
@@ -158,17 +184,15 @@ private:
     map<string, list<sp<IBroadcastReceiver>>> mReceivers; /** Broadcast */
     LowMemoryManager mLmk;
     ProcessPriorityPolicy mPriorityPolicy;
-#ifndef CONFIG_SYSTEM_SERVER_LITE
+
+    // for multi-instance mode
     AppSpawn mAppSpawn;
-#endif
 };
 
 ActivityManagerInner::ActivityManagerInner(uv_loop_t* looper)
       : mLooper(looper), mPriorityPolicy(&mLmk) {
     AM_PROFILER_BEGIN();
-#ifdef CONFIG_SYSTEM_SERVER_LITE
-    xms_loop = looper;
-#endif
+    setXmsLoop(xmsLiteMode() ? looper : nullptr);
     mRunMode = NORMAL_MODE;
     if (std::filesystem::exists(AMS_RUNMODE_FILE)) {
         std::ifstream file;
@@ -182,56 +206,58 @@ ActivityManagerInner::ActivityManagerInner(uv_loop_t* looper)
     mPendTask.setDebugMode(mRunMode == DEBUG_MODE);
     mTaskManager.init(mPendTask);
     mPendTask.startWork(&mLooper);
-#ifndef CONFIG_SYSTEM_SERVER_LITE
-    mLmk.init(&mLooper);
-    mLmk.setLMKExecutor([this](pid_t pid) {
-        if (auto apprecord = mAppInfo.findAppInfo(pid)) {
-            ALOGW("LMK stop application:%s app status: %d", apprecord->mPackageName.c_str(),
-                  apprecord->mStatus);
-            apprecord->stopApplication();
-        }
-    });
-#endif
+    if (!xmsLiteMode()) {
+        mLmk.init(&mLooper);
+        mLmk.setLMKExecutor([this](pid_t pid) {
+            if (auto apprecord = mAppInfo.findAppInfo(pid)) {
+                ALOGW("LMK stop application:%s app status: %d", apprecord->mPackageName.c_str(),
+                      apprecord->mStatus);
+                apprecord->stopApplication();
+            }
+        });
+    }
 }
 
 int ActivityManagerInner::attachApplication(const sp<IApplicationThread>& app) {
     AM_PROFILER_BEGIN();
-#ifdef CONFIG_SYSTEM_SERVER_LITE
-    const int callerPid = xms_pid++; // ApplicationThreadStub::mAppId is the pid of the application
-    auto appRecord = mAppInfo.findAppInfo(callerPid);
-    const int callerUid = -1;
-#else
-    const int callerPid = android::IPCThreadState::self()->getCallingPid();
-    auto appRecord = mAppInfo.findAppInfo(callerPid);
+    AppId appId;
+    if (xmsLiteMode()) {
+        appId = getNextXmsAppId();
+    } else {
+        const pid_t pid = android::IPCThreadState::self()->getCallingPid();
+        appId = static_cast<AppId>(pid);
+    }
+    shared_ptr<AppRecord> appRecord = mAppInfo.findAppInfo(app);
+    const int callerUid = xmsLiteMode() ? -1 : android::IPCThreadState::self()->getCallingUid();
+
     if (appRecord) {
         ALOGE("the application:%s had be attached", appRecord->mPackageName.c_str());
         AM_PROFILER_END();
         return android::BAD_VALUE;
     }
 
-    const int callerUid = android::IPCThreadState::self()->getCallingUid();
-#endif
     string packageName;
-    if (mAppInfo.getAttachingAppName(callerPid, packageName)) {
-        PackageInfo packageinfo;
-        mPm.getPackageInfo(packageName, &packageinfo);
-        appRecord = std::make_shared<AppRecord>(app, packageName, packageinfo.isSystemUI, callerPid,
-                                                callerUid, &mAppInfo, &mPriorityPolicy);
-        ALOGI("attachApplication. pid:%d packagename:[%s]", callerPid,
-              appRecord->mPackageName.data());
-        mAppInfo.deleteAppWaitingAttach(callerPid);
-        mAppInfo.addAppInfo(appRecord);
-        const AppAttachTask::Event event(callerPid, appRecord);
-        mPendTask.eventTrigger(event);
-
-        // broadcast app start
-        Intent intent;
-        intent.setAction(Intent::BROADCAST_APP_START);
-        intent.setData(packageName);
-        sendBroadcast(intent);
-    } else {
-        ALOGE("the application:%d attaching is illegally", callerPid);
+    if (!mAppInfo.getAttachingAppName(appId, packageName)) {
+        ALOGE("the application:%d attaching is illegally", appId);
+        AM_PROFILER_END();
+        return android::OK;
     }
+
+    PackageInfo packageinfo;
+    mPm.getPackageInfo(packageName, &packageinfo);
+    appRecord = std::make_shared<AppRecord>(app, packageName, packageinfo.isSystemUI, appId,
+                                            callerUid, &mAppInfo, &mPriorityPolicy);
+    ALOGI("attachApplication. appId:%d packagename:[%s]", appId, appRecord->mPackageName.data());
+    mAppInfo.deleteAppWaitingAttach(appId);
+    mAppInfo.addAppInfo(appRecord);
+    const AppAttachTask::Event event(appId, appRecord);
+    mPendTask.eventTrigger(event);
+
+    // broadcast app start
+    Intent intent;
+    intent.setAction(Intent::BROADCAST_APP_START);
+    intent.setData(packageName);
+    sendBroadcast(intent);
 
     AM_PROFILER_END();
     return android::OK;
@@ -395,7 +421,7 @@ int ActivityManagerInner::startActivityReal(ITaskManager* taskmanager, const str
             const ProcessPriority priority = (ProcessPriority)packageInfo.priority;
             const auto task = [this, taskmanager, targetTask, newActivity, startFlag, priority,
                                is_home_task](const AppAttachTask::Event* e) {
-                mPriorityPolicy.add(e->mPid, true, priority);
+                mPriorityPolicy.add(e->mAppId, true, priority);
                 newActivity->setAppThread(e->mAppRecord);
                 if (is_home_task) taskmanager->setHomeTask(targetTask);
                 taskmanager->pushNewActivity(targetTask, newActivity, startFlag);
@@ -688,7 +714,7 @@ int ActivityManagerInner::startServiceReal(const string& serviceName, PackageInf
         if (appRecord) {
             const sp<IBinder> token(new android::BBinder());
             service = std::make_shared<ServiceRecord>(serviceName, token, priority, appRecord);
-            if (auto prioritynode = mPriorityPolicy.get(appRecord->mPid)) {
+            if (auto prioritynode = mPriorityPolicy.get(appRecord->mAppId)) {
                 if (prioritynode->priorityLevel < priority) {
                     prioritynode->priorityLevel = priority;
                 }
@@ -705,7 +731,7 @@ int ActivityManagerInner::startServiceReal(const string& serviceName, PackageInf
                 const sp<IBinder> token(new android::BBinder());
                 auto serviceHandler = std::make_shared<ServiceRecord>(serviceName, token, priority,
                                                                       e->mAppRecord);
-                mPriorityPolicy.add(e->mPid, false, priority);
+                mPriorityPolicy.add(e->mAppId, false, priority);
                 mServices.addService(serviceHandler);
                 if (!isBind) {
                     serviceHandler->start(intent);
@@ -839,10 +865,27 @@ void ActivityManagerInner::reportServiceStatus(const sp<IBinder>& token, int32_t
         case ServiceRecord::BINDED:
             break;
         case ServiceRecord::UNBINDED: {
+            if (xmsLiteMode()) {
+                mLooper.postTask([service]() {
+                    if (!service->isAlive()) service->stop();
+                });
+                break;
+            }
             if (!service->isAlive()) service->stop();
             break;
         }
         case ServiceRecord::DESTROYED: {
+            if (xmsLiteMode()) {
+                mLooper.postTask([this, token, service]() {
+                    mServices.deleteService(token);
+                    if (auto appRecord = service->mApp.lock()) {
+                        if (!appRecord->checkActiveStatus()) {
+                            appRecord->stopApplication();
+                        }
+                    }
+                });
+                break;
+            }
             mServices.deleteService(token);
             if (auto appRecord = service->mApp.lock()) {
                 if (!appRecord->checkActiveStatus()) {
@@ -953,19 +996,16 @@ void ActivityManagerInner::unregisterReceiver(const sp<IBroadcastReceiver>& rece
     AM_PROFILER_END();
 }
 
-int32_t ActivityManagerInner::clearApplication(int32_t pid) {
+int32_t ActivityManagerInner::clearApplication(const sp<IApplicationThread>& app) {
     AM_PROFILER_BEGIN();
-    ALOGW("pid: %d had exit", static_cast<int>(pid));
-    auto app = mAppInfo.findAppInfo(pid);
-    if (app) {
-        procAppTerminated(app);
-        mAppInfo.deleteAppInfo(pid);
+    const auto& appRecord = mAppInfo.findAppInfo(app);
+    if (appRecord) {
+        ALOGW("pid: %d had exit", static_cast<int>(appRecord->mAppId));
+        procAppTerminated(appRecord);
+        mAppInfo.deleteAppInfo(app);
+        mPriorityPolicy.remove(appRecord->mAppId);
     } else {
-        string packagename;
-        if (mAppInfo.getAttachingAppName(pid, packagename)) {
-            ALOGE("App:%s abnormal exit without attachApplication", packagename.c_str());
-            mAppInfo.deleteAppWaitingAttach(pid);
-        }
+        ALOGE("this situation will not occur in lite mode");
     }
 
     if (!mTaskManager.getManager(StandardMode)->getActiveTask() && mRunMode == NORMAL_MODE) {
@@ -1055,27 +1095,28 @@ int ActivityManagerInner::broadcastIntent(const Intent& intent,
 void ActivityManagerInner::systemReady() {
     AM_PROFILER_BEGIN();
     ALOGD("### systemReady ### ");
-#ifndef CONFIG_SYSTEM_SERVER_LITE
-    mAppSpawn.signalInit(mLooper.get(), [this](int pid) {
-        ALOGW("AppSpawn pid:%d had exit", pid);
-        auto app = mAppInfo.findAppInfo(pid);
-        if (app) {
-            procAppTerminated(app);
-            mAppInfo.deleteAppInfo(pid);
-            mPriorityPolicy.remove(pid);
-        } else {
-            string packagename;
-            if (mAppInfo.getAttachingAppName(pid, packagename)) {
-                ALOGE("App:%s abnormal exit without attachApplication", packagename.c_str());
-                mAppInfo.deleteAppWaitingAttach(pid);
+    if (!xmsLiteMode()) {
+        mAppSpawn.signalInit(mLooper.get(), [this](int appId) {
+            ALOGW("AppSpawn appId:%d had exit", appId);
+            auto app = mAppInfo.findAppInfo(appId);
+            if (app) {
+                procAppTerminated(app);
+                mAppInfo.deleteAppInfo(appId);
+                mPriorityPolicy.remove(appId);
+            } else {
+                string packagename;
+                if (mAppInfo.getAttachingAppName(appId, packagename)) {
+                    ALOGE("App:%s abnormal exit without attachApplication", packagename.c_str());
+                    mAppInfo.deleteAppWaitingAttach(appId);
+                }
             }
-        }
 
-        if (!mTaskManager.getManager(StandardMode)->getActiveTask() && mRunMode == NORMAL_MODE) {
-            startHomeActivity();
-        }
-    });
-#endif
+            if (!mTaskManager.getManager(StandardMode)->getActiveTask() &&
+                mRunMode == NORMAL_MODE) {
+                startHomeActivity();
+            }
+        });
+    }
 
     if (mRunMode > NORMAL_MODE) {
         ALOGW("AMS run mode[%d], apps don't start automatically", mRunMode);
@@ -1188,17 +1229,51 @@ int ActivityManagerInner::startHomeActivity() {
     return ret;
 }
 
-#ifdef CONFIG_SYSTEM_SERVER_LITE
 int ActivityManagerInner::submitAppStartupTask(const string& packageName,
                                                const string& prcocessName, const string& execfile,
                                                AppAttachTask::TaskFunc&& task,
                                                bool isSupportMultiTask) {
+    if (!xmsLiteMode()) {
+        AM_PROFILER_BEGIN();
+        AppId appId = mAppInfo.getAttachingAppId(prcocessName);
+        if (appId < 0) {
+            pid_t pid = mAppSpawn.appSpawn(execfile.c_str(), {packageName});
+            appId = static_cast<AppId>(pid);
+            if (appId > 0) {
+                mAppInfo.addAppWaitingAttach(prcocessName, appId);
+                /* 由于appSpawn 是异步的，所以需要等待attach成功后再执行task
+                   考虑到时序问题，譬如，用户在调用bindService和调用attachApplication之间，继续调用bindService,
+                   那么就会导致同一个service被create多次。
+                   这里保证每个应用只会有一个attach任务,避免由于时序问题导致的多次service/activity的create
+                */
+                mPendTask.commitTask(std::make_shared<AppAttachTask>(appId, task));
+            } else {
+                ALOGE("appSpawn App:%s error", execfile.c_str());
+                AM_PROFILER_END();
+                return -1;
+            }
+        } else if (!isSupportMultiTask) {
+            ALOGW("the Application:%s[%d] is waitting for attach, please wait a moment before "
+                  "requesting again",
+                  packageName.c_str(), appId);
+            AM_PROFILER_END();
+            return -1;
+        }
+
+        ALOGW("the Application:%s[%d] is waitting for attach, please wait a moment before "
+              "requesting again",
+              packageName.c_str(), appId);
+        AM_PROFILER_END();
+        return 0;
+    }
+
+    // XMS Lite Mode
     AM_PROFILER_BEGIN();
-    int pid = mAppInfo.getAttachingAppPid(prcocessName);
-    if (pid < 0) {
+    AppId appId = mAppInfo.getAttachingAppId(prcocessName);
+    if (appId < 0) {
         int index = builtin_isavail(execfile.c_str());
         if (index < 0) {
-            ALOGE("package name: %s, appSpawn App:%s is not available", packageName.c_str(),
+            ALOGE("package name: %s, run app:%s is not available", packageName.c_str(),
                   execfile.c_str());
             AM_PROFILER_END();
             return -1;
@@ -1210,66 +1285,29 @@ int ActivityManagerInner::submitAppStartupTask(const string& packageName,
                 const_cast<char*>(&execfile[0]),
                 const_cast<char*>(&packageName[0]),
         };
-        pid = xms_pid;
-        mAppInfo.addAppWaitingAttach(prcocessName, pid);
-        mPendTask.commitTask(std::make_shared<AppAttachTask>(pid, task));
+        appId = getXmsAppId();
+        mAppInfo.addAppWaitingAttach(prcocessName, appId);
+        mPendTask.commitTask(std::make_shared<AppAttachTask>(appId, task));
 
         int ret = app->main(sizeof(argv) / sizeof(char*), argv);
 
         if (ret < 0) {
-            ALOGE("appSpawn App:%s error", execfile.c_str());
+            ALOGE("run app:%s error", execfile.c_str());
+            mAppInfo.deleteAppWaitingAttach(appId);
             AM_PROFILER_END();
-            mAppInfo.deleteAppWaitingAttach(pid);
             return -1;
         }
-        ALOGI("appSpawn App:%s success, pid:%d", execfile.c_str(), pid);
+        ALOGI("run app:%s success, appId:%d", execfile.c_str(), appId);
     } else if (!isSupportMultiTask) {
         ALOGW("the Application:%s[%d] is waitting for attach, please wait a moment before "
               "requesting again",
-              packageName.c_str(), pid);
+              packageName.c_str(), appId);
         AM_PROFILER_END();
         return -1;
     }
     AM_PROFILER_END();
     return 0;
 }
-#else // CONFIG_SYSTEM_SERVER_LITE
-int ActivityManagerInner::submitAppStartupTask(const string& packageName,
-                                               const string& prcocessName, const string& execfile,
-                                               AppAttachTask::TaskFunc&& task,
-                                               bool isSupportMultiTask) {
-    AM_PROFILER_BEGIN();
-    int pid = mAppInfo.getAttachingAppPid(prcocessName);
-    if (pid < 0) {
-        pid = mAppSpawn.appSpawn(execfile.c_str(), {packageName});
-        if (pid > 0) {
-            mAppInfo.addAppWaitingAttach(prcocessName, pid);
-            /* 由于appSpawn 是异步的，所以需要等待attach成功后再执行task
-               考虑到时序问题，譬如，用户在调用bindService和调用attachApplication之间，继续调用bindService,
-               那么就会导致同一个service被create多次。
-               这里保证每个应用只会有一个attach任务,避免由于时序问题导致的多次service/activity的create
-            */
-            mPendTask.commitTask(std::make_shared<AppAttachTask>(pid, task));
-        } else {
-            ALOGE("appSpawn App:%s error", execfile.c_str());
-            AM_PROFILER_END();
-            return -1;
-        }
-    } else if (!isSupportMultiTask) {
-        ALOGW("the Application:%s[%d] is waitting for attach, please wait a moment before "
-              "requesting again",
-              packageName.c_str(), pid);
-        AM_PROFILER_END();
-        return -1;
-    }
-    ALOGW("the Application:%s[%d] is waitting for attach, please wait a moment before "
-          "requesting again",
-          packageName.c_str(), pid);
-
-    AM_PROFILER_END();
-    return 0;
-}
-#endif
 
 int ActivityManagerInner::findSystemTarget(const string& targetAlias,
                                            std::shared_ptr<AppRecord>& app, sp<IBinder>& token) {
@@ -1441,8 +1479,8 @@ Status ActivityManagerService::unregisterReceiver(const sp<IBroadcastReceiver>& 
     return Status::ok();
 }
 
-Status ActivityManagerService::clearApplication(int32_t pid, int32_t* ret) {
-    *ret = mInner->clearApplication(pid);
+Status ActivityManagerService::clearApplication(const sp<IApplicationThread>& app, int32_t* ret) {
+    *ret = mInner->clearApplication(app);
     return Status::ok();
 }
 

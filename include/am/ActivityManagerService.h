@@ -21,6 +21,7 @@
 #include <optional>
 #include <string>
 
+#include "AmsConfig.h"
 #include "os/am/BnActivityManager.h"
 #include "os/am/IActivityManager.h"
 #include "os/app/IBroadcastReceiver.h"
@@ -215,7 +216,7 @@ public:
      *
      * @return True if the app clear success, false otherwise.
      */
-    Status clearApplication(int32_t pid, int32_t* ret) override;
+    Status clearApplication(const sp<os::app::IApplicationThread>& app, int32_t* ret) override;
     /**
      * @brief Dumps the current state of the ActivityManagerService.
      *

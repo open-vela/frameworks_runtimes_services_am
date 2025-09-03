@@ -56,25 +56,25 @@ TEST_F(ProcessPriorityPolicyTest, getPID1) {
 
 TEST_F(ProcessPriorityPolicyTest, addPID1) {
     auto* pnode = m_policy->add(1, true, os::pm::ProcessPriority::MIDDLE);
-    EXPECT_EQ(pnode->pid, 1);
+    EXPECT_EQ(pnode->appId, 1);
 }
 
 TEST_F(ProcessPriorityPolicyTest, addPID2) {
     auto* pnode = m_policy->add(2, true, os::pm::ProcessPriority::MIDDLE);
-    EXPECT_EQ(pnode->pid, 2);
+    EXPECT_EQ(pnode->appId, 2);
 }
 
 TEST_F(ProcessPriorityPolicyTest, getPID2) {
     auto* pnode = m_policy->add(3, true, os::pm::ProcessPriority::MIDDLE);
-    EXPECT_EQ(pnode->pid, 3);
+    EXPECT_EQ(pnode->appId, 3);
     auto* pnode2 = m_policy->get(3);
     EXPECT_EQ(pnode2, pnode);
-    EXPECT_EQ(pnode2->pid, 3);
+    EXPECT_EQ(pnode2->appId, 3);
 }
 
 TEST_F(ProcessPriorityPolicyTest, removePID1) {
     auto* pnode = m_policy->add(4, true, os::pm::ProcessPriority::MIDDLE);
-    EXPECT_EQ(pnode->pid, 4);
+    EXPECT_EQ(pnode->appId, 4);
     m_policy->remove(4);
     auto* pnode2 = m_policy->get(4);
     EXPECT_EQ(pnode2, nullptr);
@@ -82,7 +82,7 @@ TEST_F(ProcessPriorityPolicyTest, removePID1) {
 
 TEST_F(ProcessPriorityPolicyTest, removePID2) {
     auto* pnode = m_policy->add(5, true, os::pm::ProcessPriority::MIDDLE);
-    EXPECT_EQ(pnode->pid, 5);
+    EXPECT_EQ(pnode->appId, 5);
     m_policy->remove(5);
     auto* pnode2 = m_policy->get(5);
     EXPECT_EQ(pnode2, nullptr);
@@ -90,16 +90,16 @@ TEST_F(ProcessPriorityPolicyTest, removePID2) {
 
 TEST_F(ProcessPriorityPolicyTest, pushForeground) {
     auto* pnode = m_policy->add(6, true, os::pm::ProcessPriority::MIDDLE);
-    EXPECT_EQ(pnode->pid, 6);
+    EXPECT_EQ(pnode->appId, 6);
     m_policy->pushForeground(6);
     auto* pnode2 = m_policy->get(6);
     EXPECT_EQ(pnode2, pnode);
-    EXPECT_EQ(pnode2->pid, 6);
+    EXPECT_EQ(pnode2->appId, 6);
 }
 
 TEST_F(ProcessPriorityPolicyTest, intoBackground) {
     auto* pnode = m_policy->add(7, true, os::pm::ProcessPriority::MIDDLE);
-    EXPECT_EQ(pnode->pid, 7);
+    EXPECT_EQ(pnode->appId, 7);
     m_policy->intoBackground(7);
     auto* pnode2 = m_policy->get(7);
     EXPECT_EQ(pnode2, pnode);

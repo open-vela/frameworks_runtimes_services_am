@@ -24,6 +24,7 @@
 #include <list>
 #include <unordered_map>
 
+#include "AmsConfig.h"
 #include "LowMemoryManager.h"
 
 namespace os {
@@ -45,14 +46,14 @@ enum OomScoreAdj {
 
 using os::pm::ProcessPriority;
 
-struct PidPriorityInfo {
-    pid_t pid;
+struct AppIdPriorityInfo {
+    AppId appId;
     ProcessPriority priorityLevel;
     int oomScore;
     clock_t lastWakeUptime;
 
-    PidPriorityInfo* next;
-    PidPriorityInfo* last;
+    AppIdPriorityInfo* next;
+    AppIdPriorityInfo* last;
 };
 
 /*********************************************
@@ -67,12 +68,12 @@ public:
     ProcessPriorityPolicy(LowMemoryManager* lmk);
     ~ProcessPriorityPolicy();
 
-    PidPriorityInfo* get(pid_t pid);
-    PidPriorityInfo* add(pid_t pid, bool isForeground,
-                         ProcessPriority level = ProcessPriority::MIDDLE);
-    void remove(pid_t pid);
-    void pushForeground(pid_t pid);
-    void intoBackground(pid_t pid);
+    AppIdPriorityInfo* get(AppId appId);
+    AppIdPriorityInfo* add(AppId appId, bool isForeground,
+                           ProcessPriority level = ProcessPriority::MIDDLE);
+    void remove(AppId appId);
+    void pushForeground(AppId appId);
+    void intoBackground(AppId appId);
 
     void analyseProcessPriority();
 
@@ -80,9 +81,9 @@ public:
 
 private:
     LowMemoryManager* mLmk;
-    PidPriorityInfo* mHead;
-    PidPriorityInfo* mTail;
-    PidPriorityInfo* mBackgroundPos;
+    AppIdPriorityInfo* mHead;
+    AppIdPriorityInfo* mTail;
+    AppIdPriorityInfo* mBackgroundPos;
 };
 
 } // namespace am

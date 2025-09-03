@@ -114,9 +114,9 @@ const string* ServiceRecord::getPackageName() const {
     return nullptr;
 }
 
-int ServiceRecord::getPid() const {
+AppId ServiceRecord::getAppId() const {
     if (auto appRecord = mApp.lock()) {
-        return appRecord->mPid;
+        return appRecord->mAppId;
     }
     return -1;
 }
@@ -190,9 +190,9 @@ std::ostream& operator<<(std::ostream& os, const ServiceList& services) {
     os << "\n\nServices Information:" << std::endl;
     for (const auto& serviceRecord : services.mServiceList) {
         if (serviceRecord->getPackageName() == nullptr) continue;
-        os << "\t" << *serviceRecord->getPackageName() << "/" << serviceRecord->mServiceName << " [ "
-           << serviceRecord->getPid() << " ]" << " |"
-           << ((serviceRecord->mStartFlag & ServiceRecord::F_STARTED) ? "start|" : "")
+        os << "\t" << *serviceRecord->getPackageName() << "/" << serviceRecord->mServiceName
+           << " [ " << serviceRecord->getAppId() << " ]"
+           << " |" << ((serviceRecord->mStartFlag & ServiceRecord::F_STARTED) ? "start|" : "")
            << ((serviceRecord->mStartFlag & ServiceRecord::F_BINDED) ? "binded|" : "") << " ["
            << ServiceRecord::statusToStr(serviceRecord->mStatus) << "]" << std::endl;
     }

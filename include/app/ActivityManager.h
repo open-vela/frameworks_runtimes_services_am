@@ -20,6 +20,7 @@
 #include <mutex>
 #include <string>
 
+#include "AmsConfig.h"
 #include "app/Intent.h"
 #include "os/am/IActivityManager.h"
 #include "os/app/IApplicationThread.h"
@@ -214,12 +215,12 @@ public:
      */
     void unregisterReceiver(const sp<IBroadcastReceiver>& receiver);
     /**
-     * @brief Clear an application by its process ID.
+     * @brief Clear an application by its ID.
      *
-     * @param[in] pid The process ID of the application to clear.
+     * @param[in] app The application to clear.
      * @return The status of the operation.
      */
-    int32_t clearApplication(int32_t pid);
+    int32_t clearApplication(const sp<os::app::IApplicationThread>& app);
     /**
      * @brief Get the activity manager service instance.
      *

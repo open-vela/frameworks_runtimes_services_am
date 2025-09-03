@@ -141,9 +141,11 @@ void Application::clearActivityAndService() {
         const auto status = (it.second)->getStatus();
         if (status >= ActivityClientRecord::STARTED && status <= ActivityClientRecord::PAUSED) {
             it.second->onStop();
+            it.second->reportActivityStatus(ActivityClientRecord::STOPPED);
         }
         if (status < ActivityClientRecord::DESTROYING) {
             it.second->onDestroy();
+            it.second->reportActivityStatus(ActivityClientRecord::DESTROYED);
         }
     }
     mExistActivities.clear();
@@ -151,6 +153,7 @@ void Application::clearActivityAndService() {
     for (auto it : mExistServices) {
         if (it->getStatus() < ServiceClientRecord::DESTROYING) {
             it->onDestroy();
+            it->reportServiceStatus(ServiceClientRecord::DESTROYED);
         }
     }
     mExistServices.clear();

@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "ActivityRecord.h"
+#include "AmsConfig.h"
 #include "ProcessPriorityPolicy.h"
 #include "ServiceRecord.h"
 #include "TaskBoard.h"
@@ -41,8 +42,8 @@ struct AppRecord {
     sp<IApplicationThread> mAppThread;
     std::string mPackageName;
     bool mIsSystemUI;
-    int mPid;
-    int mUid;
+    AppId mAppId;
+    int mUid; // Reserved field, currently not used
     AppInfoList* mAppList;
     ProcessPriorityPolicy* mPriorityPolicy;
     int mForegroundActivityCnt;
@@ -50,12 +51,12 @@ struct AppRecord {
     std::vector<std::weak_ptr<ActivityRecord>> mExistActivity;
     std::vector<std::weak_ptr<ServiceRecord>> mExistService;
 
-    AppRecord(sp<IApplicationThread> app, std::string packageName, const bool systemui, int pid,
+    AppRecord(sp<IApplicationThread> app, std::string packageName, const bool systemui, AppId appId,
               int uid, AppInfoList* applist, ProcessPriorityPolicy* policy)
           : mAppThread(app),
             mPackageName(packageName),
             mIsSystemUI(systemui),
-            mPid(pid),
+            mAppId(appId),
             mUid(uid),
             mAppList(applist),
             mPriorityPolicy(policy),
@@ -78,18 +79,20 @@ struct AppRecord {
 
 class AppInfoList {
 public:
-    const std::shared_ptr<AppRecord> findAppInfo(const int pid);
-    const std::shared_ptr<AppRecord> findAppInfoWithAlive(const int pid);
+    const std::shared_ptr<AppRecord> findAppInfo(const AppId appId);
+    const std::shared_ptr<AppRecord> findAppInfoWithAlive(const AppId appId);
     const std::shared_ptr<AppRecord> findAppInfoWithAlive(const std::string& packageName);
+    const std::shared_ptr<AppRecord> findAppInfo(const sp<IApplicationThread>& app);
 
     bool addAppInfo(const std::shared_ptr<AppRecord>& appInfo);
-    void deleteAppInfo(const int pid);
+    void deleteAppInfo(const AppId appId);
     void deleteAppInfo(const std::string& packageName);
+    void deleteAppInfo(const sp<IApplicationThread>& app);
 
-    void addAppWaitingAttach(const std::string& packageName, int pid);
-    void deleteAppWaitingAttach(const int pid);
-    int getAttachingAppPid(const std::string& packageName);
-    bool getAttachingAppName(int pid, std::string& packageName);
+    void addAppWaitingAttach(const std::string& packageName, AppId appId);
+    void deleteAppWaitingAttach(const AppId appId);
+    int getAttachingAppId(const std::string& packageName);
+    bool getAttachingAppName(AppId appId, std::string& packageName);
 
 private:
     std::vector<std::shared_ptr<AppRecord>> mAppList;
@@ -100,18 +103,19 @@ private:
 class AppAttachTask : public Task {
 public:
     struct Event : Label {
-        const int mPid;
+        const AppId mAppId;
         const std::shared_ptr<AppRecord> mAppRecord;
-        Event(int pid, const std::shared_ptr<AppRecord>& app)
-              : Label(APP_ATTACH, LabelType::MULTI_TRIGGER), mPid(pid), mAppRecord(app) {}
+        Event(AppId appId, const std::shared_ptr<AppRecord>& app)
+              : Label(APP_ATTACH, LabelType::MULTI_TRIGGER), mAppId(appId), mAppRecord(app) {}
     };
 
     using TaskFunc = std::function<void(const Event*)>;
-    AppAttachTask(const int pid, const TaskFunc& cb) : Task(APP_ATTACH), mPid(pid), mCallback(cb) {}
+    AppAttachTask(const AppId appId, const TaskFunc& cb)
+          : Task(APP_ATTACH), mAppId(appId), mCallback(cb) {}
 
     bool operator==(const Label& e) const {
         if (mId == e.mId) {
-            return mPid == static_cast<const Event*>(&e)->mPid;
+            return mAppId == static_cast<const Event*>(&e)->mAppId;
         }
         return false;
     }
@@ -121,7 +125,7 @@ public:
     }
 
 private:
-    int mPid;
+    AppId mAppId;
     TaskFunc mCallback;
 };
 

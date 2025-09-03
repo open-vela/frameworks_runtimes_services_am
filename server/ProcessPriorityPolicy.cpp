@@ -33,7 +33,7 @@ enum LevelCountMask {
     LOW_LEVEL_CNT = 0b1111111111,
 };
 
-static int calculateScore(PidPriorityInfo* pnode, int& levelCnt, ProcessStatus location) {
+static int calculateScore(AppIdPriorityInfo* pnode, int& levelCnt, ProcessStatus location) {
     int score = 1000;
 
     if (location == FOREGROUND_PROCESS) {
@@ -83,7 +83,7 @@ ProcessPriorityPolicy::ProcessPriorityPolicy(LowMemoryManager* lmk) {
 }
 
 ProcessPriorityPolicy::~ProcessPriorityPolicy() {
-    PidPriorityInfo* pnode = mHead;
+    AppIdPriorityInfo* pnode = mHead;
     while (pnode) {
         const auto next = pnode->next;
         delete pnode;
@@ -94,7 +94,7 @@ ProcessPriorityPolicy::~ProcessPriorityPolicy() {
 void ProcessPriorityPolicy::analyseProcessPriority() {
     ALOGD("analyseProcessPriority");
     int levelcnt = 0;
-    PidPriorityInfo* pnode = mHead;
+    AppIdPriorityInfo* pnode = mHead;
     ProcessStatus processStatus = FOREGROUND_PROCESS;
     while (pnode) {
         if (pnode->next == mBackgroundPos && processStatus != FOREGROUND_PROCESS) {
@@ -103,7 +103,7 @@ void ProcessPriorityPolicy::analyseProcessPriority() {
         const int score = calculateScore(pnode, levelcnt, processStatus);
         if (pnode->oomScore != score) {
             pnode->oomScore = score;
-            mLmk->setPidOomScore(pnode->pid, pnode->oomScore);
+            mLmk->setPidOomScore(pnode->appId, pnode->oomScore);
         }
         // only one foreground process
         processStatus = BACKGROUND_PROCESS;
@@ -111,10 +111,10 @@ void ProcessPriorityPolicy::analyseProcessPriority() {
     }
 }
 
-PidPriorityInfo* ProcessPriorityPolicy::get(pid_t pid) {
-    PidPriorityInfo* pnode = mHead;
+AppIdPriorityInfo* ProcessPriorityPolicy::get(AppId appId) {
+    AppIdPriorityInfo* pnode = mHead;
     while (pnode) {
-        if (pnode->pid == pid) {
+        if (pnode->appId == appId) {
             break;
         }
         pnode = pnode->next;
@@ -122,11 +122,13 @@ PidPriorityInfo* ProcessPriorityPolicy::get(pid_t pid) {
     return pnode;
 }
 
-PidPriorityInfo* ProcessPriorityPolicy::add(pid_t pid, bool isForeground, ProcessPriority level) {
-    PidPriorityInfo* pnode = get(pid);
+AppIdPriorityInfo* ProcessPriorityPolicy::add(AppId appId, bool isForeground,
+                                              ProcessPriority level) {
+    AppIdPriorityInfo* pnode = get(appId);
     if (pnode == nullptr) {
-        pnode = new PidPriorityInfo{pid, level, OS_MIDDLE_LEVEL_MIN_ADJ, clock(), nullptr, nullptr};
-        mLmk->setPidOomScore(pid, OS_MIDDLE_LEVEL_MIN_ADJ); // set default
+        pnode = new AppIdPriorityInfo{appId,   level,   OS_MIDDLE_LEVEL_MIN_ADJ,
+                                      clock(), nullptr, nullptr};
+        mLmk->setPidOomScore(appId, OS_MIDDLE_LEVEL_MIN_ADJ); // set default
         if (isForeground) {
             pnode->next = mHead;
             if (mHead) mHead->last = pnode;
@@ -159,8 +161,8 @@ PidPriorityInfo* ProcessPriorityPolicy::add(pid_t pid, bool isForeground, Proces
     return pnode;
 }
 
-void ProcessPriorityPolicy::remove(pid_t pid) {
-    PidPriorityInfo* pnode = get(pid);
+void ProcessPriorityPolicy::remove(AppId appId) {
+    AppIdPriorityInfo* pnode = get(appId);
     if (pnode != nullptr) {
         if (mHead == pnode) {
             mHead = pnode->next;
@@ -186,11 +188,11 @@ void ProcessPriorityPolicy::remove(pid_t pid) {
         delete pnode;
     }
 
-    mLmk->cancelMonitorPid(pid);
+    mLmk->cancelMonitorPid(appId);
 }
 
-void ProcessPriorityPolicy::pushForeground(pid_t pid) {
-    PidPriorityInfo* pnode = get(pid);
+void ProcessPriorityPolicy::pushForeground(AppId appId) {
+    AppIdPriorityInfo* pnode = get(appId);
     if (pnode) {
         if (mBackgroundPos && pnode == mBackgroundPos->last) {
             mBackgroundPos = mHead;
@@ -216,8 +218,8 @@ void ProcessPriorityPolicy::pushForeground(pid_t pid) {
     }
 }
 
-void ProcessPriorityPolicy::intoBackground(pid_t pid) {
-    PidPriorityInfo* pnode = get(pid);
+void ProcessPriorityPolicy::intoBackground(AppId appId) {
+    AppIdPriorityInfo* pnode = get(appId);
     if (pnode) {
         if (pnode != mTail && pnode != mBackgroundPos) {
             if (mBackgroundPos && mBackgroundPos->last == pnode) {
@@ -248,10 +250,10 @@ void ProcessPriorityPolicy::intoBackground(pid_t pid) {
 
 std::ostream& operator<<(std::ostream& os, ProcessPriorityPolicy& policy) {
     policy.analyseProcessPriority();
-    PidPriorityInfo* pnode = policy.mHead;
-    os << "\n\nProcess priority OomAdjScore: (pid, score)" << std::endl;
+    AppIdPriorityInfo* pnode = policy.mHead;
+    os << "\n\nProcess priority OomAdjScore: (appId, score)" << std::endl;
     while (pnode) {
-        os << "(" << pnode->pid << "," << pnode->oomScore << ") ";
+        os << "(" << pnode->appId << "," << pnode->oomScore << ") ";
         pnode = pnode->next;
     }
     os << std::endl;

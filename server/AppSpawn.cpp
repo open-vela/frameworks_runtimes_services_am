@@ -52,8 +52,8 @@ int AppSpawn::signalInit(uv_loop_t* looper, const ChildPidExitCB& cb) {
             SIGCHLD);
 }
 
-int AppSpawn::appSpawn(const char* execfile, std::initializer_list<std::string> argvlist) {
-    int pid = -1;
+pid_t AppSpawn::appSpawn(const char* execfile, std::initializer_list<std::string> argvlist) {
+    pid_t pid = -1;
     char* argv[argvlist.size() + 2]; /** 2 = program name + null ptr */
     int i = 1;
     argv[0] = const_cast<char*>(execfile);

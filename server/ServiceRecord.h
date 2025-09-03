@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 
+#include "AmsConfig.h"
 #include "TaskBoard.h"
 #include "app/Intent.h"
 #include "os/app/IServiceConnection.h"
@@ -73,7 +74,7 @@ public:
 
     void abnormalExit();
     const std::string* getPackageName() const;
-    int getPid() const; 
+    AppId getAppId() const;
     bool isAlive();
     static const char* statusToStr(int status);
 

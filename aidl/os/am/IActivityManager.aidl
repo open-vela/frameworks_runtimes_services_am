@@ -132,5 +132,5 @@ interface IActivityManager {
     /**
      * @brief clearApplication
      */
-    int clearApplication(int pid);
+    int clearApplication(IApplicationThread app);
 }

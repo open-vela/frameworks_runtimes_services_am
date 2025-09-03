@@ -16,6 +16,8 @@
 
 #include "AppRecord.h"
 
+#include <binder/IInterface.h>
+
 namespace os {
 namespace am {
 
@@ -80,12 +82,12 @@ void AppRecord::setForeground(const bool isForegroundActivity) {
     if (isForegroundActivity) {
         if (++mForegroundActivityCnt == 1) {
             mAppThread->setForegroundApplication(true);
-            mPriorityPolicy->pushForeground(mPid);
+            mPriorityPolicy->pushForeground(mAppId);
         }
     } else {
         if (--mForegroundActivityCnt == 0) {
             mAppThread->setForegroundApplication(false);
-            mPriorityPolicy->intoBackground(mPid);
+            mPriorityPolicy->intoBackground(mAppId);
         }
     }
     ALOGD("%s ForegroundActivityCnt:%d", mPackageName.c_str(), mForegroundActivityCnt);
@@ -115,18 +117,18 @@ void AppRecord::stopApplication() {
     }
 }
 
-const shared_ptr<AppRecord> AppInfoList::findAppInfo(const int pid) {
+const shared_ptr<AppRecord> AppInfoList::findAppInfo(const AppId appId) {
     for (auto it : mAppList) {
-        if (it->mPid == pid) {
+        if (it->mAppId == appId) {
             return it;
         }
     }
     return nullptr;
 }
 
-const shared_ptr<AppRecord> AppInfoList::findAppInfoWithAlive(const int pid) {
+const shared_ptr<AppRecord> AppInfoList::findAppInfoWithAlive(const AppId appId) {
     for (auto it : mAppList) {
-        if (it->mPid == pid && it->mStatus == APP_RUNNING) {
+        if (it->mAppId == appId && it->mStatus == APP_RUNNING) {
             return it;
         }
     }
@@ -142,18 +144,41 @@ const shared_ptr<AppRecord> AppInfoList::findAppInfoWithAlive(const string& pack
     return nullptr;
 }
 
+const shared_ptr<AppRecord> AppInfoList::findAppInfo(const sp<IApplicationThread>& app) {
+    for (const auto& it : mAppList) {
+        if ((it->mAppThread == app) ||
+            (android::IInterface::asBinder(it->mAppThread) == android::IInterface::asBinder(app))) {
+            return it;
+        }
+    }
+    return nullptr;
+}
+
+void AppInfoList::deleteAppInfo(const sp<IApplicationThread>& app) {
+    const int size = mAppList.size();
+    for (int i = 0; i < size; ++i) {
+        if ((mAppList[i]->mAppThread == app) ||
+            (android::IInterface::asBinder(mAppList[i]->mAppThread) ==
+             android::IInterface::asBinder(app))) {
+            mAppList[i] = mAppList[size - 1];
+            mAppList.pop_back();
+            break;
+        }
+    }
+}
+
 bool AppInfoList::addAppInfo(const shared_ptr<AppRecord>& appInfo) {
-    if (nullptr == findAppInfo(appInfo->mPid).get()) {
+    if (nullptr == findAppInfo(appInfo->mAppId).get()) {
         mAppList.emplace_back(appInfo);
         return true;
     }
     return false;
 }
 
-void AppInfoList::deleteAppInfo(const int pid) {
+void AppInfoList::deleteAppInfo(const AppId appId) {
     const int size = mAppList.size();
     for (int i = 0; i < size; ++i) {
-        if (mAppList[i]->mPid == pid) {
+        if (mAppList[i]->mAppId == appId) {
             mAppList[i] = mAppList[size - 1];
             mAppList.pop_back();
             break;
@@ -172,14 +197,14 @@ void AppInfoList::deleteAppInfo(const string& packageName) {
     }
 }
 
-void AppInfoList::addAppWaitingAttach(const std::string& packageName, int pid) {
-    mAppWaitingAttach.emplace_back(packageName, pid);
+void AppInfoList::addAppWaitingAttach(const std::string& packageName, AppId appId) {
+    mAppWaitingAttach.emplace_back(packageName, appId);
 }
 
-void AppInfoList::deleteAppWaitingAttach(const int pid) {
+void AppInfoList::deleteAppWaitingAttach(const AppId appId) {
     const int size = mAppWaitingAttach.size();
     for (int i = 0; i < size; ++i) {
-        if (mAppWaitingAttach[i].second == pid) {
+        if (mAppWaitingAttach[i].second == appId) {
             mAppWaitingAttach[i] = mAppWaitingAttach[size - 1];
             mAppWaitingAttach.pop_back();
             break;
@@ -187,16 +212,16 @@ void AppInfoList::deleteAppWaitingAttach(const int pid) {
     }
 }
 
-int AppInfoList::getAttachingAppPid(const std::string& packageName) {
+int AppInfoList::getAttachingAppId(const std::string& packageName) {
     for (auto it : mAppWaitingAttach) {
         if (it.first == packageName) return it.second;
     }
     return -1;
 }
 
-bool AppInfoList::getAttachingAppName(int pid, std::string& packageName) {
+bool AppInfoList::getAttachingAppName(AppId appId, std::string& packageName) {
     for (auto it : mAppWaitingAttach) {
-        if (it.second == pid) {
+        if (it.second == appId) {
             packageName = it.first;
             return true;
         }

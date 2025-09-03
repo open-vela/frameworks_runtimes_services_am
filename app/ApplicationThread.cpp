@@ -25,15 +25,13 @@
 #include <unistd.h>
 #include <uv.h>
 
-#ifdef CONFIG_SYSTEM_SERVER_LITE
-#include "app/ActivityManagerServiceLoop.h"
-#endif
-
 #include <mutex>
 
 #include "ActivityClientRecord.h"
 #include "ActivityTrace.h"
+#include "AmsConfig.h"
 #include "ServiceClientRecord.h"
+#include "XMSConfig.h"
 #include "app/Application.h"
 #include "app/ContextImpl.h"
 #include "app/Logger.h"
@@ -57,14 +55,11 @@ public:
         mApp = app;
     }
 
-#ifdef CONFIG_SYSTEM_SERVER_LITE
     void bind(ApplicationThread* appThread) {
-        mAppThread = appThread;
+        if (xmsLiteMode()) {
+            mAppThread = appThread;
+        }
     }
-    void bind(int pid) {
-        mPid = pid;
-    }
-#endif
 
     Status scheduleLaunchActivity(const string& activityName, const sp<IBinder>& token,
                                   const Intent& intent);
@@ -107,25 +102,24 @@ private:
 
 private:
     Application* mApp;
-#ifdef CONFIG_SYSTEM_SERVER_LITE
-    ApplicationThread* mAppThread{nullptr}; // For ApplicationThread
-    int mPid{0};                            // For ApplicationThread
-#endif
+
+    // for xms lite mode
+    ApplicationThread* mAppThread{nullptr};
 };
 
 /**
  * ApplicationThread: Application's main thread
  */
 ApplicationThread::ApplicationThread(Application* app)
-      :
-#ifdef CONFIG_SYSTEM_SERVER_LITE
-        mLoop(xms_loop),
-#endif
-        mApp(app) {
+      : mLoop(xmsLiteMode() ? getXmsLoop() : UvLoop()), mApp(app) {
     mApp->setMainLoop(&mLoop);
 }
 
-ApplicationThread::~ApplicationThread() {}
+ApplicationThread::~ApplicationThread() {
+    if (xmsLiteMode()) {
+        delete mApp;
+    }
+}
 
 void ApplicationThread::stop() {
     ALOGD("ApplicationThread::stop");
@@ -134,39 +128,40 @@ void ApplicationThread::stop() {
     mLoop.postDelayTask([this](void*) { mLoop.stop(); }, 100);
 }
 
-#ifndef CONFIG_SYSTEM_SERVER_LITE
-static void signalHandler(uv_signal_t* handle, int signum) {
-    ALOGW("warning: receive signal:%d", signum);
-    ApplicationThread* appThread = static_cast<ApplicationThread*>(handle->data);
-    appThread->stop();
-}
-#endif
-
 int ApplicationThread::start(int argc, char** argv) {
     if (argc < 2) {
         ALOGE("illegally launch Application!!!");
         return -1;
     }
     ALOGI("start Application:%s execfile:%s", argv[1], argv[0]);
-#ifdef CONFIG_SYSTEM_SERVER_LITE
-    android::sp<ApplicationThreadStub> appThread(new ApplicationThreadStub);
-    mApp->setPackageName(argv[1]);
-    mApp->onCreate(); /** Application create here */
-    appThread->bind(mApp);
-    mAppThreadStub = appThread;
-    appThread->bind(this);
-    appThread->bind(xms_pid);
+    if (xmsLiteMode()) {
+        android::sp<ApplicationThreadStub> appThread(new ApplicationThreadStub);
+        mApp->setPackageName(argv[1]);
+        mApp->onCreate(); /** Application create here */
+        appThread->bind(mApp);
+        mAppThreadStub = appThread;
+        appThread->bind(this);
 
-    ActivityManager am;
-    if (0 != am.attachApplication(appThread)) {
-        ALOGE("ApplicationThread attach failure");
-        return -3;
+        ActivityManager am;
+        if (0 != am.attachApplication(appThread)) {
+            ALOGE("ApplicationThread attach failure");
+            return -3;
+        }
+
+        return 0;
     }
-#else
+
     uv_signal_t sigterm;
     uv_signal_init(mLoop.get(), &sigterm);
     sigterm.data = this;
-    uv_signal_start(&sigterm, signalHandler, SIGTERM);
+    uv_signal_start(
+            &sigterm,
+            [](uv_signal_t* handle, int signum) {
+                ALOGW("warning: receive signal:%d", signum);
+                ApplicationThread* appThread = static_cast<ApplicationThread*>(handle->data);
+                appThread->stop();
+            },
+            SIGTERM);
 
     int binderFd;
     android::IPCThreadState::self()->setupPolling(&binderFd);
@@ -218,7 +213,7 @@ int ApplicationThread::start(int argc, char** argv) {
         }
     }
     ALOGW("Application[%s]:%s has been stopped!!!", argv[0], argv[1]);
-#endif
+
     return 0;
 }
 
@@ -521,16 +516,16 @@ void ApplicationThreadStub::deleteApplicationThread() {
             [this](void*) {
                 mApp->clearActivityAndService();
                 ALOGW("ApplicationThread stop");
-#ifdef CONFIG_SYSTEM_SERVER_LITE
-                // delete this object
-                ALOGI("ApplicationThreadStub delete itself");
-                mApp->onDestroy(); /** Application destroy here */
-                ActivityManager am;
-                am.clearApplication(mPid);
-                delete mAppThread;
-#else
-                mApp->getMainLoop()->stop();
-#endif
+                if (xmsLiteMode()) {
+                    // delete this object
+                    ALOGI("ApplicationThreadStub delete itself");
+                    mApp->onDestroy(); /** Application destroy here */
+                    ActivityManager am;
+                    am.clearApplication(this);
+                    delete mAppThread;
+                } else {
+                    mApp->getMainLoop()->stop();
+                }
             },
             300);
 }

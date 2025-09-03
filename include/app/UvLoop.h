@@ -58,7 +58,9 @@ public:
     /**
      * @brief Default constructor for the UvMsgQueue.
      */
-    UvMsgQueue() {}
+    UvMsgQueue() {
+        mUvAsync = new uv_async_t;
+    }
     /**
      * @brief Default destructor for the UvMsgQueue.
      */
@@ -74,8 +76,8 @@ public:
      * @return Returns `0` on success, or a non-zero value on error.
      */
     int attachLoop(uv_loop_t* loop) {
-        mUvAsync.data = this;
-        return uv_async_init(loop, &mUvAsync, [](uv_async_t* handle) {
+        mUvAsync->data = this;
+        return uv_async_init(loop, mUvAsync, [](uv_async_t* handle) {
             UvMsgQueue* my = reinterpret_cast<UvMsgQueue*>(handle->data);
             my->processMessage();
         });
@@ -112,7 +114,7 @@ public:
         }
         if (cnt == 1) {
             // If this is the first message, we need to trigger processing
-            return uv_async_send(&mUvAsync);
+            return uv_async_send(mUvAsync);
         }
 
         return 0;
@@ -127,7 +129,11 @@ public:
      * @brief Closes the message queue and cleans up resources.
      */
     void close() {
-        uvCloseHandle((uv_handle_t*)&mUvAsync);
+        if (mUvAsync && !uv_is_closing((uv_handle_t*)mUvAsync)) {
+            uv_close((uv_handle_t*)mUvAsync,
+                     [](uv_handle_t* handler) { delete reinterpret_cast<uv_async_t*>(handler); });
+            mUvAsync = nullptr;
+        }
     }
 
 private:
@@ -153,7 +159,7 @@ private:
 private:
     std::mutex mMutex;    /**< Mutex to protect access to the queue. */
     std::queue<T> mQueue; /**< The queue of messages to be processed. */
-    uv_async_t mUvAsync;  /**< The uv_async handle for triggering message processing. */
+    uv_async_t* mUvAsync; /**< The uv_async handle for triggering message processing. */
 };
 
 /**
@@ -483,7 +489,9 @@ public:
     /**
      * @brief Default constructor for the UvPoll class.
      */
-    UvPoll() {}
+    UvPoll() {
+        mHandler = new uv_poll_t;
+    }
     /**
      * @brief Constructor that initializes the poll handle with a loop and a file descriptor.
      *
@@ -491,6 +499,7 @@ public:
      * @param[in] fd The file descriptor to monitor.
      */
     UvPoll(uv_loop_t* loop, int fd) {
+        mHandler = new uv_poll_t;
         init(loop, fd);
     }
     /**
@@ -509,8 +518,8 @@ public:
      * @return Returns 0 on success, or a non-zero value on error.
      */
     int init(uv_loop_t* loop, int fd) {
-        mHandler.data = this;
-        return uv_poll_init(loop, &mHandler, fd);
+        mHandler->data = this;
+        return uv_poll_init(loop, mHandler, fd);
     }
     /**
      * @brief A callback type for handling poll events.
@@ -527,7 +536,7 @@ public:
     int start(int event, const PollCallBack& cb, void* data = nullptr) {
         mCallback = cb;
         mData = data;
-        return uv_poll_start(&mHandler, event, [](uv_poll_t* handle, int status, int events) {
+        return uv_poll_start(mHandler, event, [](uv_poll_t* handle, int status, int events) {
             UvPoll* my = reinterpret_cast<UvPoll*>(handle->data);
             my->mCallback(handle->io_watcher.fd, status, events, my->mData);
         });
@@ -538,17 +547,21 @@ public:
      * @return Returns 0 on success, or a non-zero value on error.
      */
     int stop() {
-        return uv_poll_stop(&mHandler);
+        return uv_poll_stop(mHandler);
     }
     /**
      * @brief Closes the poll handle and releases resources.
      */
     void close() {
-        uvCloseHandle((uv_handle_t*)&mHandler);
+        if (mHandler && !uv_is_closing((uv_handle_t*)mHandler)) {
+            uv_close((uv_handle_t*)mHandler,
+                     [](uv_handle_t* handler) { delete reinterpret_cast<uv_poll_t*>(handler); });
+            mHandler = nullptr;
+        }
     }
 
 private:
-    uv_poll_t mHandler;     /**< The libuv poll handle */
+    uv_poll_t* mHandler;    /**< The libuv poll handle */
     PollCallBack mCallback; /**< The callback to invoke when an event occurs */
     void* mData;            /**< Optional data to pass to the callback */
 };

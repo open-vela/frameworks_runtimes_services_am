@@ -233,8 +233,8 @@ private:
             mActivityMap; /**< Map of activity names to their creation functions. */
     map<string, CreateServiceFunc>
             mServiceMap; /**< Map of service names to their creation functions. */
-    int mUid;            /**< The UID of the application. */
-    int mPid;            /**< The PID of the application. */
+    int mUid;            /**< The UID of the application. Reserved field, currently not used*/
+    pid_t mPid;          /**< The PID of the application. Reserved field, currently not used*/
     UvLoop* mMainLoop;   /**< The main event loop of the application. */
     ::os::wm::WindowManager* mWindowManager; /**< Window manager for the application. */
 };

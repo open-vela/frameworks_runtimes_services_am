@@ -227,7 +227,7 @@ void ActivityRecord::pause() {
             ALOGD("schedulePauseActivity: %s", mName.c_str());
             appRecord->mAppThread->schedulePauseActivity(mToken);
         }
-        mWindowService->updateWindowTokenVisibility(mToken, LayoutParams::WINDOW_INVISIBLE);
+        mWindowService->updateWindowTokenVisibility(mToken, LayoutParams::WINDOW_HOLD);
     }
 }
 
@@ -325,7 +325,7 @@ const char* ActivityRecord::statusToStr(const int status) {
         case ActivityRecord::STOPPING:
             return "stopping";
         case ActivityRecord::STOPPED:
-            return "stoped";
+            return "stopped";
         case ActivityRecord::DESTROYING:
             return "destroying";
         case ActivityRecord::DESTROYED:
