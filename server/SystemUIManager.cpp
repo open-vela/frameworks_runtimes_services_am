@@ -88,7 +88,11 @@ ActivityStackHandler SystemUIManager::findTask(const std::string& tag) {
             // check the taskStack is alive
             if (auto activity = t->getRootActivity()) {
                 if (auto app = activity->getAppRecord()) {
+#ifdef CONFIG_MM_KASAN
+                    if (app->mStatus != APP_STOPPED) {
+#else
                     if (app->mStatus == APP_RUNNING) {
+#endif
                         return t;
                     }
                 }
