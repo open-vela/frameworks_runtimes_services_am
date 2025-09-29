@@ -1048,6 +1048,8 @@ void ActivityManagerInner::systemReady() {
     broadcastIntent(intent, IntentAction::COMP_TYPE_SERVICE);
     broadcastIntent(intent, IntentAction::COMP_TYPE_ACTIVITY);
 
+    property_set_bool("bootcomplete", true);
+
     AM_PROFILER_END();
     return;
 }
