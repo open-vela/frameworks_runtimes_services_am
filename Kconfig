@@ -42,6 +42,10 @@ config AM_TEST
 	default n
 	depends on LIB_GOOGLETEST
 
+config AM_INTENT_BUNDLE
+	bool "Enable am intent bundle"
+	default n
+
 config ACTIVITY_SERVICE_LOG_LEVEL
 	int "Activity Service Log Level"
 	default 6

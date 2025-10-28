@@ -59,16 +59,20 @@ void Intent::setFlag(const int32_t flag) {
     mFlag = flag;
 }
 
+#ifndef CONFIG_AM_INTENT_BUNDLE
 void Intent::setBundle(const android::os::PersistableBundle& extra) {
     mExtra = extra;
 }
+#endif
 
 status_t Intent::readFromParcel(const Parcel* parcel) {
     SAFE_PARCEL(parcel->readUtf8FromUtf16, &mTarget);
     SAFE_PARCEL(parcel->readUtf8FromUtf16, &mAction);
     SAFE_PARCEL(parcel->readUtf8FromUtf16, &mData);
     SAFE_PARCEL(parcel->readUint32, &mFlag);
+#ifndef CONFIG_AM_INTENT_BUNDLE
     SAFE_PARCEL(mExtra.readFromParcel, parcel);
+#endif
     uint32_t maxValue = NO_FLAG | FLAG_ACTIVITY_NEW_TASK | FLAG_ACTIVITY_SINGLE_TOP |
             FLAG_ACTIVITY_CLEAR_TOP | FLAG_ACTIVITY_CLEAR_TASK | FLAG_APP_SWITCH_TASK |
             FLAG_APP_MOVE_BACK;
@@ -85,7 +89,9 @@ status_t Intent::writeToParcel(Parcel* parcel) const {
     SAFE_PARCEL(parcel->writeUtf8AsUtf16, mAction);
     SAFE_PARCEL(parcel->writeUtf8AsUtf16, mData);
     SAFE_PARCEL(parcel->writeUint32, mFlag);
+#ifndef CONFIG_AM_INTENT_BUNDLE
     SAFE_PARCEL(mExtra.writeToParcel, parcel);
+#endif
     uint32_t maxValue = NO_FLAG | FLAG_ACTIVITY_NEW_TASK | FLAG_ACTIVITY_SINGLE_TOP |
             FLAG_ACTIVITY_CLEAR_TOP | FLAG_ACTIVITY_CLEAR_TASK | FLAG_APP_SWITCH_TASK |
             FLAG_APP_MOVE_BACK;

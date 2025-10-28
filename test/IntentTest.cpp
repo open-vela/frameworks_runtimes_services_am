@@ -56,6 +56,7 @@ TEST_F(IntentTest, TestIntentTarget) {
     EXPECT_EQ(intent.mTarget, "test");
 }
 
+#ifndef CONFIG_AM_INTENT_BUNDLE
 // 模拟测试 Intent::readFromParcel
 TEST_F(IntentTest, TestReadFromParcel) {
     // 创建一个 Parcel 对象
@@ -129,4 +130,5 @@ TEST_F(IntentTest, TestWriteToParcel) {
     ASSERT_EQ(newData.mFlag, os::app::Intent::FLAG_ACTIVITY_NEW_TASK);
 }
 
+#endif
 } // namespace test

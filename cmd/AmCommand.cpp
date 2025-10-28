@@ -42,7 +42,9 @@ string_view AmCommand::nextArg() {
 }
 
 int AmCommand::makeIntent(Intent &intent) {
+#ifndef CONFIG_AM_INTENT_BUNDLE
     android::os::PersistableBundle bundle;
+#endif
     bool hasTarget = false;
     for (auto param = nextArg(); param != ""; param = nextArg()) {
         if (param[0] != '-' && mNextArgs == 2) {
@@ -59,6 +61,7 @@ int AmCommand::makeIntent(Intent &intent) {
             intent.setFlag(std::stoi(string(nextArg().data())));
         } else if (param == "-d") {
             intent.setData(nextArg().data());
+#ifndef CONFIG_AM_INTENT_BUNDLE
         } else if (param == "--ei") {
             const auto key = String16(nextArg().data());
             const auto value = std::stoi(string(nextArg().data()));
@@ -75,6 +78,7 @@ int AmCommand::makeIntent(Intent &intent) {
             const auto key = String16(nextArg().data());
             const auto value = String16(nextArg().data());
             bundle.putString(key, value);
+#endif
         } else {
             printf("unknow options:%s\n", param.data());
             exit(0);
@@ -84,7 +88,9 @@ int AmCommand::makeIntent(Intent &intent) {
         printf("Necessary parameters are missing:<TARGET> or <ACTION> need to be set\n");
         exit(0);
     }
+#ifndef CONFIG_AM_INTENT_BUNDLE
     intent.setBundle(bundle);
+#endif
     return 0;
 }
 

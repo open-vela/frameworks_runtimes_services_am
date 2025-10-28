@@ -17,7 +17,9 @@
 #pragma once
 
 #include <binder/Parcel.h>
+#ifndef CONFIG_AM_INTENT_BUNDLE
 #include <binder/PersistableBundle.h>
+#endif
 #include <binder/Status.h>
 
 #include <string>
@@ -40,7 +42,9 @@ public:
     uint32_t mFlag;      /**< Flags that modify the behavior of the intent (e.g.,
                             FLAG_ACTIVITY_NEW_TASK). */
     /** PersistableBundle,a mapping from String values to various types */
+#ifndef CONFIG_AM_INTENT_BUNDLE
     android::os::PersistableBundle mExtra; /**< Extra data as a key-value mapping. */
+#endif
 
     /**
      * @enum Flag Constants
@@ -106,7 +110,9 @@ public:
      *
      * @param[in] extra The additional data to be included in the intent.
      */
+#ifndef CONFIG_AM_INTENT_BUNDLE
     void setBundle(const android::os::PersistableBundle& extra);
+#endif
     /**
      * @brief Reads the intent data from a parcel.
      *
