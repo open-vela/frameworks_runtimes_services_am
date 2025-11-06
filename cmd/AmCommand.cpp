@@ -128,7 +128,7 @@ int AmCommand::postIntent() {
 }
 
 int AmCommand::dump() {
-    const android::Vector<android::String16> args;
+    const std::vector<android::String16> args;
     if (auto service = mAm.getService()) {
         android::IInterface::asBinder(service)->dump(fileno(stdout), args);
         return 0;

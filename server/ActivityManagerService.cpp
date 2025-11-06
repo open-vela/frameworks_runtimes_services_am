@@ -136,7 +136,7 @@ public:
     void unregisterReceiver(const sp<IBroadcastReceiver>& receiver);
     int32_t clearApplication(const sp<IApplicationThread>& app);
 
-    void dump(int fd, const android::Vector<android::String16>& args);
+    void dump(int fd, const std::vector<android::String16>& args);
 
     void systemReady();
     void procAppTerminated(const std::shared_ptr<AppRecord>& appRecord);
@@ -1189,7 +1189,7 @@ void ActivityManagerInner::procAppTerminated(const std::shared_ptr<AppRecord>& a
     AM_PROFILER_END();
 }
 
-void ActivityManagerInner::dump(int fd, const android::Vector<android::String16>& args) {
+void ActivityManagerInner::dump(int fd, const std::vector<android::String16>& args) {
     std::ostringstream os;
     os << mTaskManager << mServices << mPriorityPolicy;
     write(fd, os.str().c_str(), os.str().size());
@@ -1491,8 +1491,7 @@ Status ActivityManagerService::clearApplication(const sp<IApplicationThread>& ap
     return Status::ok();
 }
 
-android::status_t ActivityManagerService::dump(int fd,
-                                               const android::Vector<android::String16>& args) {
+android::status_t ActivityManagerService::dump(int fd, const std::vector<android::String16>& args) {
     mInner->dump(fd, args);
     return 0;
 }

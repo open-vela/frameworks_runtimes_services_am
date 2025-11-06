@@ -224,7 +224,7 @@ public:
      * @param[in] args The arguments to filter the dump.
      * @return The status of the dump operation.
      */
-    android::status_t dump(int fd, const android::Vector<android::String16>& args) override;
+    android::status_t dump(int fd, const std::vector<android::String16>& args) override;
 
     /**
      * @brief Marks the service as ready for operation.
