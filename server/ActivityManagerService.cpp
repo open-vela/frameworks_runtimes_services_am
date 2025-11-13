@@ -585,6 +585,8 @@ void ActivityManagerInner::reportActivityStatus(const sp<IBinder>& token, int32_
                 }
 
                 auto taskmanager = getTaskManager(appRecord->mIsSystemUI);
+                ALOGI("taskmanager delete Activity:%s in reportActivityStatus",
+                      activity->getName().c_str());
                 taskmanager->deleteActivity(activity);
                 appRecord->deleteActivity(activity);
                 if (!appRecord->checkActiveStatus()) {
@@ -1070,6 +1072,8 @@ void ActivityManagerInner::procAppTerminated(const std::shared_ptr<AppRecord>& a
     auto taskmanager = getTaskManager(appRecord->mIsSystemUI);
     for (auto& it : needDeleteActivity) {
         if (auto activityRecord = it.lock()) {
+            ALOGI("taskmanager delete Activity:%s in procAppTerminated",
+                  activityRecord->getName().c_str());
             taskmanager->deleteActivity(activityRecord);
             mActivityMap.erase(activityRecord->getToken());
         }

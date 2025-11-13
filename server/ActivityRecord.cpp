@@ -362,6 +362,8 @@ void ActivityLifeCycleTask::execute(const Label& e) {
         ALOGE("Activity %s[%s] report error!", mActivity->getName().c_str(),
               mActivity->getStatusStr());
         mActivity->reportError();
+        ALOGI("taskmanager delete Activity:%s in ActivityLifeCycleTask::execute",
+              mActivity->getName().c_str());
         mTaskManager->deleteActivity(mActivity);
     } else {
         mActivity->setStatus(event->status);
