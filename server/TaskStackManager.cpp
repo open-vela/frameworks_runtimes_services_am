@@ -238,6 +238,10 @@ void TaskStackManager::finishActivity(const ActivityHandler& activity) {
 }
 
 void TaskStackManager::deleteActivity(const ActivityHandler& activity) {
+    ALOGI("TaskStackManager::deleteActivity %s token:[%p] ", activity->getName().c_str(),
+          activity->getToken().get());
+    print(std::cout);
+
     if (auto task = activity->getTask()) {
         if (task->findActivity(activity->getToken())) {
             while (auto tmpActivity = task->getTopActivity()) {
