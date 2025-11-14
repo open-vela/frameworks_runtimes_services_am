@@ -77,56 +77,63 @@ ActivityManager& ContextImpl::getActivityManager() {
 }
 
 int32_t ContextImpl::stopApplication() {
-    return mAm.stopApplication(mToken);
+    return executeAmMethod([this]() { return mAm.stopApplication(mToken); });
 }
 
 int32_t ContextImpl::startActivity(const Intent& intent) {
-    return mAm.startActivity(mToken, intent, ActivityManager::NO_REQUEST);
+    return executeAmMethod([this, intent]() {
+        return mAm.startActivity(mToken, intent, ActivityManager::NO_REQUEST);
+    });
 }
 
 int32_t ContextImpl::startActivityForResult(const Intent& intent, int32_t requestCode) {
-    return mAm.startActivity(mToken, intent, requestCode);
+    return executeAmMethod([this, intent, requestCode]() {
+        return mAm.startActivity(mToken, intent, requestCode);
+    });
 }
 
 int32_t ContextImpl::stopActivity(const Intent& intent) {
-    return mAm.stopActivity(intent, ActivityManager::NO_REQUEST);
+    return executeAmMethod(
+            [this, intent]() { return mAm.stopActivity(intent, ActivityManager::NO_REQUEST); });
 }
 
 int32_t ContextImpl::startService(const Intent& intent) {
-    return mAm.startService(intent);
+    return executeAmMethod([this, intent]() { return mAm.startService(intent); });
 }
 
 int32_t ContextImpl::stopService(const Intent& intent) {
-    return mAm.stopService(intent);
+    return executeAmMethod([this, intent]() { return mAm.stopService(intent); });
 }
 
 int32_t ContextImpl::stopService() {
-    return mAm.stopServiceByToken(mToken);
+    return executeAmMethod([this]() { return mAm.stopServiceByToken(mToken); });
 }
 
 int ContextImpl::bindService(const Intent& intent, const sp<IServiceConnection>& conn) {
-    return mAm.bindService(mToken, intent, conn);
+    return executeAmMethod(
+            [this, intent, conn]() { return mAm.bindService(mToken, intent, conn); });
 }
 
 void ContextImpl::unbindService(const sp<IServiceConnection>& conn) {
-    return mAm.unbindService(conn);
+    executeAmMethod([this, conn]() { mAm.unbindService(conn); });
 }
 
 int32_t ContextImpl::postIntent(const Intent& intent) {
-    return mAm.postIntent(intent);
+    return executeAmMethod([this, intent]() { return mAm.postIntent(intent); });
 }
 
 int32_t ContextImpl::sendBroadcast(const Intent& intent) {
-    return mAm.sendBroadcast(intent);
+    return executeAmMethod([this, intent]() { return mAm.sendBroadcast(intent); });
 }
 
 int32_t ContextImpl::registerReceiver(const std::string& action,
                                       const sp<IBroadcastReceiver>& receiver) {
-    return mAm.registerReceiver(action, receiver);
+    return executeAmMethod(
+            [this, action, receiver]() { return mAm.registerReceiver(action, receiver); });
 }
 
 void ContextImpl::unregisterReceiver(const sp<IBroadcastReceiver>& receiver) {
-    return mAm.unregisterReceiver(receiver);
+    executeAmMethod([this, receiver]() { mAm.unregisterReceiver(receiver); });
 }
 
 void ContextImpl::setIntent(const Intent& intent) {

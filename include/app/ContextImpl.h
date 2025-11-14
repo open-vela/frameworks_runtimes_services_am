@@ -18,6 +18,7 @@
 
 #include <memory>
 
+#include "XMSConfig.h"
 #include "app/ActivityManager.h"
 #include "app/Application.h"
 #include "app/Context.h"
@@ -233,6 +234,19 @@ public:
      * @return A reference to the current intent.
      */
     const Intent& getIntent() override;
+
+    template <typename Func>
+    auto executeAmMethod(Func&& func) -> decltype(func()) {
+        if (!xmsLiteMode()) {
+            return func();
+        }
+
+        mApp->getMainLoop()->postTask([func = std::forward<Func>(func)]() { func(); });
+
+        if constexpr (!std::is_same_v<decltype(func()), void>) {
+            return decltype(func()){};
+        }
+    }
 
 public:
     const Application* mApp;     /**< The application associated with this context. */
