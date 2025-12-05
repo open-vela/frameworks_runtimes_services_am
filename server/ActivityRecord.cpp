@@ -223,11 +223,12 @@ void ActivityRecord::pause() {
     if (mStatus > STARTING && mStatus < PAUSING) {
         mStatus = PAUSING;
         const auto appRecord = mApp.lock();
+
+        mWindowService->updateWindowTokenVisibility(mToken, LayoutParams::WINDOW_HOLD);
         if (appRecord && appRecord->mStatus != APP_STOPPED) {
             ALOGD("schedulePauseActivity: %s", mName.c_str());
             appRecord->mAppThread->schedulePauseActivity(mToken);
         }
-        mWindowService->updateWindowTokenVisibility(mToken, LayoutParams::WINDOW_HOLD);
     }
 }
 
@@ -235,11 +236,11 @@ void ActivityRecord::stop() {
     if (mStatus > CREATING && mStatus < STOPPING) {
         mStatus = STOPPING;
         const auto appRecord = mApp.lock();
+        mWindowService->updateWindowTokenVisibility(mToken, LayoutParams::WINDOW_GONE);
         if (appRecord && appRecord->mStatus != APP_STOPPED) {
             ALOGD("scheduleStopActivity: %s", mName.c_str());
             appRecord->mAppThread->scheduleStopActivity(mToken);
         }
-        mWindowService->updateWindowTokenVisibility(mToken, LayoutParams::WINDOW_GONE);
     }
 }
 
@@ -247,11 +248,11 @@ void ActivityRecord::destroy() {
     if (mStatus > CREATING && mStatus < DESTROYING) {
         mStatus = DESTROYING;
         const auto appRecord = mApp.lock();
+        mWindowService->removeWindowToken(mToken, 0);
         if (appRecord && appRecord->mStatus != APP_STOPPED) {
             ALOGD("scheduleDestroyActivity: %s", mName.c_str());
             appRecord->mAppThread->scheduleDestroyActivity(mToken);
         }
-        mWindowService->removeWindowToken(mToken, 0);
     }
 }
 
