@@ -1271,6 +1271,12 @@ int ActivityManagerInner::submitAppStartupTask(const string& packageName,
     AM_PROFILER_BEGIN();
     AppId appId = mAppInfo.getAttachingAppId(prcocessName);
     if (appId < 0) {
+#ifndef CONFIG_BUILTIN
+        ALOGE("package name: %s, run app:%s is not available. It depends on CONFIG_BUILTIN",
+              packageName.c_str(), execfile.c_str());
+        AM_PROFILER_END();
+        return -1;
+#else
         int index = builtin_isavail(execfile.c_str());
         if (index < 0) {
             ALOGE("package name: %s, run app:%s is not available", packageName.c_str(),
@@ -1298,6 +1304,7 @@ int ActivityManagerInner::submitAppStartupTask(const string& packageName,
             return -1;
         }
         ALOGI("run app:%s success, appId:%d", execfile.c_str(), appId);
+#endif
     } else if (!isSupportMultiTask) {
         ALOGW("the Application:%s[%d] is waitting for attach, please wait a moment before "
               "requesting again",
