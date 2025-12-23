@@ -197,10 +197,7 @@ int ApplicationThread::start(int argc, char** argv) {
 
     // set uv close flag
     if (mLoop.close() != 0) {
-        int tryCloseCnt = 50;
-#ifdef CONFIG_MM_KASAN
-        tryCloseCnt = 200;
-#endif
+        int tryCloseCnt = CONFIG_AMS_UV_CLOSE_RETRY_COUNT;
         while (mLoop.isAlive() && --tryCloseCnt) {
             usleep(300000);
             mLoop.run(UV_RUN_NOWAIT);

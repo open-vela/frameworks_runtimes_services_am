@@ -75,4 +75,14 @@ config AMS_REQUEST_TIMEOUT_MS
 		The default is 10000 ms (10 seconds) when KASAN is not enabled,
 		and 30000 ms (30 seconds) when KASAN is enabled.
 
+config AMS_UV_CLOSE_RETRY_COUNT
+	int "UV close retry count"
+	default 200 if MM_KASAN || SIM_ASAN
+	default 50
+	help
+		This option defines the number of retry attempts for UV loop close operation.
+		- Default: 50 attempts
+		- With KASAN: 200 attempts (for memory debugging)
+		- In QEMU: 100 attempts (for virtualized environments)
+
 endif
