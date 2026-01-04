@@ -1236,10 +1236,12 @@ int ActivityManagerInner::submitAppStartupTask(const string& packageName,
     if (!xmsLiteMode()) {
         AM_PROFILER_BEGIN();
         AppId appId = mAppInfo.getAttachingAppId(prcocessName);
+        ALOGI("the appId of Application:%s is %d", packageName.c_str(), appId);
         if (appId < 0) {
             pid_t pid = mAppSpawn.appSpawn(execfile.c_str(), {packageName});
             appId = static_cast<AppId>(pid);
             if (appId > 0) {
+                ALOGI("appSpawn App:%s success, appId:%d", execfile.c_str(), appId);
                 mAppInfo.addAppWaitingAttach(prcocessName, appId);
                 /* 由于appSpawn 是异步的，所以需要等待attach成功后再执行task
                    考虑到时序问题，譬如，用户在调用bindService和调用attachApplication之间，继续调用bindService,

@@ -61,7 +61,7 @@ pid_t AppSpawn::appSpawn(const char* execfile, std::initializer_list<std::string
         argv[i++] = const_cast<char*>(it->c_str());
     }
     argv[i] = nullptr;
-    ALOGD("appSpawn :%s %s", argv[0], argv[1]);
+    ALOGI("appSpawn :%s %s", argv[0], argv[1]);
 
     const int ret = posix_spawn(&pid, execfile, NULL, NULL, argv, NULL);
     if (ret != 0) {
