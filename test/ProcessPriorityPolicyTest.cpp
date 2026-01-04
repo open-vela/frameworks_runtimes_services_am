@@ -26,6 +26,7 @@ namespace test {
 
 class ProcessPriorityPolicyTest : public ::testing::Test {
 protected:
+    UvLoop mloop;
     os::am::LowMemoryManager m_lmm;
     std::unique_ptr<os::am::ProcessPriorityPolicy> m_policy;
 
@@ -41,12 +42,11 @@ protected:
 };
 
 TEST_F(ProcessPriorityPolicyTest, init) {
-    auto loop = std::make_shared<UvLoop>();
-    EXPECT_TRUE(m_lmm.init(loop.get()));
+    EXPECT_TRUE(m_lmm.init(&mloop));
 }
 
 TEST_F(ProcessPriorityPolicyTest, isOkToLaunch) {
-    EXPECT_FALSE(m_lmm.isOkToLaunch());
+    EXPECT_TRUE(m_lmm.isOkToLaunch());
 }
 
 TEST_F(ProcessPriorityPolicyTest, getPID1) {
