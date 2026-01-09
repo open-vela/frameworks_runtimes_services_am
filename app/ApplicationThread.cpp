@@ -102,6 +102,7 @@ private:
 
 private:
     Application* mApp;
+    bool terminate_posted_ = false;
 
     // for xms lite mode
     ApplicationThread* mAppThread{nullptr};
@@ -328,8 +329,12 @@ Status ApplicationThreadStub::setForegroundApplication(bool isForeground) {
 }
 
 Status ApplicationThreadStub::terminateApplication() {
-    ALOGW("terminateApplication package:%s", mApp->getPackageName().c_str());
-    deleteApplicationThread();
+    if (!terminate_posted_) {
+        ALOGW("terminateApplication package:%s", mApp->getPackageName().c_str());
+        deleteApplicationThread();
+        terminate_posted_ = true;
+    }
+
     return Status::ok();
 }
 
