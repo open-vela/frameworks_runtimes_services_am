@@ -1255,7 +1255,8 @@ int ActivityManagerInner::submitAppStartupTask(const string& packageName,
                 return -1;
             }
         } else if (!isSupportMultiTask) {
-            ALOGW("the Application:%s[%d] is waitting for attach, please wait a moment before "
+            ALOGW("not support multi task, and the Application:%s[%d] is waitting for attach, "
+                  "please wait a moment before "
                   "requesting again",
                   packageName.c_str(), appId);
             AM_PROFILER_END();
