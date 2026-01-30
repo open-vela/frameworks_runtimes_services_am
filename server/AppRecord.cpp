@@ -107,11 +107,7 @@ bool AppRecord::checkActiveStatus() const {
 }
 
 void AppRecord::stopApplication() {
-#ifdef CONFIG_MM_KASAN
     if (mStatus != APP_STOPPED) {
-#else
-    if (mStatus == APP_RUNNING) {
-#endif
         mAppThread->terminateApplication();
         mStatus = APP_STOPPING;
     }

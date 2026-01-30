@@ -260,9 +260,6 @@ void ActivityRecord::abnormalExit() {
     mStatus = DESTROYED;
     if (auto appRecord = mApp.lock()) {
         ALOGW("Activity:%s abnormal exit!", mName.c_str());
-#ifndef CONFIG_MM_KASAN
-        appRecord->deleteActivity(shared_from_this());
-#endif
         mWindowService->removeWindowToken(mToken, 0);
         appRecord->stopApplication();
     }

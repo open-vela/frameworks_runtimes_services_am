@@ -287,7 +287,6 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
         }
     }
     if (apptask) {
-#ifdef CONFIG_MM_KASAN
         if (auto activity = apptask->getTopActivity(); activity) {
             auto appRecord = activity->getAppRecord();
             if (appRecord && appRecord->mStatus != AppStatus::APP_RUNNING) {
@@ -298,7 +297,7 @@ int ActivityManagerInner::startActivity(const sp<IBinder>& caller, const Intent&
                 return android::BAD_VALUE;
             }
         }
-#endif
+
         taskmanager->switchTaskToActive(apptask, intent);
     } else {
         ret = startActivityReal(taskmanager, activityName, packageInfo, intent, caller,
