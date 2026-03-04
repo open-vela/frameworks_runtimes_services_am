@@ -22,9 +22,6 @@
 
 #include <thread>
 
-#include "IntentTest.cpp"
-#include "ProcessPriorityPolicyTest.cpp"
-
 using namespace os::app;
 
 namespace test {
@@ -133,12 +130,6 @@ TEST(UvLoopTest, poll_mqueue) {
     }
     EXPECT_EQ(looper.isAlive(), false);
     EXPECT_EQ(looper.close(), 0);
-}
-
-extern "C" int main(int argc, char** argv) {
-    testing::InitGoogleTest(&argc, argv);
-    ::testing::GTEST_FLAG(filter) = "UvLoopTest.*:IntentTest.*:ProcessPriorityPolicyTest.*";
-    return RUN_ALL_TESTS();
 }
 
 } // namespace test

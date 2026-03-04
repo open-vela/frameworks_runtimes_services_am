@@ -41,7 +41,7 @@ CXXFLAGS += ${INCDIR_PREFIX}server ${INCDIR_PREFIX}../server
 PROGNAME += amTest
 PRIORITY  = SCHED_PRIORITY_DEFAULT
 STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
-MAINSRC += test/UvLoopTest.cpp
+MAINSRC += test/am_test_main.cpp
 endif
 
 

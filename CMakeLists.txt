@@ -86,7 +86,10 @@ if(CONFIG_SYSTEM_ACTIVITY_SERVICE)
       PRIORITY
       SCHED_PRIORITY_DEFAULT
       SRCS
+      test/am_test_main.cpp
       test/UvLoopTest.cpp
+      test/IntentTest.cpp
+      test/ProcessPriorityPolicyTest.cpp
       INCLUDE_DIRECTORIES
       ${INCDIR}
       DEPENDS
